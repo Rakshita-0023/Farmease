@@ -1,81 +1,69 @@
 import { useState } from 'react'
 
-function Tips() {
-  const [selectedCategory, setSelectedCategory] = useState('all')
+const Tips = () => {
+  const [activeCategory, setActiveCategory] = useState('general')
 
-  const tips = [
-    {
-      id: 1,
-      category: 'planting',
-      title: 'Best Time to Plant Rice',
-      content: 'Plant rice during monsoon season (June-July) for optimal growth.',
-      icon: '🌱'
-    },
-    {
-      id: 2,
-      category: 'watering',
-      title: 'Efficient Irrigation',
-      content: 'Water crops early morning or evening to reduce evaporation.',
-      icon: '💧'
-    },
-    {
-      id: 3,
-      category: 'fertilizer',
-      title: 'Organic Fertilizers',
-      content: 'Use compost and organic matter to improve soil health naturally.',
-      icon: '🌿'
-    }
-  ]
-
-  const categories = [
-    { value: 'all', label: 'All Tips' },
-    { value: 'planting', label: 'Planting' },
-    { value: 'watering', label: 'Watering' },
-    { value: 'fertilizer', label: 'Fertilizer' }
-  ]
-
-  const filteredTips = selectedCategory === 'all' 
-    ? tips 
-    : tips.filter(tip => tip.category === selectedCategory)
+  const tips = {
+    general: [
+      { title: 'Soil Testing', content: 'Test your soil pH regularly. Most crops prefer pH between 6.0-7.0.' },
+      { title: 'Crop Rotation', content: 'Rotate crops annually to maintain soil fertility and reduce pest buildup.' },
+      { title: 'Water Management', content: 'Water early morning or late evening to reduce evaporation losses.' }
+    ],
+    seasonal: [
+      { title: 'Summer Care', content: 'Provide shade for sensitive crops and increase watering frequency.' },
+      { title: 'Monsoon Prep', content: 'Ensure proper drainage to prevent waterlogging during heavy rains.' },
+      { title: 'Winter Protection', content: 'Cover sensitive plants during frost and reduce watering.' }
+    ],
+    organic: [
+      { title: 'Composting', content: 'Create compost from kitchen waste and farm residue for natural fertilizer.' },
+      { title: 'Natural Pesticides', content: 'Use neem oil and soap solution for eco-friendly pest control.' },
+      { title: 'Beneficial Insects', content: 'Encourage ladybugs and bees by planting diverse flowering plants.' }
+    ]
+  }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.5rem', display: 'flex', alignItems: 'center' }}>
-          💡 Farming Tips
-        </h1>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          style={{ 
-            padding: '0.5rem 1rem', 
-            border: '1px solid #d1d5db', 
-            borderRadius: '6px',
-            fontSize: '1rem'
-          }}
-        >
-          {categories.map(category => (
-            <option key={category.value} value={category.value}>
-              {category.label}
-            </option>
-          ))}
-        </select>
+    <div className="tips-page">
+      <div className="page-header">
+        <h1>💡 Farming Tips</h1>
+        <p>Expert advice to improve your farming practices</p>
       </div>
 
-      <div className="grid grid-3">
-        {filteredTips.map((tip) => (
-          <div key={tip.id} className="card">
-            <div style={{ fontSize: '3rem', textAlign: 'center', marginBottom: '1rem' }}>
-              {tip.icon}
-            </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-              {tip.title}
-            </h3>
-            <p style={{ color: '#6b7280', lineHeight: '1.6' }}>
-              {tip.content}
-            </p>
+      <div className="tips-categories">
+        <button 
+          className={activeCategory === 'general' ? 'active' : ''} 
+          onClick={() => setActiveCategory('general')}
+        >
+          General Tips
+        </button>
+        <button 
+          className={activeCategory === 'seasonal' ? 'active' : ''} 
+          onClick={() => setActiveCategory('seasonal')}
+        >
+          Seasonal Care
+        </button>
+        <button 
+          className={activeCategory === 'organic' ? 'active' : ''} 
+          onClick={() => setActiveCategory('organic')}
+        >
+          Organic Farming
+        </button>
+      </div>
+
+      <div className="tips-grid">
+        {tips[activeCategory].map((tip, index) => (
+          <div key={index} className="tip-card">
+            <h3>{tip.title}</h3>
+            <p>{tip.content}</p>
           </div>
         ))}
+      </div>
+
+      <div className="featured-tip">
+        <h3>🌟 Tip of the Day</h3>
+        <p>
+          Monitor your crops daily for early signs of pests or diseases. 
+          Early detection can save your entire harvest!
+        </p>
       </div>
     </div>
   )
