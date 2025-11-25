@@ -1,11 +1,19 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import Dashboard from './components/Dashboard'
+import EnhancedDashboard from './components/EnhancedDashboard'
 import Login from './components/Login'
+import LandingPage from './components/LandingPage'
 import FarmManagement from './components/FarmManagement'
 import Weather from './components/Weather'
 import Market from './components/Market'
 import Tips from './components/Tips'
-import VoiceAssistant from './components/VoiceAssistant'
+
+import AIChatbot from './components/AIChatbot'
+import LocationDetector from './components/LocationDetector'
+import MarketMap from './components/MarketMap'
+import YieldPredictor from './components/YieldPredictor'
+import NotificationSystem from './components/NotificationSystem'
+import AdvancedFeatures from './components/AdvancedFeatures'
 import LoadingAnimation from './components/LoadingAnimation'
 
 const LanguageContext = createContext()
@@ -55,10 +63,12 @@ const translations = {
 export const useLanguage = () => useContext(LanguageContext)
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('login')
+  const [currentPage, setCurrentPage] = useState('landing')
   const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState(null)
   const [language, setLanguage] = useState('en')
+  const [userLocation, setUserLocation] = useState(null)
+  const [farms, setFarms] = useState([])
   
   const t = (key) => translations[language][key] || key
 
@@ -68,6 +78,12 @@ function App() {
     if (token && userData) {
       setUser(JSON.parse(userData))
       setCurrentPage('dashboard')
+    }
+    
+    // Load farms from localStorage
+    const userFarms = localStorage.getItem('farms')
+    if (userFarms) {
+      setFarms(JSON.parse(userFarms))
     }
   }, [])
 
@@ -82,6 +98,13 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData)
     handlePageChange('dashboard')
+    
+    // Show welcome notification
+    setTimeout(() => {
+      if (window.showWelcomeNotification) {
+        window.showWelcomeNotification(userData.name)
+      }
+    }, 1000)
   }
 
   const handleLogout = () => {
@@ -95,6 +118,10 @@ function App() {
     return <LoadingAnimation />
   }
 
+  if (currentPage === 'landing') {
+    return <LandingPage onGetStarted={() => setCurrentPage('login')} />
+  }
+
   if (currentPage === 'login') {
     return <Login onLogin={handleLogin} />
   }
@@ -105,6 +132,7 @@ function App() {
         <nav className="navbar">
           <div className="nav-brand">
             <h2>🌱 FarmEase</h2>
+            <LocationDetector onLocationDetected={setUserLocation} />
           </div>
           <div className="nav-links">
             <button 
@@ -137,31 +165,40 @@ function App() {
             >
               {t('tips')}
             </button>
+            <button 
+              className={currentPage === 'advanced' ? 'active' : ''} 
+              onClick={() => handlePageChange('advanced')}
+            >
+              Advanced
+            </button>
           </div>
           <div className="nav-profile">
+            <NotificationSystem userLocation={userLocation} farms={farms} />
             <select 
               value={language} 
               onChange={(e) => setLanguage(e.target.value)}
               className="language-selector"
             >
-              <option value="en">English</option>
-              <option value="hi">हिंदी</option>
-              <option value="te">తెలుగు</option>
+              <option value="en">EN</option>
+              <option value="hi">हि</option>
+              <option value="te">తె</option>
             </select>
-            <span>{t('welcome')}, {user?.name || 'Farmer'}</span>
-            <button onClick={handleLogout} className="logout-btn">{t('logout')}</button>
+            <span className="user-greeting">{user?.name || 'Farmer'}</span>
+            <button onClick={handleLogout} className="logout-btn">Logout</button>
           </div>
         </nav>
 
       <main className="main-content">
-        {currentPage === 'dashboard' && <Dashboard />}
+        {currentPage === 'dashboard' && <EnhancedDashboard />}
         {currentPage === 'farms' && <FarmManagement />}
         {currentPage === 'weather' && <Weather />}
         {currentPage === 'market' && <Market />}
         {currentPage === 'tips' && <Tips />}
+        {currentPage === 'advanced' && <AdvancedFeatures userLocation={userLocation} />}
       </main>
 
-        <VoiceAssistant />
+
+        <AIChatbot />
       </div>
     </LanguageContext.Provider>
   )
