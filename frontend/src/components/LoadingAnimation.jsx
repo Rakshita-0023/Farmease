@@ -5,7 +5,7 @@ const LoadingAnimation = () => {
   const [animationData, setAnimationData] = useState(null)
 
   useEffect(() => {
-    fetch('/Money.json')
+    fetch('/Money (1).json')
       .then(response => response.json())
       .then(data => setAnimationData(data))
       .catch(error => console.error('Error loading animation:', error))
