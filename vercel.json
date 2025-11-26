@@ -1,4 +1,7 @@
 {
+  "project": {
+    "rootDirectory": "frontend"
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
