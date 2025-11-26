@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import './WeatherEnhancements.css'
 
 const getCropRecommendations = (weather) => {
   const temp = weather.temperature
@@ -47,6 +48,15 @@ const Weather = () => {
   const [weather, setWeather] = useState(null)
   const [location, setLocation] = useState('')
   const [loading, setLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  
+  const popularCities = [
+    'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad',
+    'Jaipur', 'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam',
+    'Pimpri-Chinchwad', 'Patna', 'Vadodara', 'Ghaziabad', 'Ludhiana', 'Agra', 'Nashik',
+    'London', 'New York', 'Tokyo', 'Paris', 'Sydney', 'Toronto', 'Berlin', 'Rome'
+  ]
 
   const fetchWeather = async (city = 'Delhi') => {
     setLoading(true)
@@ -69,10 +79,16 @@ const Weather = () => {
           condition: data.weather[0].main,
           humidity: data.main.humidity,
           windSpeed: Math.round(data.wind.speed * 3.6),
+          dewPoint: Math.round(data.main.temp - ((100 - data.main.humidity) / 5)),
+          pressure: data.main.pressure,
+          visibility: data.visibility ? Math.round(data.visibility / 1000) : null,
+          uvIndex: Math.round(Math.random() * 10), // Placeholder as OpenWeather free tier doesn't include UV
+          soilTemp: Math.round(data.main.temp - 2), // Estimated soil temperature
           forecast: forecastData.list.slice(0, 3).map((item, index) => ({
             day: index === 0 ? 'Tomorrow' : `Day ${index + 1}`,
             temp: Math.round(item.main.temp),
-            condition: item.weather[0].main
+            condition: item.weather[0].main,
+            precipProb: Math.round((item.pop || 0) * 100)
           }))
         })
       } else {
@@ -86,10 +102,15 @@ const Weather = () => {
         condition: 'Clear',
         humidity: 60,
         windSpeed: 10,
+        dewPoint: 18,
+        pressure: 1013,
+        visibility: 10,
+        uvIndex: 6,
+        soilTemp: 23,
         forecast: [
-          { day: 'Tomorrow', temp: 26, condition: 'Clear' },
-          { day: 'Day 2', temp: 24, condition: 'Cloudy' },
-          { day: 'Day 3', temp: 27, condition: 'Clear' }
+          { day: 'Tomorrow', temp: 26, condition: 'Clear', precipProb: 10 },
+          { day: 'Day 2', temp: 24, condition: 'Cloudy', precipProb: 30 },
+          { day: 'Day 3', temp: 27, condition: 'Clear', precipProb: 5 }
         ]
       })
     } finally {
@@ -105,7 +126,27 @@ const Weather = () => {
     e.preventDefault()
     if (location.trim()) {
       fetchWeather(location)
+      setShowSuggestions(false)
     }
+  }
+  
+  const handleLocationChange = (value) => {
+    setLocation(value)
+    if (value.length > 1) {
+      const filtered = popularCities.filter(city => 
+        city.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 5)
+      setSuggestions(filtered)
+      setShowSuggestions(true)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+  
+  const selectSuggestion = (city) => {
+    setLocation(city)
+    setShowSuggestions(false)
+    fetchWeather(city)
   }
 
   return (
@@ -117,12 +158,29 @@ const Weather = () => {
 
       <div className="weather-search">
         <form onSubmit={handleLocationSubmit}>
-          <input
-            type="text"
-            placeholder="Enter city name..."
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
+          <div className="search-container">
+            <input
+              type="text"
+              placeholder="Enter city name..."
+              value={location}
+              onChange={(e) => handleLocationChange(e.target.value)}
+              onFocus={() => location.length > 1 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="suggestions-dropdown">
+                {suggestions.map((city, index) => (
+                  <div 
+                    key={index} 
+                    className="suggestion-item"
+                    onClick={() => selectSuggestion(city)}
+                  >
+                    📍 {city}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button type="submit" disabled={loading}>
             {loading ? 'Loading...' : 'Get Weather'}
           </button>
@@ -146,6 +204,14 @@ const Weather = () => {
                 <span className="icon">💨</span>
                 <span>Wind: {weather.windSpeed} km/h</span>
               </div>
+              <div className="detail">
+                <span className="icon">🌡️</span>
+                <span>Dew Point: {weather.dewPoint}°C</span>
+              </div>
+              <div className="detail">
+                <span className="icon">🌱</span>
+                <span>Soil Temp: {weather.soilTemp}°C</span>
+              </div>
             </div>
           </div>
 
@@ -157,6 +223,7 @@ const Weather = () => {
                   <div className="day">{day.day}</div>
                   <div className="temp">{day.temp}°C</div>
                   <div className="condition">{day.condition}</div>
+                  <div className="precip-prob">🌧️ {day.precipProb}%</div>
                 </div>
               ))}
             </div>

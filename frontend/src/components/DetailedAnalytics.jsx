@@ -1,14 +1,25 @@
 import { useState } from 'react'
+import './WeatherEnhancements.css'
 
-const DetailedAnalytics = ({ farm, onClose }) => {
+const DetailedAnalytics = ({ farm, onClose, onDelete }) => {
   const [activeTab, setActiveTab] = useState('overview')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="detailed-analytics-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{farm.name} - Detailed Analytics</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <div className="header-actions">
+            <button 
+              className="delete-btn-small" 
+              onClick={() => setShowDeleteConfirm(true)}
+              title="Delete Farm"
+            >
+              🗑️
+            </button>
+            <button className="close-btn" onClick={onClose}>×</button>
+          </div>
         </div>
 
         <div className="modal-tabs">
@@ -66,8 +77,11 @@ const DetailedAnalytics = ({ farm, onClose }) => {
                   {(farm.growthStages || [12, 25, 38, 52, 67, 78, 85, 92]).map((value, index) => (
                     <div key={index} className="chart-bar">
                       <div 
-                        className="bar-fill" 
-                        style={{ height: `${value * 1.5}px` }}
+                        className="bar-fill animated-bar" 
+                        style={{ 
+                          height: `${value * 1.5}px`,
+                          animationDelay: `${index * 0.1}s`
+                        }}
                       ></div>
                       <div className="bar-label">W{index + 1}</div>
                     </div>
@@ -86,8 +100,11 @@ const DetailedAnalytics = ({ farm, onClose }) => {
                     {(farm.growthStages || [12, 25, 38, 52, 67, 78, 85, 92]).map((value, index) => (
                       <div 
                         key={index} 
-                        className="trend-bar" 
-                        style={{ height: `${value * 2.2}px` }}
+                        className="trend-bar animated-bar" 
+                        style={{ 
+                          height: `${value * 2.2}px`,
+                          animationDelay: `${index * 0.15}s`
+                        }}
                       ></div>
                     ))}
                   </div>
@@ -142,6 +159,33 @@ const DetailedAnalytics = ({ farm, onClose }) => {
             </div>
           )}
         </div>
+        
+        {showDeleteConfirm && (
+          <div className="delete-confirm-overlay">
+            <div className="delete-confirm-modal">
+              <h3>⚠️ Confirm Deletion</h3>
+              <p>Are you sure you want to delete <strong>{farm.name}</strong>?</p>
+              <p className="warning-text">This action cannot be undone.</p>
+              <div className="confirm-actions">
+                <button 
+                  className="confirm-delete-btn"
+                  onClick={() => {
+                    onDelete(farm.id)
+                    onClose()
+                  }}
+                >
+                  Yes, Delete Farm
+                </button>
+                <button 
+                  className="cancel-btn"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

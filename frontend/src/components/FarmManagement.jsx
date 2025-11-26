@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import GrowthChart from './GrowthChart'
 import DetailedAnalytics from './DetailedAnalytics'
+import './WeatherEnhancements.css'
 
 const FarmManagement = () => {
   const [farms, setFarms] = useState(() => {
@@ -205,6 +206,11 @@ const FarmManagement = () => {
 
   const addFarm = () => {
     if (newFarm.name && newFarm.cropType && newFarm.area && newFarm.plantingDate) {
+      // Check if crop analysis shows warnings and user hasn't acknowledged
+      if (cropAnalysis && !cropAnalysis.suitable && !newFarm.riskAcknowledged) {
+        alert('Please acknowledge the risk warnings before proceeding.')
+        return
+      }
       const analysis = analyzeCrop(newFarm.cropType, newFarm.plantingDate, newFarm.soilType)
       const plantedDate = new Date(newFarm.plantingDate)
       const currentDate = new Date()
@@ -237,7 +243,7 @@ const FarmManagement = () => {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       localStorage.setItem(`farms_${user.id}`, JSON.stringify(updatedFarms))
       
-      setNewFarm({ name: '', cropType: '', area: '', soilType: 'Loamy', plantingDate: '' })
+      setNewFarm({ name: '', cropType: '', area: '', soilType: 'Loamy', plantingDate: '', riskAcknowledged: false })
       setCropAnalysis(null)
       setShowAddForm(false)
     }
@@ -279,7 +285,7 @@ const FarmManagement = () => {
                 <span className="value">{farm.area} ha</span>
               </div>
               <div className="stat">
-                <span className="label">Progress</span>
+                <span className="label">Maturity</span>
                 <span className="value">{farm.progress}%</span>
               </div>
               <div className="stat">
@@ -300,7 +306,7 @@ const FarmManagement = () => {
             </div>
 
             <div className="farm-chart">
-              <GrowthChart farmId={farm.id} farm={farm} />
+              <GrowthChart farmId={farm.id} farm={farm} daysSincePlanted={farm.daysSincePlanted} />
             </div>
 
             <div className="farm-actions">
@@ -309,12 +315,6 @@ const FarmManagement = () => {
                 onClick={() => setSelectedFarm(farm)}
               >
                 View Details
-              </button>
-              <button 
-                className="delete-farm-btn"
-                onClick={() => deleteFarm(farm.id)}
-              >
-                🗑️ Delete
               </button>
             </div>
           </div>
@@ -410,6 +410,16 @@ const FarmManagement = () => {
                 {cropAnalysis.warnings.map((warning, i) => (
                   <p key={i} className="warning-text">{warning}</p>
                 ))}
+                {!cropAnalysis.suitable && (
+                  <label className="risk-acknowledgment">
+                    <input
+                      type="checkbox"
+                      checked={newFarm.riskAcknowledged || false}
+                      onChange={(e) => setNewFarm({...newFarm, riskAcknowledged: e.target.checked})}
+                    />
+                    <span>I understand the risks and want to proceed anyway</span>
+                  </label>
+                )}
               </div>
             )}
             <div className="modal-buttons">
@@ -423,7 +433,8 @@ const FarmManagement = () => {
       {selectedFarm && (
         <DetailedAnalytics 
           farm={selectedFarm} 
-          onClose={() => setSelectedFarm(null)} 
+          onClose={() => setSelectedFarm(null)}
+          onDelete={deleteFarm}
         />
       )}
     </div>

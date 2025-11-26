@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import MarketMap from './MarketMap'
+import InteractiveMarketMap from './InteractiveMarketMap'
 import YieldPredictor from './YieldPredictor'
 
 const AdvancedFeatures = ({ userLocation }) => {
@@ -54,7 +54,7 @@ const AdvancedFeatures = ({ userLocation }) => {
       <div className="features-content">
         {activeTab === 'map' && (
           <div className="feature-section">
-            <MarketMap userLocation={userLocation} />
+            <InteractiveMarketMap userLocation={userLocation} />
           </div>
         )}
 

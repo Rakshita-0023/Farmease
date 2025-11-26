@@ -88,11 +88,7 @@ function App() {
   }, [])
 
   const handlePageChange = (page) => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setCurrentPage(page)
-      setIsLoading(false)
-    }, 1000)
+    setCurrentPage(page)
   }
 
   const handleLogin = (userData) => {
@@ -114,9 +110,7 @@ function App() {
     setCurrentPage('login')
   }
 
-  if (isLoading) {
-    return <LoadingAnimation />
-  }
+
 
   if (currentPage === 'landing') {
     return <LandingPage onGetStarted={() => setCurrentPage('login')} />

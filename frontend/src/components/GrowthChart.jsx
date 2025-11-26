@@ -4,7 +4,7 @@ import { Line } from 'react-chartjs-2'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
-const GrowthChart = memo(({ farmId, farm }) => {
+const GrowthChart = memo(({ farmId, farm, daysSincePlanted }) => {
   const chartRef = useRef()
 
   const generateCropSpecificData = () => {
@@ -32,12 +32,55 @@ const GrowthChart = memo(({ farmId, farm }) => {
 
   const cropData = generateCropSpecificData()
 
+  // Generate dynamic labels based on actual time planted
+  const generateTimeLabels = () => {
+    const days = daysSincePlanted || 56 // Default to 8 weeks if not provided
+    
+    if (days <= 56) { // Less than 8 weeks - show weeks
+      const weeks = Math.ceil(days / 7)
+      return Array.from({ length: Math.min(8, weeks) }, (_, i) => `Week ${i + 1}`)
+    } else if (days <= 365) { // Less than a year - show months
+      const months = Math.ceil(days / 30)
+      return Array.from({ length: Math.min(12, months) }, (_, i) => `Month ${i + 1}`)
+    } else { // More than a year - show years
+      const years = Math.ceil(days / 365)
+      return Array.from({ length: Math.min(5, years) }, (_, i) => `Year ${i + 1}`)
+    }
+  }
+  
+  const timeLabels = generateTimeLabels()
+  
+  // Adjust data points to match the time scale
+  const adjustDataForTimeScale = (originalData) => {
+    const targetLength = timeLabels.length
+    if (originalData.length === targetLength) return originalData
+    
+    // Interpolate or extrapolate data to match time scale
+    const result = []
+    for (let i = 0; i < targetLength; i++) {
+      const ratio = (i / (targetLength - 1)) * (originalData.length - 1)
+      const index = Math.floor(ratio)
+      const remainder = ratio - index
+      
+      if (index >= originalData.length - 1) {
+        result.push(originalData[originalData.length - 1])
+      } else {
+        const interpolated = originalData[index] + (originalData[index + 1] - originalData[index]) * remainder
+        result.push(Math.round(interpolated))
+      }
+    }
+    return result
+  }
+  
+  const adjustedProgress = adjustDataForTimeScale(cropData.progress)
+  const adjustedHeight = adjustDataForTimeScale(cropData.height)
+
   const data = {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+    labels: timeLabels,
     datasets: [
       {
         label: 'Growth Progress (%)',
-        data: cropData.progress,
+        data: adjustedProgress,
         borderColor: '#22c55e',
         backgroundColor: 'rgba(34, 197, 94, 0.1)',
         tension: 0.4,
@@ -45,7 +88,7 @@ const GrowthChart = memo(({ farmId, farm }) => {
       },
       {
         label: 'Height (cm)',
-        data: cropData.height,
+        data: adjustedHeight,
         borderColor: '#3b82f6',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.4,
@@ -75,7 +118,7 @@ const GrowthChart = memo(({ farmId, farm }) => {
         display: true,
         title: {
           display: true,
-          text: 'Time Period'
+          text: daysSincePlanted > 56 ? (daysSincePlanted > 365 ? 'Years' : 'Months') : 'Weeks'
         }
       },
       y: {

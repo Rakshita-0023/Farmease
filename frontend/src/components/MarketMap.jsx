@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './MarketMap.css'
+import './WeatherEnhancements.css'
 
 const MarketMap = ({ userLocation }) => {
   const [nearbyMarkets, setNearbyMarkets] = useState([])
@@ -16,13 +17,37 @@ const MarketMap = ({ userLocation }) => {
   const [showModal, setShowModal] = useState(false)
   const [modalMarket, setModalMarket] = useState(null)
 
-  const generateNearbyMarkets = (location) => {
-    const markets = [
+  const calculateDrivingDistance = async (userLat, userLng, marketLat, marketLng) => {
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${marketLng},${marketLat}?overview=false`
+      )
+      const data = await response.json()
+      if (data.routes && data.routes[0]) {
+        const distanceKm = (data.routes[0].distance / 1000).toFixed(1)
+        const durationMin = Math.round(data.routes[0].duration / 60)
+        return { distance: parseFloat(distanceKm), duration: durationMin }
+      }
+    } catch (error) {
+      console.log('Routing API unavailable, using straight-line distance')
+    }
+    // Fallback to straight-line distance
+    const R = 6371 // Earth's radius in km
+    const dLat = (marketLat - userLat) * Math.PI / 180
+    const dLng = (marketLng - userLng) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(userLat * Math.PI / 180) * Math.cos(marketLat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    const distance = (R * c).toFixed(1)
+    return { distance: parseFloat(distance), duration: Math.round(parseFloat(distance) * 3) }
+  }
+
+  const generateNearbyMarkets = async (location) => {
+    const baseMarkets = [
       {
         id: 1,
         name: 'Central Mandi',
-        distance: 2.5,
-        distanceText: '2.5 km',
         lat: location.latitude + 0.02,
         lng: location.longitude + 0.01,
         type: 'mandi',
@@ -38,8 +63,6 @@ const MarketMap = ({ userLocation }) => {
       {
         id: 2,
         name: 'Farmers Market',
-        distance: 4.1,
-        distanceText: '4.1 km',
         lat: location.latitude - 0.03,
         lng: location.longitude + 0.02,
         type: 'retail',
@@ -55,8 +78,6 @@ const MarketMap = ({ userLocation }) => {
       {
         id: 3,
         name: 'Wholesale Market',
-        distance: 6.8,
-        distanceText: '6.8 km',
         lat: location.latitude + 0.05,
         lng: location.longitude - 0.03,
         type: 'wholesale',
@@ -70,12 +91,30 @@ const MarketMap = ({ userLocation }) => {
         }
       }
     ]
-    return markets
+    
+    // Calculate real driving distances
+    const marketsWithDistances = await Promise.all(
+      baseMarkets.map(async (market) => {
+        const { distance, duration } = await calculateDrivingDistance(
+          location.latitude, location.longitude, market.lat, market.lng
+        )
+        return {
+          ...market,
+          distance,
+          distanceText: `${distance} km`,
+          drivingTime: `${duration} min`
+        }
+      })
+    )
+    
+    return marketsWithDistances
   }
 
   useEffect(() => {
     if (userLocation) {
-      setNearbyMarkets(generateNearbyMarkets(userLocation))
+      generateNearbyMarkets(userLocation).then(markets => {
+        setNearbyMarkets(markets)
+      })
     }
     // Load favorites from localStorage
     const savedFavorites = localStorage.getItem('favoriteMarkets')
@@ -236,6 +275,9 @@ const MarketMap = ({ userLocation }) => {
                 <h4 className="market-name">{market.name}</h4>
                 <div className="market-meta">
                   <span className="distance-badge">📍 {market.distanceText}</span>
+                  {market.drivingTime && (
+                    <span className="time-badge">🚗 {market.drivingTime}</span>
+                  )}
                   <span className={`crowd-badge crowd-${market.crowdLevel}`}>
                     {market.crowdLevel === 'low' ? '🟢' : market.crowdLevel === 'medium' ? '🟡' : '🔴'} 
                     {market.crowdLevel} crowd
@@ -285,6 +327,12 @@ const MarketMap = ({ userLocation }) => {
                   <span className="info-label">📍 Distance:</span>
                   <span>{modalMarket.distanceText}</span>
                 </div>
+                {modalMarket.drivingTime && (
+                  <div className="info-item">
+                    <span className="info-label">🚗 Driving Time:</span>
+                    <span>{modalMarket.drivingTime}</span>
+                  </div>
+                )}
                 <div className="info-item">
                   <span className="info-label">🕒 Hours:</span>
                   <span>{modalMarket.hours}</span>
