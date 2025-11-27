@@ -3,11 +3,11 @@ import { useLanguage } from '../App'
 
 const getSeasonalCrops = (temperature) => {
   if (temperature >= 25) {
-    return ['🌽 Corn', '🍅 Tomatoes', '🌶️ Peppers']
+    return ['Corn', 'Tomatoes', 'Peppers']
   } else if (temperature >= 15) {
-    return ['🌾 Wheat', '🥕 Carrots', '🥬 Lettuce']
+    return ['Wheat', 'Carrots', 'Lettuce']
   } else {
-    return ['🥬 Cabbage', '🥕 Carrots', '🌿 Spinach']
+    return ['Cabbage', 'Carrots', 'Spinach']
   }
 }
 
@@ -45,7 +45,7 @@ const Dashboard = () => {
     if (activities.length === 0) {
       activities.push(
         { icon: '🌱', text: 'Welcome to FarmEase! Add your first farm to see activity', time: 'Now', status: 'normal' },
-        { icon: '📊', text: 'Market prices updated with AI analysis', time: '1 hour ago', status: 'good' },
+        { icon: '', text: 'Market prices updated with AI analysis', time: '1 hour ago', status: 'good' },
         { icon: '🌤️', text: 'Weather data synchronized', time: '2 hours ago', status: 'normal' }
       )
     }
@@ -282,7 +282,7 @@ const Dashboard = () => {
         </div>
 
         <div className="dashboard-card">
-          <h3>📈 {t('marketPrices')}</h3>
+          <h3> {t('marketPrices')}</h3>
           <div className="dashboard-market-grid">
             {marketPrices.map((item, index) => (
               <div key={index} className={`market-card ${item.class}`}>
@@ -312,7 +312,7 @@ const Dashboard = () => {
         </div>
 
         <div className="dashboard-card">
-          <h3>📋 {t('recentActivity')}</h3>
+          <h3> {t('recentActivity')}</h3>
           <div className="activity-list">
             {recentActivity.map((activity, index) => (
               <div key={index} className={`activity-item ${activity.status}`}>

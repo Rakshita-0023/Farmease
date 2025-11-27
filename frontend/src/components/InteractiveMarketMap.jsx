@@ -139,8 +139,15 @@ const InteractiveMarketMap = ({ userLocation }) => {
 
   if (!userLocation) {
     return (
-      <div className="map-placeholder">
+      <div className="map-placeholder" role="alert">
         <p>📍 Enable location access to see nearby markets</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="retry-btn"
+          aria-label="Retry loading location"
+        >
+          🔄 Retry
+        </button>
       </div>
     )
   }

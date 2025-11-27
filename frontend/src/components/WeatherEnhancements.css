@@ -4,6 +4,82 @@
   width: 100%;
 }
 
+.search-container input:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  border-color: #007bff;
+}
+
+.search-container input:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.location-status {
+  text-align: center;
+  padding: 8px;
+  background: rgba(0, 123, 255, 0.1);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 0.9em;
+  color: #007bff;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Market Card Background Images */
+.market-card {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.market-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: inherit;
+}
+
+.market-card-content {
+  position: relative;
+  z-index: 1;
+  color: #1a1a1a;
+}
+
+.market-card .crop-name {
+  color: #000;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.market-card .price {
+  color: #000;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.market-card .change {
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.market-card .price-range,
+.market-card .last-updated {
+  color: #000000;
+  font-weight: 900;
+}
+
 .suggestions-dropdown {
   position: absolute;
   top: 100%;
@@ -167,22 +243,24 @@
 }
 
 /* Market Distance and Time Badges */
-.time-badge {
-  background: #17a2b8;
-  color: white;
-  padding: 2px 8px;
+.time-badge, .distance-badge {
+  padding: 4px 8px;
   border-radius: 12px;
   font-size: 0.8em;
   font-weight: 500;
+  color: white;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-badge {
+  background: #17a2b8;
 }
 
 .distance-badge {
   background: #28a745;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.8em;
-  font-weight: 500;
 }
 
 .market-meta {
@@ -197,6 +275,23 @@
   animation: growBar 0.8s ease-out forwards;
   transform-origin: bottom;
   opacity: 0;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animated-bar {
+    animation: none;
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  
+  .chart-container, .growth-chart {
+    animation: none;
+  }
+  
+  * {
+    transition: none !important;
+  }
 }
 
 @keyframes growBar {
@@ -233,6 +328,23 @@
   padding: 20px;
 }
 
+/* Touch-Friendly Interactions */
+@media (hover: none) and (pointer: coarse) {
+  .market-card-compact:active {
+    transform: scale(0.98);
+    transition: transform 0.1s;
+  }
+  
+  .suggestion-item:active {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .refresh-link:active {
+    transform: scale(0.95);
+  }
+}
+
 .leaflet-map-container {
   margin: 20px 0;
   border-radius: 12px;
@@ -243,11 +355,33 @@
 .map-placeholder {
   height: 400px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   background: #f8f9fa;
   border-radius: 12px;
   border: 2px dashed #dee2e6;
+  text-align: center;
+  padding: 20px;
+}
+
+.retry-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  min-height: 44px;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover, .retry-btn:focus {
+  background: #0056b3;
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
 }
 
 .popup-content, .market-popup {
@@ -381,17 +515,51 @@
   text-decoration: underline;
   padding: 4px 8px;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  min-height: 32px;
 }
 
-.refresh-link:hover {
+.refresh-link:hover, .refresh-link:focus {
   background-color: rgba(0, 123, 255, 0.1);
   text-decoration: none;
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
 }
 
 .refresh-link:disabled {
   color: #6c757d;
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Focus Management */
+.metric-card:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.suggestion-item:focus {
+  background-color: #007bff;
+  color: white;
+  outline: none;
+}
+
+/* Button Improvements */
+button, .metric-card[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.view-details-btn, .add-farm-btn {
+  transition: all 0.2s;
+}
+
+.view-details-btn:focus, .add-farm-btn:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  transform: translateY(-1px);
 }
 
 .header-actions {
@@ -402,7 +570,15 @@
 
 .last-updated {
   font-size: 0.85em;
-  color: #666;
+  color: #495057;
+}
+
+.error-indicator {
+  color: #dc3545;
+  font-weight: 500;
+  padding: 4px 8px;
+  background: rgba(220, 53, 69, 0.1);
+  border-radius: 4px;
 }
 
 /* Weather Details Grid */
@@ -413,8 +589,209 @@
   margin-top: 12px;
 }
 
+/* Responsive Design Improvements */
 @media (max-width: 768px) {
   .weather-details {
     grid-template-columns: 1fr;
   }
+  
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  
+  .last-updated {
+    font-size: 0.8em;
+  }
+  
+  .markets-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .market-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .leaflet-map-container {
+    height: 300px;
+  }
+  
+  .suggestions-dropdown {
+    max-height: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .top-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .market-card-compact {
+    padding: 12px;
+  }
+  
+  .confirm-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .confirm-delete-btn, .cancel-btn {
+    width: 100%;
+  }
+}
+/* --- Phase 2: Crop Timeline & Activity Log --- */
+
+/* Crop Timeline */
+.crop-timeline-container {
+  padding: 20px 10px;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.timeline-track {
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  position: relative;
+  margin-bottom: 30px;
+}
+
+.timeline-fill {
+  height: 100%;
+  background: #28a745;
+  border-radius: 3px;
+  transition: width 1s ease-in-out;
+}
+
+.timeline-stages {
+  display: flex;
+  justify-content: space-between;
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  padding: 0 10px;
+}
+
+.timeline-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  width: 20px;
+}
+
+.stage-dot {
+  width: 12px;
+  height: 12px;
+  background: #ddd;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 2;
+  transition: all 0.3s;
+}
+
+.timeline-stage.active .stage-dot {
+  background: #28a745;
+}
+
+.timeline-stage.current .stage-dot {
+  background: #28a745;
+  transform: scale(1.5);
+  box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+}
+
+.stage-name {
+  font-size: 10px;
+  color: #6c757d;
+  white-space: nowrap;
+  font-weight: 500;
+  position: absolute;
+  top: 20px;
+}
+
+.timeline-stage.active .stage-name {
+  color: #28a745;
+}
+
+.timeline-stage.current .stage-name {
+  font-weight: 700;
+  color: #28a745;
+}
+
+/* Farm Actions Row */
+.farm-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.log-btn {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.log-btn:hover {
+  background: #bbdefb;
+}
+
+.view-btn {
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.view-btn:hover {
+  background: #e9ecef;
+}
+
+/* Activity Modal */
+.activity-modal {
+  max-width: 500px;
+}
+
+.activity-notes {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  min-height: 80px;
+  margin-bottom: 16px;
+  font-family: inherit;
+}
+
+.activity-notes:focus {
+  outline: none;
+  border-color: #22c55e;
 }

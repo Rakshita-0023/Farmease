@@ -1,0 +1,98 @@
+import { useState } from 'react'
+import './WeatherEnhancements.css'
+
+const Schemes = () => {
+    const schemes = [
+        {
+            id: 1,
+            name: 'PM-KISAN Samman Nidhi',
+            description: 'Financial benefit of ₹6,000 per year to eligible farmer families, payable in three equal installments of ₹2,000.',
+            eligibility: 'All landholding farmer families',
+            deadline: 'Open all year',
+            link: 'https://pmkisan.gov.in/',
+            status: 'Active'
+        },
+        {
+            id: 2,
+            name: 'Pradhan Mantri Fasal Bima Yojana (PMFBY)',
+            description: 'Crop insurance scheme providing comprehensive risk cover for crops against non-preventable natural risks.',
+            eligibility: 'Farmers with insurable interest in the crop',
+            deadline: 'July 31, 2025',
+            link: 'https://pmfby.gov.in/',
+            status: 'Closing Soon'
+        },
+        {
+            id: 3,
+            name: 'Kisan Credit Card (KCC)',
+            description: 'Provides adequate and timely credit support from the banking system under a single window.',
+            eligibility: 'All farmers, tenant farmers, share croppers',
+            deadline: 'Open all year',
+            link: 'https://www.myscheme.gov.in/schemes/kcc',
+            status: 'Active'
+        },
+        {
+            id: 4,
+            name: 'Soil Health Card Scheme',
+            description: 'Government provides Soil Health Cards to farmers with crop-wise recommendations of nutrients and fertilizers.',
+            eligibility: 'All farmers',
+            deadline: 'Cycle of 2 years',
+            link: 'https://soilhealth.dac.gov.in/',
+            status: 'Active'
+        },
+        {
+            id: 5,
+            name: 'Paramparagat Krishi Vikas Yojana (PKVY)',
+            description: 'Promotes organic farming through adoption of organic village by cluster approach and PGS certification.',
+            eligibility: 'Farmers in clusters',
+            deadline: 'Open all year',
+            link: 'https://pgsindia-ncof.gov.in/',
+            status: 'Active'
+        }
+    ]
+
+    return (
+        <div className="schemes-page">
+            <div className="page-header">
+                <div>
+                    <h1>🏛️ Government Schemes</h1>
+                    <p>Subsidies and financial aid for farmers</p>
+                </div>
+            </div>
+
+            <div className="schemes-grid">
+                {schemes.map(scheme => (
+                    <div key={scheme.id} className="scheme-card">
+                        <div className="scheme-header">
+                            <h3>{scheme.name}</h3>
+                            <span className={`status-badge ${scheme.status === 'Active' ? 'active' : 'urgent'}`}>
+                                {scheme.status}
+                            </span>
+                        </div>
+
+                        <p className="scheme-desc">{scheme.description}</p>
+
+                        <div className="scheme-details">
+                            <div className="detail-row">
+                                <span className="label">Eligibility:</span>
+                                <span className="value">{scheme.eligibility}</span>
+                            </div>
+                            <div className="detail-row">
+                                <span className="label">Deadline:</span>
+                                <span className="value">{scheme.deadline}</span>
+                            </div>
+                        </div>
+
+                        <div className="scheme-actions">
+                            <a href={scheme.link} target="_blank" rel="noopener noreferrer" className="apply-btn">
+                                Apply Now ↗
+                            </a>
+                            <button className="check-status-btn">Check Status</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+export default Schemes

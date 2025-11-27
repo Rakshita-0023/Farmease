@@ -50,6 +50,7 @@ const Weather = () => {
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [locationDetected, setLocationDetected] = useState(false)
   
   const popularCities = [
     'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad',
@@ -118,8 +119,49 @@ const Weather = () => {
     }
   }
 
+  const detectUserLocation = async () => {
+    if (!navigator.geolocation) {
+      console.log('Geolocation not supported')
+      return
+    }
+
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 10000,
+          enableHighAccuracy: true
+        })
+      })
+
+      const { latitude, longitude } = position.coords
+      
+      // Reverse geocoding to get city name
+      const API_KEY = '895284fb2d2c50a520ea537456963d9c'
+      const response = await fetch(
+        `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${API_KEY}`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.length > 0) {
+          const cityName = data[0].name
+          setLocation(cityName)
+          setLocationDetected(true)
+          // Auto-fetch weather for detected city
+          fetchWeather(cityName)
+          return
+        }
+      }
+    } catch (error) {
+      console.log('Location detection failed:', error)
+    }
+    
+    // Fallback if location detection fails
+    setLocationDetected(true)
+  }
+
   useEffect(() => {
-    fetchWeather()
+    detectUserLocation()
   }, [])
 
   const handleLocationSubmit = (e) => {
@@ -157,23 +199,37 @@ const Weather = () => {
       </div>
 
       <div className="weather-search">
+        {!locationDetected && !location && (
+          <div className="location-status">
+            📍 Detecting your location...
+          </div>
+        )}
         <form onSubmit={handleLocationSubmit}>
           <div className="search-container">
             <input
               type="text"
-              placeholder="Enter city name..."
+              placeholder={locationDetected ? "Enter city name..." : "Detecting your location..."}
               value={location}
               onChange={(e) => handleLocationChange(e.target.value)}
               onFocus={() => location.length > 1 && setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              aria-label="Search for city weather"
+              aria-expanded={showSuggestions}
+              aria-haspopup="listbox"
+              role="combobox"
+              disabled={!locationDetected && !location}
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div className="suggestions-dropdown">
+              <div className="suggestions-dropdown" role="listbox" aria-label="City suggestions">
                 {suggestions.map((city, index) => (
                   <div 
                     key={index} 
                     className="suggestion-item"
                     onClick={() => selectSuggestion(city)}
+                    role="option"
+                    tabIndex="0"
+                    onKeyDown={(e) => e.key === 'Enter' && selectSuggestion(city)}
+                    aria-label={`Select ${city}`}
                   >
                     📍 {city}
                   </div>
@@ -181,8 +237,8 @@ const Weather = () => {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : 'Get Weather'}
+          <button type="submit" disabled={loading || (!locationDetected && !location)} aria-label="Get weather information">
+            {loading ? '🔄 Loading...' : '🌤️ Get Weather'}
           </button>
         </form>
       </div>

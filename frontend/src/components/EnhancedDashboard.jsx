@@ -14,7 +14,7 @@ const EnhancedDashboard = () => {
 
   // Real-time farm calculations
   const calculateFarmMetrics = useCallback((farmData) => {
-    if (!farmData.length) return { totalFarms: 0, activeCrops: 0, harvestReady: 0, avgYield: 0 }
+    if (!farmData.length) return { totalFarms: 0, activeCrops: 0, harvestReady: 0, healthScore: 0 }
     
     const totalFarms = farmData.length
     const activeCrops = farmData.filter(farm => farm.progress < 100).length
@@ -22,9 +22,24 @@ const EnhancedDashboard = () => {
       const progress = farm.progress || 0
       return progress >= 90
     }).length
-    const avgYield = Math.round(farmData.reduce((sum, farm) => sum + (farm.progress || 0), 0) / totalFarms)
     
-    return { totalFarms, activeCrops, harvestReady, avgYield }
+    // Calculate Health Score based on soil data
+    const healthScore = Math.round(farmData.reduce((sum, farm) => {
+      let score = 100
+      if (farm.soilMoisture < 40 || farm.soilMoisture > 80) score -= 20
+      if (farm.soilPh < 6 || farm.soilPh > 7.5) score -= 15
+      if (farm.pestRisk === 'High') score -= 30
+      return sum + Math.max(0, score)
+    }, 0) / (totalFarms || 1))
+    
+    return { totalFarms, activeCrops, harvestReady, healthScore }
+  }, [])
+
+  // Financial Snapshot Calculation
+  const calculateFinancials = useCallback((farmData) => {
+    const estimatedRevenue = farmData.reduce((sum, farm) => sum + (farm.expectedYield * farm.marketPrice || 50000), 0)
+    const inputCosts = farmData.reduce((sum, farm) => sum + (farm.inputCosts || 15000), 0)
+    return { revenue: estimatedRevenue, costs: inputCosts, profit: estimatedRevenue - inputCosts }
   }, [])
 
   // Dynamic soil analysis from real farm data
@@ -357,10 +372,19 @@ const EnhancedDashboard = () => {
 
   // Memoized calculations
   const farmStats = useMemo(() => calculateFarmMetrics(farms), [farms, calculateFarmMetrics])
+  const financialStats = useMemo(() => calculateFinancials(farms), [farms, calculateFinancials])
   const soilData = useMemo(() => calculateSoilMetrics(farms), [farms, calculateSoilMetrics])
   const alerts = useMemo(() => generateAlerts(farms, weather), [farms, weather, generateAlerts])
   const aiRecommendation = useMemo(() => generateAIRecommendation(farms, weather, soilData), [farms, weather, soilData, generateAIRecommendation])
   const cropTimeline = useMemo(() => generateCropTimeline(farms), [farms, generateCropTimeline])
+
+  // Enhanced Weather Context
+  const weatherContext = useMemo(() => {
+    if (!weather) return null
+    const sprayFeasibility = weather.windSpeed > 15 ? 'High Wind - Do Not Spray' : weather.humidity > 90 ? 'High Humidity - Avoid Spraying' : 'Good Conditions for Spraying'
+    const soilMoistureEst = weather.humidity > 80 ? 'High (Recent Rain)' : weather.humidity < 40 ? 'Low (Dry Spell)' : 'Moderate'
+    return { sprayFeasibility, soilMoistureEst }
+  }, [weather])
 
   // Filter alerts based on selected filter
   const filteredAlerts = useMemo(() => {
@@ -560,15 +584,20 @@ const EnhancedDashboard = () => {
         </div>
         <div className="header-actions">
           {error && (
-            <span className="error-indicator" title={error}>
+            <span className="error-indicator" title={error} role="alert" aria-live="polite">
               ⚠️ Connection issues
             </span>
           )}
-          <button onClick={fetchDashboardData} className="refresh-link" disabled={loading}>
-            Refresh Data
+          <button 
+            onClick={fetchDashboardData} 
+            className="refresh-link" 
+            disabled={loading}
+            aria-label="Refresh dashboard data"
+          >
+            {loading ? '🔄 Refreshing...' : 'Refresh Data'}
           </button>
           {lastUpdated && (
-            <span className="last-updated">
+            <span className="last-updated" aria-live="polite">
               Last updated: {lastUpdated.toLocaleTimeString()}
             </span>
           )}
@@ -577,32 +606,41 @@ const EnhancedDashboard = () => {
 
       {/* Key Metrics Row */}
       <div className="metrics-row">
-        <div className="metric-card">
-          <div className="metric-icon">🏡</div>
+        <div className="metric-card" role="button" tabIndex="0" aria-label={`Total Farms: ${farmStats.totalFarms}`}>
+          <div className="metric-icon" aria-hidden="true">🏡</div>
           <div className="metric-content">
             <div className="metric-value">{farmStats.totalFarms}</div>
             <div className="metric-label">Total Farms</div>
           </div>
         </div>
-        <div className="metric-card">
-          <div className="metric-icon">🌾</div>
+        <div className="metric-card" role="button" tabIndex="0" aria-label={`Active Crops: ${farmStats.activeCrops}`}>
+          <div className="metric-icon" aria-hidden="true">🌾</div>
           <div className="metric-content">
             <div className="metric-value">{farmStats.activeCrops}</div>
             <div className="metric-label">Active Crops</div>
           </div>
         </div>
-        <div className="metric-card">
-          <div className="metric-icon">🚜</div>
+        <div className="metric-card" role="button" tabIndex="0" aria-label={`Crop Health Score: ${farmStats.healthScore}`}>
+          <div className="metric-icon" aria-hidden="true">❤️</div>
           <div className="metric-content">
-            <div className="metric-value">{farmStats.harvestReady}</div>
-            <div className="metric-label">Ready to Harvest</div>
+            <div className={`metric-value ${farmStats.healthScore >= 80 ? 'text-green' : farmStats.healthScore >= 50 ? 'text-orange' : 'text-red'}`}>
+              {farmStats.healthScore}/100
+            </div>
+            <div className="metric-label">Crop Health Score</div>
           </div>
         </div>
-        <div className="metric-card">
-          <div className="metric-icon">📊</div>
+        <div className="metric-card financial-card" role="button" tabIndex="0" aria-label="Financial Snapshot">
+          <div className="metric-icon" aria-hidden="true">💰</div>
           <div className="metric-content">
-            <div className="metric-value">{farmStats.avgYield}%</div>
-            <div className="metric-label">Avg Yield</div>
+            <div className="financial-row">
+              <span className="label">Rev:</span>
+              <span className="value text-green">₹{(financialStats.revenue / 1000).toFixed(1)}k</span>
+            </div>
+            <div className="financial-row">
+              <span className="label">Cost:</span>
+              <span className="value text-red">₹{(financialStats.costs / 1000).toFixed(1)}k</span>
+            </div>
+            <div className="metric-label">Financial Snapshot</div>
           </div>
         </div>
       </div>
@@ -611,16 +649,36 @@ const EnhancedDashboard = () => {
       <div className="top-row">
         <div className="dashboard-card weather-card">
           <div className="card-header">
-            <h3>🌤️ Weather Today</h3>
+            <h3>🌤️ Weather Intelligence</h3>
             {weather && <span className="location-tag">{weather.location}</span>}
           </div>
           {weather ? (
-            <div className="weather-info">
-              <div className="temp">{weather.temperature}°C</div>
-              <div className="condition">{weather.condition}</div>
-              <div className="details">
-                <span>💧 {weather.humidity}%</span>
-                <span>💨 {weather.windSpeed} km/h</span>
+            <div className="weather-content">
+              <div className="weather-main">
+                <div className="temp">{weather.temperature}°C</div>
+                <div className="condition">{weather.condition}</div>
+              </div>
+              <div className="weather-details-grid">
+                <div className="weather-detail">
+                  <span className="icon">💧</span>
+                  <span className="label">Humidity</span>
+                  <span className="value">{weather.humidity}%</span>
+                </div>
+                <div className="weather-detail">
+                  <span className="icon">💨</span>
+                  <span className="label">Wind</span>
+                  <span className="value">{weather.windSpeed} km/h</span>
+                </div>
+              </div>
+              <div className="agri-context">
+                <div className={`context-item ${weatherContext.sprayFeasibility.includes('Do Not') ? 'danger' : 'success'}`}>
+                  <span className="icon">🚿</span>
+                  <span className="text">{weatherContext.sprayFeasibility}</span>
+                </div>
+                <div className="context-item info">
+                  <span className="icon">🌱</span>
+                  <span className="text">Soil Moisture: {weatherContext.soilMoistureEst}</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -662,21 +720,29 @@ const EnhancedDashboard = () => {
             {filteredAlerts.length > 0 ? (
               filteredAlerts.slice(0, 5).map((alert) => (
                 <div key={alert.id} className={`alert-item ${alert.type} severity-${alert.severity}`}>
-                  <div className="alert-icon">
-                    {alert.type === 'warning' && '⚠️'}
-                    {alert.type === 'success' && '✅'}
-                    {alert.type === 'info' && '🔔'}
-                    {alert.type === 'danger' && '🚨'}
+                  <div className="alert-header-row">
+                    <div className="alert-icon-wrapper">
+                      {alert.type === 'warning' && '⚠️'}
+                      {alert.type === 'success' && '✅'}
+                      {alert.type === 'info' && '🔔'}
+                      {alert.type === 'danger' && '🚨'}
+                    </div>
+                    <div className="alert-meta">
+                      <span className={`urgency-tag ${alert.severity}`}>{alert.severity.toUpperCase()}</span>
+                      <span className="alert-time">{alert.time}</span>
+                    </div>
                   </div>
                   <div className="alert-content">
                     <span className="alert-message">{alert.message}</span>
-                    <span className="alert-time">{alert.time}</span>
                     {alert.farmId && (
                       <span className="farm-tag">Farm: {farms.find(f => f.id === alert.farmId)?.name}</span>
                     )}
                   </div>
                   {alert.action && (
-                    <button className="alert-action">{alert.action}</button>
+                    <button className="alert-action-btn">
+                      {alert.action} 
+                      <span className="arrow">→</span>
+                    </button>
                   )}
                 </div>
               ))

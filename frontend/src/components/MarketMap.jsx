@@ -35,12 +35,13 @@ const MarketMap = ({ userLocation }) => {
     const R = 6371 // Earth's radius in km
     const dLat = (marketLat - userLat) * Math.PI / 180
     const dLng = (marketLng - userLng) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(userLat * Math.PI / 180) * Math.cos(marketLat * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(userLat * Math.PI / 180) * Math.cos(marketLat * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     const distance = (R * c).toFixed(1)
-    return { distance: parseFloat(distance), duration: Math.round(parseFloat(distance) * 3) }
+    const cost = Math.round(parseFloat(distance) * 40) // ₹40 per km
+    return { distance: parseFloat(distance), duration: Math.round(parseFloat(distance) * 3), cost }
   }
 
   const generateNearbyMarkets = async (location) => {
@@ -91,7 +92,7 @@ const MarketMap = ({ userLocation }) => {
         }
       }
     ]
-    
+
     // Calculate real driving distances
     const marketsWithDistances = await Promise.all(
       baseMarkets.map(async (market) => {
@@ -102,11 +103,12 @@ const MarketMap = ({ userLocation }) => {
           ...market,
           distance,
           distanceText: `${distance} km`,
-          drivingTime: `${duration} min`
+          drivingTime: `${duration} min`,
+          transportCost: `~₹${Math.round(distance * 40)} Est. Cost`
         }
       })
     )
-    
+
     return marketsWithDistances
   }
 
@@ -200,10 +202,10 @@ const MarketMap = ({ userLocation }) => {
             className="search-input"
           />
         </div>
-        
+
         <div className="sort-controls">
-          <select 
-            value={sortBy} 
+          <select
+            value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="sort-select"
           >
@@ -279,12 +281,13 @@ const MarketMap = ({ userLocation }) => {
                     <span className="time-badge">🚗 {market.drivingTime}</span>
                   )}
                   <span className={`crowd-badge crowd-${market.crowdLevel}`}>
-                    {market.crowdLevel === 'low' ? '🟢' : market.crowdLevel === 'medium' ? '🟡' : '🔴'} 
+                    {market.crowdLevel === 'low' ? '🟢' : market.crowdLevel === 'medium' ? '🟡' : '🔴'}
                     {market.crowdLevel} crowd
                   </span>
+                  <span className="cost-badge">🚚 {market.transportCost}</span>
                 </div>
               </div>
-              <button 
+              <button
                 className={`favorite-btn ${favorites.includes(market.id) ? 'active' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation()
@@ -294,7 +297,7 @@ const MarketMap = ({ userLocation }) => {
                 {favorites.includes(market.id) ? '❤️' : '🤍'}
               </button>
             </div>
-            
+
             <div className="market-preview">
               <div className="price-preview">
                 {Object.entries(market.crops).slice(0, 2).map(([crop, data]) => (
@@ -320,7 +323,7 @@ const MarketMap = ({ userLocation }) => {
               <h3>{modalMarket.name}</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
-            
+
             <div className="modal-content">
               <div className="modal-info">
                 <div className="info-item">
@@ -336,6 +339,10 @@ const MarketMap = ({ userLocation }) => {
                 <div className="info-item">
                   <span className="info-label">🕒 Hours:</span>
                   <span>{modalMarket.hours}</span>
+                </div>
+                <div className="info-item">
+                  <span className="info-label">🚚 Transport Cost:</span>
+                  <span>{modalMarket.transportCost} (Est.)</span>
                 </div>
                 <div className="info-item">
                   <span className="info-label">👥 Crowd Level:</span>
@@ -359,13 +366,13 @@ const MarketMap = ({ userLocation }) => {
               </div>
 
               <div className="modal-actions">
-                <button 
+                <button
                   className="action-btn primary"
                   onClick={() => openGoogleMaps(modalMarket)}
                 >
                   🗺️ Navigate on Google Maps
                 </button>
-                <button 
+                <button
                   className={`action-btn ${favorites.includes(modalMarket.id) ? 'favorited' : 'secondary'}`}
                   onClick={() => toggleFavorite(modalMarket.id)}
                 >
