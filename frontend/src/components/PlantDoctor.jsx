@@ -82,9 +82,13 @@ const PlantDoctor = () => {
                         {image ? (
                             <img src={image} alt="Crop preview" className="preview-image" />
                         ) : (
-                            <div className="placeholder-content">
-                                <span className="placeholder-icon">📸</span>
-                                <p>Upload a photo of your affected crop</p>
+                            <div className="placeholder-content" style={{ border: '2px dashed #9ca3af', borderRadius: '12px', padding: '40px', backgroundColor: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: '300px' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                <p style={{ marginTop: '16px', fontSize: '1.1em', fontWeight: '500', color: '#374151' }}>Drag and drop image here</p>
+                                <p style={{ fontSize: '0.9em', color: '#6b7280' }}>or click below to upload</p>
                             </div>
                         )}
 

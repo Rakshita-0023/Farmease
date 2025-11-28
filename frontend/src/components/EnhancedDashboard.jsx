@@ -15,14 +15,14 @@ const EnhancedDashboard = () => {
   // Real-time farm calculations
   const calculateFarmMetrics = useCallback((farmData) => {
     if (!farmData.length) return { totalFarms: 0, activeCrops: 0, harvestReady: 0, healthScore: 0 }
-    
+
     const totalFarms = farmData.length
     const activeCrops = farmData.filter(farm => farm.progress < 100).length
     const harvestReady = farmData.filter(farm => {
       const progress = farm.progress || 0
       return progress >= 90
     }).length
-    
+
     // Calculate Health Score based on soil data
     const healthScore = Math.round(farmData.reduce((sum, farm) => {
       let score = 100
@@ -31,7 +31,7 @@ const EnhancedDashboard = () => {
       if (farm.pestRisk === 'High') score -= 30
       return sum + Math.max(0, score)
     }, 0) / (totalFarms || 1))
-    
+
     return { totalFarms, activeCrops, harvestReady, healthScore }
   }, [])
 
@@ -45,18 +45,18 @@ const EnhancedDashboard = () => {
   // Dynamic soil analysis from real farm data
   const calculateSoilMetrics = useCallback((farmData) => {
     if (!farmData.length) return null
-    
+
     const avgPh = farmData.reduce((sum, farm) => sum + (farm.soilPh || 6.5), 0) / farmData.length
     const avgMoisture = farmData.reduce((sum, farm) => sum + (farm.soilMoisture || 50), 0) / farmData.length
     const avgNitrogen = farmData.reduce((sum, farm) => sum + (farm.nitrogen || 50), 0) / farmData.length
     const avgPhosphorus = farmData.reduce((sum, farm) => sum + (farm.phosphorus || 50), 0) / farmData.length
-    
+
     const evaluateLevel = (value, thresholds) => {
       if (value >= thresholds.high) return { level: 'High', status: 'good', trend: '📈' }
       if (value >= thresholds.medium) return { level: 'Medium', status: 'medium', trend: '📊' }
       return { level: 'Low', status: 'poor', trend: '📉' }
     }
-    
+
     return {
       ph: {
         value: avgPh.toFixed(1),
@@ -84,11 +84,11 @@ const EnhancedDashboard = () => {
   // Real-time alert generation
   const generateAlerts = useCallback((farmData, weatherData) => {
     const alerts = []
-    
+
     farmData.forEach(farm => {
       const farmId = farm.id
       const farmName = farm.name
-      
+
       // Harvest ready alerts - exact match with farm progress
       if (farm.progress >= 90) {
         alerts.push({
@@ -101,7 +101,7 @@ const EnhancedDashboard = () => {
           action: 'Schedule harvest'
         })
       }
-      
+
       // Irrigation alerts
       if (farm.soilMoisture < 30) {
         alerts.push({
@@ -124,7 +124,7 @@ const EnhancedDashboard = () => {
           action: 'Plan irrigation'
         })
       }
-      
+
       // pH alerts
       if (farm.soilPh < 5.5 || farm.soilPh > 8.0) {
         alerts.push({
@@ -137,12 +137,12 @@ const EnhancedDashboard = () => {
           action: 'Adjust pH'
         })
       }
-      
+
       // Growth stage alerts
       const daysSincePlanted = farm.daysSincePlanted || 0
       const growthDays = farm.analysis?.growthDays || 100
       const growthStage = Math.floor((daysSincePlanted / growthDays) * 5)
-      
+
       if (growthStage === 2 && farm.progress > 30 && farm.progress < 50) {
         alerts.push({
           id: `fertilizer-${farmId}`,
@@ -155,7 +155,7 @@ const EnhancedDashboard = () => {
         })
       }
     })
-    
+
     // Weather-based alerts
     if (weatherData) {
       if (weatherData.temperature > 35) {
@@ -168,7 +168,7 @@ const EnhancedDashboard = () => {
           action: 'Increase irrigation'
         })
       }
-      
+
       if (weatherData.humidity > 85) {
         alerts.push({
           id: 'humidity-warning',
@@ -180,7 +180,7 @@ const EnhancedDashboard = () => {
         })
       }
     }
-    
+
     return alerts.sort((a, b) => {
       const severityOrder = { high: 3, medium: 2, low: 1 }
       return severityOrder[b.severity] - severityOrder[a.severity]
@@ -247,7 +247,7 @@ const EnhancedDashboard = () => {
     const calculateCropScore = (crop) => {
       let score = 100
       const reasons = []
-      
+
       // Temperature scoring
       if (temp >= crop.idealTempRange[0] && temp <= crop.idealTempRange[1]) {
         reasons.push(`Temperature (${temp}°C) is ideal.`)
@@ -255,7 +255,7 @@ const EnhancedDashboard = () => {
         score -= 30
         reasons.push(`Temperature (${temp}°C) is ${temp < crop.idealTempRange[0] ? 'too low' : 'too high'}.`)
       }
-      
+
       // pH scoring
       if (ph >= crop.idealPHRange[0] && ph <= crop.idealPHRange[1]) {
         reasons.push(`Your soil pH (${ph}) is perfect.`)
@@ -263,7 +263,7 @@ const EnhancedDashboard = () => {
         score -= 25
         reasons.push(`Soil pH (${ph}) needs adjustment.`)
       }
-      
+
       // Season scoring
       if (crop.idealSeason.includes(currentMonth)) {
         reasons.push(`${currentMonth} is the right season.`)
@@ -271,7 +271,7 @@ const EnhancedDashboard = () => {
         score -= 20
         reasons.push(`${currentMonth} is not ideal season.`)
       }
-      
+
       // Water requirement scoring
       if (crop.waterNeeds === 'High' && moisture < 50) {
         score -= 15
@@ -281,7 +281,7 @@ const EnhancedDashboard = () => {
       } else if (crop.waterNeeds === 'Medium') {
         reasons.push(`Water needs match current conditions.`)
       }
-      
+
       return { ...crop, score: Math.max(0, score), reasons }
     }
 
@@ -293,7 +293,7 @@ const EnhancedDashboard = () => {
     // Generate dynamic actions based on conditions
     const generateActions = () => {
       const actions = []
-      
+
       if (moisture < 40) {
         actions.push('Start irrigation immediately — moisture is low')
       } else if (moisture < 60 && humidity < 60) {
@@ -301,25 +301,25 @@ const EnhancedDashboard = () => {
       } else {
         actions.push('Moisture levels are good — no irrigation needed')
       }
-      
+
       if (ph < 6) {
         actions.push('Apply lime to increase soil pH')
       } else if (ph > 7.5) {
         actions.push('Add sulfur to lower soil pH')
       }
-      
+
       if (temp > 30) {
         actions.push('Provide shade during peak hours')
       }
-      
+
       actions.push('Monitor crop health weekly')
-      
+
       return actions
     }
 
     // Calculate harvest estimate
     const harvestDays = bestCrop.harvestDays[0] + Math.round((bestCrop.harvestDays[1] - bestCrop.harvestDays[0]) / 2)
-    
+
     return {
       crop: bestCrop.crop,
       confidence: bestCrop.score,
@@ -343,14 +343,14 @@ const EnhancedDashboard = () => {
   // Generate dynamic crop timeline
   const generateCropTimeline = useCallback((farmData) => {
     if (!farmData.length) return null
-    
+
     // Find the most active farm (highest progress but not harvested)
     const activeFarm = farmData
       .filter(farm => farm.progress < 95)
       .sort((a, b) => b.progress - a.progress)[0]
-    
+
     if (!activeFarm) return null
-    
+
     const progress = activeFarm.progress || 0
     const stages = [
       { name: '🌱 Planting', threshold: 0, active: progress >= 0 },
@@ -359,9 +359,9 @@ const EnhancedDashboard = () => {
       { name: '🧪 Fertilizer', threshold: 60, active: progress >= 60 },
       { name: '🚜 Harvest', threshold: 85, active: progress >= 85 }
     ]
-    
+
     const currentStage = stages.findIndex(stage => !stage.active)
-    
+
     return {
       farmName: activeFarm.name,
       progress,
@@ -398,16 +398,46 @@ const EnhancedDashboard = () => {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
-      // Load farms first (from localStorage - always available)
+      // Try to fetch from backend first
       const currentUser = JSON.parse(localStorage.getItem('user')) || {}
-      const userFarms = localStorage.getItem(`farms_${currentUser.id}`) || localStorage.getItem('farms')
-      const storedFarms = userFarms ? JSON.parse(userFarms) : []
+      let farmsToSet = []
       
-      // Always set farms data immediately (with fallback sample data)
-      let farmsToSet = storedFarms
-      if (storedFarms.length === 0) {
+      try {
+        const response = await fetch(`http://localhost:3001/api/farms/${currentUser.id || 'demo'}`)
+        if (response.ok) {
+          const backendFarms = await response.json()
+          farmsToSet = backendFarms
+        } else {
+          throw new Error('Backend unavailable')
+        }
+      } catch (backendError) {
+        console.log('Backend unavailable, using localStorage')
+        // Fallback to localStorage
+        const userFarms = localStorage.getItem(`farms_${currentUser.id}`) || localStorage.getItem('farms')
+        const storedFarms = userFarms ? JSON.parse(userFarms) : []
+
+        farmsToSet = storedFarms.length > 0 ? storedFarms : [
+          {
+            id: 'demo-1',
+            name: 'North Field',
+            cropType: 'Wheat',
+            progress: 100,
+            daysToHarvest: 0
+          },
+          {
+            id: 'demo-2',
+            name: 'South Field',
+            cropType: 'Rice',
+            progress: 96,
+            daysToHarvest: 2
+          }
+        ]
+      }
+      
+      // Ensure we have demo data if no farms exist
+      if (farmsToSet.length === 0) {
         farmsToSet = [
           {
             id: 'demo-1',
@@ -418,7 +448,7 @@ const EnhancedDashboard = () => {
           },
           {
             id: 'demo-2',
-            name: 'South Field', 
+            name: 'South Field',
             cropType: 'Rice',
             progress: 96,
             daysToHarvest: 2
@@ -426,7 +456,7 @@ const EnhancedDashboard = () => {
         ]
       }
       setFarms(farmsToSet)
-      
+
       // Get user location for weather
       const userLocation = JSON.parse(localStorage.getItem('userLocation')) || {
         latitude: 28.6139,
@@ -438,7 +468,7 @@ const EnhancedDashboard = () => {
         const weatherResponse = await fetch(
           `https://api.openweathermap.org/data/2.5/weather?lat=${userLocation.latitude}&lon=${userLocation.longitude}&appid=895284fb2d2c50a520ea537456963d9c&units=metric`
         )
-        
+
         if (weatherResponse.ok) {
           const weatherData = await weatherResponse.json()
           setWeather({
@@ -469,7 +499,7 @@ const EnhancedDashboard = () => {
           windSpeed: 10
         })
       }
-      
+
       setLastUpdated(new Date())
     } catch (err) {
       console.error('Dashboard data fetch error:', err)
@@ -487,7 +517,7 @@ const EnhancedDashboard = () => {
       const currentUser = JSON.parse(localStorage.getItem('user')) || {}
       const userFarms = localStorage.getItem(`farms_${currentUser.id}`) || localStorage.getItem('farms')
       let storedFarms = userFarms ? JSON.parse(userFarms) : []
-      
+
       // If no farms exist, create sample data for demo
       if (storedFarms.length === 0) {
         storedFarms = [
@@ -499,7 +529,7 @@ const EnhancedDashboard = () => {
             daysToHarvest: 0
           },
           {
-            id: 'demo-2', 
+            id: 'demo-2',
             name: 'South Field',
             cropType: 'Rice',
             progress: 96,
@@ -507,9 +537,9 @@ const EnhancedDashboard = () => {
           }
         ]
       }
-      
+
       setFarms(storedFarms)
-      
+
       // Set default weather to prevent empty cards
       setWeather({
         location: 'Loading...',
@@ -518,17 +548,17 @@ const EnhancedDashboard = () => {
         humidity: 60,
         windSpeed: 10
       })
-      
+
       setLoading(false)
     }
-    
+
     loadInitialData()
-    
+
     // Then fetch fresh data
     setTimeout(() => {
       fetchDashboardData()
     }, 100)
-    
+
     // Auto-refresh every 5 minutes
     const interval = setInterval(fetchDashboardData, 300000)
     return () => clearInterval(interval)
@@ -544,12 +574,12 @@ const EnhancedDashboard = () => {
         </div>
         <div className="loading-skeleton">
           <div className="skeleton-metrics">
-            {[1,2,3,4].map(i => (
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className="skeleton-card"></div>
             ))}
           </div>
           <div className="skeleton-grid">
-            {[1,2,3,4].map(i => (
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className="skeleton-card large"></div>
             ))}
           </div>
@@ -588,9 +618,9 @@ const EnhancedDashboard = () => {
               ⚠️ Connection issues
             </span>
           )}
-          <button 
-            onClick={fetchDashboardData} 
-            className="refresh-link" 
+          <button
+            onClick={fetchDashboardData}
+            className="refresh-link"
             disabled={loading}
             aria-label="Refresh dashboard data"
           >
@@ -607,21 +637,21 @@ const EnhancedDashboard = () => {
       {/* Key Metrics Row */}
       <div className="metrics-row">
         <div className="metric-card" role="button" tabIndex="0" aria-label={`Total Farms: ${farmStats.totalFarms}`}>
-          <div className="metric-icon" aria-hidden="true">🏡</div>
+
           <div className="metric-content">
             <div className="metric-value">{farmStats.totalFarms}</div>
             <div className="metric-label">Total Farms</div>
           </div>
         </div>
         <div className="metric-card" role="button" tabIndex="0" aria-label={`Active Crops: ${farmStats.activeCrops}`}>
-          <div className="metric-icon" aria-hidden="true">🌾</div>
+
           <div className="metric-content">
             <div className="metric-value">{farmStats.activeCrops}</div>
             <div className="metric-label">Active Crops</div>
           </div>
         </div>
         <div className="metric-card" role="button" tabIndex="0" aria-label={`Crop Health Score: ${farmStats.healthScore}`}>
-          <div className="metric-icon" aria-hidden="true">❤️</div>
+
           <div className="metric-content">
             <div className={`metric-value ${farmStats.healthScore >= 80 ? 'text-green' : farmStats.healthScore >= 50 ? 'text-orange' : 'text-red'}`}>
               {farmStats.healthScore}/100
@@ -630,7 +660,7 @@ const EnhancedDashboard = () => {
           </div>
         </div>
         <div className="metric-card financial-card" role="button" tabIndex="0" aria-label="Financial Snapshot">
-          <div className="metric-icon" aria-hidden="true">💰</div>
+
           <div className="metric-content">
             <div className="financial-row">
               <span className="label">Rev:</span>
@@ -655,8 +685,13 @@ const EnhancedDashboard = () => {
           {weather ? (
             <div className="weather-content">
               <div className="weather-main">
-                <div className="temp">{weather.temperature}°C</div>
-                <div className="condition">{weather.condition}</div>
+                <div className="weather-icon-large" style={{ fontSize: '4rem', marginBottom: '10px' }}>
+                  {weather.condition.toLowerCase().includes('cloud') ? '☁️' :
+                    weather.condition.toLowerCase().includes('rain') ? '🌧️' :
+                      weather.condition.toLowerCase().includes('clear') ? '☀️' : '🌤️'}
+                </div>
+                <div className="temp" style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#1f2937' }}>{weather.temperature}°C</div>
+                <div className="condition" style={{ fontSize: '1.2rem', color: '#4b5563', fontWeight: '500' }}>{weather.condition}</div>
               </div>
               <div className="weather-details-grid">
                 <div className="weather-detail">
@@ -689,26 +724,26 @@ const EnhancedDashboard = () => {
           )}
         </div>
 
-        <div className="dashboard-card alerts-card">
+        <div className="dashboard-card alerts-card p-6 rounded-xl shadow-soft">
           <div className="card-header">
             <h3>🔔 Farm Alerts</h3>
             <span className="alert-count">{filteredAlerts.length} active</span>
           </div>
           <div className="alerts-controls">
             <div className="alert-filters">
-              <button 
+              <button
                 className={`filter-btn ${alertFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setAlertFilter('all')}
               >
                 All
               </button>
-              <button 
+              <button
                 className={`filter-btn ${alertFilter === 'critical' ? 'active' : ''}`}
                 onClick={() => setAlertFilter('critical')}
               >
                 Critical
               </button>
-              <button 
+              <button
                 className={`filter-btn ${alertFilter === 'warnings' ? 'active' : ''}`}
                 onClick={() => setAlertFilter('warnings')}
               >
@@ -728,7 +763,7 @@ const EnhancedDashboard = () => {
                       {alert.type === 'danger' && '🚨'}
                     </div>
                     <div className="alert-meta">
-                      <span className={`urgency-tag ${alert.severity}`}>{alert.severity.toUpperCase()}</span>
+                      <span className={`urgency-tag pill-shape ${alert.severity}`}>{alert.severity.toUpperCase()}</span>
                       <span className="alert-time">{alert.time}</span>
                     </div>
                   </div>
@@ -739,8 +774,17 @@ const EnhancedDashboard = () => {
                     )}
                   </div>
                   {alert.action && (
-                    <button className="alert-action-btn">
-                      {alert.action} 
+                    <button
+                      className="alert-action-btn"
+                      onClick={() => {
+                        if (alert.action === 'Schedule harvest') {
+                          alert(`Harvest scheduled for ${farms.find(f => f.id === alert.farmId)?.name}!`)
+                        } else {
+                          alert(`Action triggered: ${alert.action}`)
+                        }
+                      }}
+                    >
+                      {alert.action}
                       <span className="arrow">→</span>
                     </button>
                   )}

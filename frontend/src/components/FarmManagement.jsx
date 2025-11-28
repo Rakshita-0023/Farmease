@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import DetailedAnalytics from './DetailedAnalytics'
 import './WeatherEnhancements.css'
 
@@ -98,9 +98,20 @@ const ActivityLogModal = ({ farm, onClose, onSave }) => {
 const FarmManagement = () => {
   const [farms, setFarms] = useState(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
-    const userFarms = localStorage.getItem(`farms_${user.id}`)
-    return userFarms ? JSON.parse(userFarms) : []
+    const saved = localStorage.getItem(`farms_${user.id}`)
+    return saved ? JSON.parse(saved) : []
   })
+
+  // Sync to LocalStorage whenever farms state changes
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    if (user.id) {
+      localStorage.setItem(`farms_${user.id}`, JSON.stringify(farms))
+    } else {
+      // Fallback for guest/demo mode
+      localStorage.setItem('farms', JSON.stringify(farms))
+    }
+  }, [farms])
 
   const getCropClass = (cropType) => {
     const cropMapping = {
@@ -440,107 +451,117 @@ const FarmManagement = () => {
         <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
           <div className="add-farm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Add New Farm</h3>
-            <input
-              type="text"
-              placeholder="Farm Name"
-              value={newFarm.name}
-              onChange={(e) => setNewFarm({ ...newFarm, name: e.target.value })}
-            />
-            <select
-              value={newFarm.cropType}
-              onChange={(e) => handleCropChange(e.target.value)}
-              className="glassmorphic-select"
-            >
-              <option value="">Select Crop Type</option>
-              <optgroup label="Cereals">
-                <option value="Wheat">Wheat</option>
-                <option value="Rice">Rice</option>
-                <option value="Corn">Corn</option>
-                <option value="Bajra">Bajra</option>
-                <option value="Jowar">Jowar</option>
-                <option value="Ragi">Ragi</option>
-              </optgroup>
-              <optgroup label="Pulses">
-                <option value="Arhar Dal">Arhar Dal</option>
-                <option value="Moong Dal">Moong Dal</option>
-                <option value="Chana Dal">Chana Dal</option>
-              </optgroup>
-              <optgroup label="Cash Crops">
-                <option value="Sugarcane">Sugarcane</option>
-                <option value="Cotton">Cotton</option>
-                <option value="Jute">Jute</option>
-                <option value="Mustard">Mustard</option>
-                <option value="Groundnut">Groundnut</option>
-                <option value="Sunflower">Sunflower</option>
-              </optgroup>
-              <optgroup label="Plantation Crops">
-                <option value="Tea">Tea</option>
-                <option value="Coffee">Coffee</option>
-                <option value="Rubber">Rubber</option>
-              </optgroup>
-              <optgroup label="Vegetables">
-                <option value="Tomatoes">Tomatoes</option>
-                <option value="Onions">Onions</option>
-                <option value="Potatoes">Potatoes</option>
-                <option value="Cabbage">Cabbage</option>
-                <option value="Cauliflower">Cauliflower</option>
-              </optgroup>
-              <optgroup label="Fruits">
-                <option value="Apples">Apples</option>
-                <option value="Bananas">Bananas</option>
-                <option value="Mangoes">Mangoes</option>
-                <option value="Oranges">Oranges</option>
-              </optgroup>
-            </select>
-            <input
-              type="number"
-              placeholder="Area (hectares)"
-              value={newFarm.area}
-              onChange={(e) => setNewFarm({ ...newFarm, area: e.target.value })}
-            />
-            <input
-              type="date"
-              value={newFarm.plantingDate}
-              onChange={(e) => {
-                setNewFarm({ ...newFarm, plantingDate: e.target.value })
-                if (newFarm.cropType && e.target.value) {
-                  setCropAnalysis(analyzeCrop(newFarm.cropType, e.target.value, newFarm.soilType))
-                }
-              }}
-              required
-            />
-            <select
-              value={newFarm.soilType}
-              onChange={(e) => setNewFarm({ ...newFarm, soilType: e.target.value })}
-            >
-              <option value="Loamy">Loamy</option>
-              <option value="Clay">Clay</option>
-              <option value="Sandy">Sandy</option>
-            </select>
-            {cropAnalysis && (
-              <div className={`crop-analysis ${cropAnalysis.suitable ? 'suitable' : 'warning'}`}>
-                <h4>{cropAnalysis.suitable ? 'Good Choice!' : '⚠️ Warning'}</h4>
-                <p>Growth period: {cropAnalysis.growthDays} days</p>
-                <p>Ideal temperature: {cropAnalysis.idealTemp}</p>
-                {cropAnalysis.warnings.map((warning, i) => (
-                  <p key={i} className="warning-text">{warning}</p>
-                ))}
-                {!cropAnalysis.suitable && (
-                  <label className="risk-acknowledgment">
-                    <input
-                      type="checkbox"
-                      checked={newFarm.riskAcknowledged || false}
-                      onChange={(e) => setNewFarm({ ...newFarm, riskAcknowledged: e.target.checked })}
-                    />
-                    <span>I understand the risks and want to proceed anyway</span>
-                  </label>
-                )}
+            <form onSubmit={(e) => { e.preventDefault(); addFarm(); }}>
+              <input
+                type="text"
+                placeholder="Farm Name"
+                value={newFarm.name}
+                onChange={(e) => setNewFarm({ ...newFarm, name: e.target.value })}
+                required
+                className="glassmorphic-input"
+              />
+              <select
+                value={newFarm.cropType}
+                onChange={(e) => handleCropChange(e.target.value)}
+                className="glassmorphic-select"
+                required
+              >
+                <option value="">Select Crop Type</option>
+                <optgroup label="Cereals">
+                  <option value="Wheat">Wheat</option>
+                  <option value="Rice">Rice</option>
+                  <option value="Corn">Corn</option>
+                  <option value="Bajra">Bajra</option>
+                  <option value="Jowar">Jowar</option>
+                  <option value="Ragi">Ragi</option>
+                </optgroup>
+                <optgroup label="Pulses">
+                  <option value="Arhar Dal">Arhar Dal</option>
+                  <option value="Moong Dal">Moong Dal</option>
+                  <option value="Chana Dal">Chana Dal</option>
+                </optgroup>
+                <optgroup label="Cash Crops">
+                  <option value="Sugarcane">Sugarcane</option>
+                  <option value="Cotton">Cotton</option>
+                  <option value="Jute">Jute</option>
+                  <option value="Mustard">Mustard</option>
+                  <option value="Groundnut">Groundnut</option>
+                  <option value="Sunflower">Sunflower</option>
+                </optgroup>
+                <optgroup label="Plantation Crops">
+                  <option value="Tea">Tea</option>
+                  <option value="Coffee">Coffee</option>
+                  <option value="Rubber">Rubber</option>
+                </optgroup>
+                <optgroup label="Vegetables">
+                  <option value="Tomatoes">Tomatoes</option>
+                  <option value="Onions">Onions</option>
+                  <option value="Potatoes">Potatoes</option>
+                  <option value="Cabbage">Cabbage</option>
+                  <option value="Cauliflower">Cauliflower</option>
+                </optgroup>
+                <optgroup label="Fruits">
+                  <option value="Apples">Apples</option>
+                  <option value="Bananas">Bananas</option>
+                  <option value="Mangoes">Mangoes</option>
+                  <option value="Oranges">Oranges</option>
+                </optgroup>
+              </select>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Area (hectares)"
+                value={newFarm.area}
+                onChange={(e) => setNewFarm({ ...newFarm, area: e.target.value })}
+                required
+                className="glassmorphic-input"
+              />
+              <input
+                type="date"
+                value={newFarm.plantingDate}
+                onChange={(e) => {
+                  setNewFarm({ ...newFarm, plantingDate: e.target.value })
+                  if (newFarm.cropType && e.target.value) {
+                    setCropAnalysis(analyzeCrop(newFarm.cropType, e.target.value, newFarm.soilType))
+                  }
+                }}
+                required
+                className="glassmorphic-input"
+              />
+              <select
+                value={newFarm.soilType}
+                onChange={(e) => setNewFarm({ ...newFarm, soilType: e.target.value })}
+                className="glassmorphic-select"
+              >
+                <option value="Loamy">Loamy</option>
+                <option value="Clay">Clay</option>
+                <option value="Sandy">Sandy</option>
+              </select>
+              {cropAnalysis && (
+                <div className={`crop-analysis ${cropAnalysis.suitable ? 'suitable' : 'warning'}`}>
+                  <h4>{cropAnalysis.suitable ? 'Good Choice!' : '⚠️ Warning'}</h4>
+                  <p>Growth period: {cropAnalysis.growthDays} days</p>
+                  <p>Ideal temperature: {cropAnalysis.idealTemp}</p>
+                  {cropAnalysis.warnings.map((warning, i) => (
+                    <p key={i} className="warning-text">{warning}</p>
+                  ))}
+                  {!cropAnalysis.suitable && (
+                    <label className="risk-acknowledgment">
+                      <input
+                        type="checkbox"
+                        checked={newFarm.riskAcknowledged || false}
+                        onChange={(e) => setNewFarm({ ...newFarm, riskAcknowledged: e.target.checked })}
+                      />
+                      <span>I understand the risks and want to proceed anyway</span>
+                    </label>
+                  )}
+                </div>
+              )}
+              <div className="modal-buttons">
+                <button type="submit">Add Farm</button>
+                <button type="button" onClick={() => setShowAddForm(false)}>Cancel</button>
               </div>
-            )}
-            <div className="modal-buttons">
-              <button onClick={addFarm}>Add Farm</button>
-              <button onClick={() => setShowAddForm(false)}>Cancel</button>
-            </div>
+            </form>
           </div>
         </div>
       )}

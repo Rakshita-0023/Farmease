@@ -23,27 +23,27 @@ const AIChatbot = () => {
 
   const getAIResponse = (userMessage) => {
     const message = userMessage.toLowerCase()
-    
+
     // Find matching keywords
     for (const [keyword, response] of Object.entries(farmingResponses)) {
       if (message.includes(keyword)) {
         return response
       }
     }
-    
+
     // Default responses for common questions
     if (message.includes('hello') || message.includes('hi')) {
       return 'Hello! I\'m here to help with your farming questions. Ask me about crops, irrigation, pests, or weather!'
     }
-    
+
     if (message.includes('help')) {
       return 'I can help you with:\n• Crop growing tips\n• Irrigation advice\n• Pest management\n• Weather guidance\n• Soil care\n• Harvest timing\n\nWhat would you like to know?'
     }
-    
+
     if (message.includes('thank')) {
       return 'You\'re welcome! Happy farming! 🌱'
     }
-    
+
     // Default response
     return 'I\'d be happy to help! Try asking about specific crops (wheat, rice, tomato), irrigation, fertilizers, pests, or soil management.'
   }
@@ -78,12 +78,21 @@ const AIChatbot = () => {
   return (
     <>
       {/* Chat Button */}
-      <button 
+      <button
         className="ai-chat-btn"
         onClick={() => setIsOpen(!isOpen)}
         title="AI Farming Assistant"
       >
-        🤖
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path>
+          <path d="M12 22a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2a2 2 0 0 1-2 2z"></path>
+          <path d="M22 12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2 2 2 0 0 1 2-2h2a2 2 0 0 1 2 2z"></path>
+          <path d="M6 12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2 2 2 0 0 1 2-2h2a2 2 0 0 1 2 2z"></path>
+          <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+          <path d="M9 10h.01"></path>
+          <path d="M15 10h.01"></path>
+          <path d="M10 14h4"></path>
+        </svg>
       </button>
 
       {/* Chat Panel */}
@@ -93,7 +102,7 @@ const AIChatbot = () => {
             <h3>🤖 AI Farming Assistant</h3>
             <button onClick={() => setIsOpen(false)}>×</button>
           </div>
-          
+
           <div className="chat-messages">
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.type}`}>
@@ -104,7 +113,7 @@ const AIChatbot = () => {
                 </div>
               </div>
             ))}
-            
+
             {isTyping && (
               <div className="message bot typing">
                 <div className="message-content">
@@ -118,7 +127,7 @@ const AIChatbot = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
-          
+
           <div className="chat-input">
             <input
               type="text"
@@ -128,7 +137,7 @@ const AIChatbot = () => {
               placeholder="Ask about crops, irrigation, pests..."
               disabled={isTyping}
             />
-            <button 
+            <button
               onClick={sendMessage}
               disabled={!inputText.trim() || isTyping}
             >

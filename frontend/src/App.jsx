@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Dashboard from './components/Dashboard'
 import EnhancedDashboard from './components/EnhancedDashboard'
 import Login from './components/Login'
@@ -179,15 +180,8 @@ function App() {
           <div className="sidebar-header">
             <div className="brand-logo">
               <span className="logo-icon">🌱</span>
-              {!sidebarCollapsed && <span className="logo-text">FarmEase</span>}
+              <span className="logo-text">FarmEase</span>
             </div>
-            <button
-              className="sidebar-toggle"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              aria-label="Toggle sidebar"
-            >
-              {sidebarCollapsed ? '→' : '←'}
-            </button>
           </div>
 
           <nav className="sidebar-nav">
@@ -199,7 +193,7 @@ function App() {
                 title={item.label}
               >
                 <span className="nav-icon">{item.icon}</span>
-                {!sidebarCollapsed && <span className="nav-label">{item.label}</span>}
+                <span className="nav-label">{item.label}</span>
                 {currentPage === item.id && <span className="active-indicator"></span>}
               </button>
             ))}
@@ -222,6 +216,20 @@ function App() {
                   placeholder={language === 'hi' ? 'खोजें...' : 'Search farms, crops, markets...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      // Implement search logic here
+                      console.log('Searching for:', searchQuery)
+                      // For now, we can alert or filter if applicable
+                      if (currentPage === 'farms') {
+                        // Logic to filter farms is handled in FarmManagement if we pass the query
+                        // But for now, let's just show an alert as requested if no direct filtering is available
+                        alert(`Searching for: ${searchQuery}`)
+                      } else {
+                        alert(`Searching for: ${searchQuery}`)
+                      }
+                    }
+                  }}
                   className="search-input"
                 />
                 <button
@@ -265,15 +273,25 @@ function App() {
           </header>
 
           <main className="main-content">
-            {currentPage === 'dashboard' && <EnhancedDashboard />}
-            {currentPage === 'farms' && <FarmManagement />}
-            {currentPage === 'weather' && <Weather />}
-            {currentPage === 'market' && <Market />}
-            {currentPage === 'tips' && <Tips />}
-            {currentPage === 'advanced' && <AdvancedFeatures userLocation={userLocation} />}
-            {currentPage === 'plant-doctor' && <PlantDoctor />}
-            {currentPage === 'forum' && <CommunityForum />}
-            {currentPage === 'schemes' && <Schemes />}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPage}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {currentPage === 'dashboard' && <EnhancedDashboard />}
+                {currentPage === 'farms' && <FarmManagement />}
+                {currentPage === 'weather' && <Weather />}
+                {currentPage === 'market' && <Market />}
+                {currentPage === 'tips' && <Tips />}
+                {currentPage === 'advanced' && <AdvancedFeatures userLocation={userLocation} />}
+                {currentPage === 'plant-doctor' && <PlantDoctor />}
+                {currentPage === 'forum' && <CommunityForum />}
+                {currentPage === 'schemes' && <Schemes />}
+              </motion.div>
+            </AnimatePresence>
           </main>
 
 

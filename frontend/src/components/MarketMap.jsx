@@ -90,6 +90,20 @@ const MarketMap = ({ userLocation }) => {
           'Corn': { price: 1800, trend: 'down', change: '-3%' },
           'Tomatoes': { price: 3200, trend: 'up', change: '+4%' }
         }
+      },
+      {
+        id: 4,
+        name: 'City Cold Storage',
+        lat: location.latitude - 0.02,
+        lng: location.longitude - 0.04,
+        type: 'storage',
+        ownership: 'private',
+        hours: '24 Hours',
+        crowdLevel: 'low',
+        crops: {
+          'Potatoes': { price: 1800, trend: 'stable', change: '0%' },
+          'Onions': { price: 3000, trend: 'stable', change: '0%' }
+        }
       }
     ]
 
@@ -252,8 +266,12 @@ const MarketMap = ({ userLocation }) => {
               }}
               onClick={() => handleMarketClick(market)}
             >
-              <div className="marker-icon market-enhanced">
-                🏪
+              <div className="marker-icon market-enhanced" style={{ background: market.type === 'storage' ? '#607d8b' : '#2e7d32', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: '2px solid white', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                {market.type === 'storage' ? (
+                  <span style={{ fontSize: '18px' }}>🏭</span>
+                ) : (
+                  <span style={{ fontSize: '18px' }}>🚜</span>
+                )}
                 <div className="marker-shadow"></div>
               </div>
               <div className="marker-label-enhanced">

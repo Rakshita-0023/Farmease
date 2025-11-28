@@ -30,24 +30,27 @@ const AdvancedFeatures = ({ userLocation }) => {
         <p>AI-powered tools for modern farming</p>
       </div>
 
-      <div className="features-tabs">
-        <button 
-          className={activeTab === 'map' ? 'active' : ''}
+      <div className="features-tabs" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+        <button
+          className={`feature-card-btn ${activeTab === 'map' ? 'active' : ''}`}
           onClick={() => setActiveTab('map')}
         >
-          🗺️ Market Map
+          <span className="feature-card-icon">🗺️</span>
+          <span className="feature-card-title">Market Map</span>
         </button>
-        <button 
-          className={activeTab === 'yield' ? 'active' : ''}
+        <button
+          className={`feature-card-btn ${activeTab === 'yield' ? 'active' : ''}`}
           onClick={() => setActiveTab('yield')}
         >
-          🧠 AI Yield Prediction
+          <span className="feature-card-icon">🧠</span>
+          <span className="feature-card-title">AI Yield Prediction</span>
         </button>
-        <button 
-          className={activeTab === 'analytics' ? 'active' : ''}
+        <button
+          className={`feature-card-btn ${activeTab === 'analytics' ? 'active' : ''}`}
           onClick={() => setActiveTab('analytics')}
         >
-          📊 Farm Analytics
+          <span className="feature-card-icon">📊</span>
+          <span className="feature-card-title">Farm Analytics</span>
         </button>
       </div>
 
@@ -62,7 +65,7 @@ const AdvancedFeatures = ({ userLocation }) => {
           <div className="feature-section">
             <div className="farm-selector">
               <h3>Select Farm for Prediction:</h3>
-              <select 
+              <select
                 value={selectedFarm?.id || ''}
                 onChange={(e) => {
                   const farm = farms.find(f => f.id === parseInt(e.target.value))
@@ -77,8 +80,8 @@ const AdvancedFeatures = ({ userLocation }) => {
                 ))}
               </select>
             </div>
-            <YieldPredictor 
-              farmData={selectedFarm || sampleFarm} 
+            <YieldPredictor
+              farmData={selectedFarm || sampleFarm}
               weatherData={weatherData}
             />
           </div>
@@ -97,7 +100,7 @@ const AdvancedFeatures = ({ userLocation }) => {
                   <div className="metric">
                     <span className="metric-label">Avg Progress</span>
                     <span className="metric-value">
-                      {farms.length > 0 
+                      {farms.length > 0
                         ? Math.round(farms.reduce((acc, f) => acc + f.progress, 0) / farms.length)
                         : 0}%
                     </span>

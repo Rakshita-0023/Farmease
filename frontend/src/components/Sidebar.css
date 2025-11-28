@@ -406,16 +406,24 @@
 .logout-link {
     background: none;
     border: none;
-    padding: 0;
+    padding: 8px 0;
+    /* Increased vertical padding for touch target */
     color: var(--gray-500);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     cursor: pointer;
     text-align: left;
-    transition: color 0.2s ease;
+    transition: all 0.2s ease;
+    display: block;
+    /* Ensure it takes width */
+    width: 100%;
 }
 
 .logout-link:hover {
     color: #dc2626;
+    background-color: rgba(220, 38, 38, 0.05);
+    padding-left: 8px;
+    /* Visual feedback on hover */
+    border-radius: 4px;
 }
 
 /* Main Content Area */
