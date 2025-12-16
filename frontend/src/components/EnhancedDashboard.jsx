@@ -400,44 +400,13 @@ const EnhancedDashboard = () => {
     setError(null)
 
     try {
-      // Try to fetch from backend first
+      // Load farms from localStorage
       const currentUser = JSON.parse(localStorage.getItem('user')) || {}
-      let farmsToSet = []
-      
-      try {
-        const response = await fetch(`http://localhost:3001/api/farms/${currentUser.id || 'demo'}`)
-        if (response.ok) {
-          const backendFarms = await response.json()
-          farmsToSet = backendFarms
-        } else {
-          throw new Error('Backend unavailable')
-        }
-      } catch (backendError) {
-        console.log('Backend unavailable, using localStorage')
-        // Fallback to localStorage
-        const userFarms = localStorage.getItem(`farms_${currentUser.id}`) || localStorage.getItem('farms')
-        const storedFarms = userFarms ? JSON.parse(userFarms) : []
+      const userFarms = localStorage.getItem(`farms_${currentUser.id}`) || localStorage.getItem('farms')
+      const storedFarms = userFarms ? JSON.parse(userFarms) : []
 
-        farmsToSet = storedFarms.length > 0 ? storedFarms : [
-          {
-            id: 'demo-1',
-            name: 'North Field',
-            cropType: 'Wheat',
-            progress: 100,
-            daysToHarvest: 0
-          },
-          {
-            id: 'demo-2',
-            name: 'South Field',
-            cropType: 'Rice',
-            progress: 96,
-            daysToHarvest: 2
-          }
-        ]
-      }
-      
-      // Ensure we have demo data if no farms exist
-      if (farmsToSet.length === 0) {
+      let farmsToSet = storedFarms
+      if (storedFarms.length === 0) {
         farmsToSet = [
           {
             id: 'demo-1',
