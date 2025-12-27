@@ -11,6 +11,9 @@ import Tips from './components/Tips'
 import PlantDoctor from './components/PlantDoctor'
 import CommunityForum from './components/CommunityForum'
 import Schemes from './components/Schemes'
+import AboutUs from './components/AboutUs'
+import Contact from './components/Contact'
+import TermsOfService from './components/TermsOfService'
 
 import AIChatbot from './components/AIChatbot'
 import LocationDetector from './components/LocationDetector'
@@ -19,6 +22,7 @@ import YieldPredictor from './components/YieldPredictor'
 import NotificationSystem from './components/NotificationSystem'
 import AdvancedFeatures from './components/AdvancedFeatures'
 import LoadingAnimation from './components/LoadingAnimation'
+import { getAuthToken, removeAuthToken } from './config'
 import './components/Sidebar.css'
 
 const LanguageContext = createContext()
@@ -77,6 +81,38 @@ function App() {
   const [isListening, setIsListening] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  useEffect(() => {
+    // Check for existing authentication
+    const token = getAuthToken()
+    const savedUser = localStorage.getItem('user')
+    
+    if (token && savedUser) {
+      try {
+        const userData = JSON.parse(savedUser)
+        setUser(userData)
+        setCurrentPage('dashboard')
+      } catch (error) {
+        console.error('Invalid user data:', error)
+        removeAuthToken()
+      }
+    }
+
+    // Auto-detect location on app start
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.log('Location access denied')
+        }
+      )
+    }
+  }, [])
 
   const startVoiceSearch = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -146,10 +182,10 @@ function App() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    removeAuthToken()
     setUser(null)
-    setCurrentPage('login')
+    setCurrentPage('landing')
+    setFarms([])
   }
 
   const navItems = [
@@ -158,10 +194,13 @@ function App() {
     { id: 'weather', icon: '', label: t('weather'), labelHi: 'मौसम' },
     { id: 'market', icon: '', label: t('market'), labelHi: 'बाज़ार' },
     { id: 'tips', icon: '', label: t('tips'), labelHi: 'सुझाव' },
-    { id: 'advanced', icon: '', label: language === 'hi' ? 'उन्नत सुविधाएँ' : 'Advanced', labelHi: 'उन्नत सुविधाएँ' },
-    { id: 'plant-doctor', icon: '🩺', label: language === 'hi' ? 'डॉक्टर' : 'Doctor', labelHi: 'डॉक्टर' },
-    { id: 'forum', icon: '', label: language === 'hi' ? 'चर्चा' : 'Forum', labelHi: 'चर्चा' },
-    { id: 'schemes', icon: '', label: language === 'hi' ? 'योजनाएं' : 'Schemes', labelHi: 'योजनाएं' }
+    { id: 'advanced', icon: '', label: 'Advanced', labelHi: 'उन्नत' },
+    { id: 'doctor', icon: '', label: 'Plant Doctor', labelHi: 'पौधे डॉक्टर' },
+    { id: 'community', icon: '', label: 'Community', labelHi: 'समुदाय' },
+    { id: 'schemes', icon: '', label: 'Schemes', labelHi: 'योजनाएं' },
+    { id: 'about', icon: '', label: 'About Us', labelHi: 'हमारे बारे में' },
+    { id: 'contact', icon: '', label: 'Contact', labelHi: 'संपर्क' },
+    { id: 'terms', icon: '', label: 'Terms', labelHi: 'नियम' }
   ]
 
   if (currentPage === 'landing') {
@@ -287,9 +326,12 @@ function App() {
                 {currentPage === 'market' && <Market />}
                 {currentPage === 'tips' && <Tips />}
                 {currentPage === 'advanced' && <AdvancedFeatures userLocation={userLocation} />}
-                {currentPage === 'plant-doctor' && <PlantDoctor />}
-                {currentPage === 'forum' && <CommunityForum />}
+                {currentPage === 'doctor' && <PlantDoctor />}
+                {currentPage === 'community' && <CommunityForum />}
                 {currentPage === 'schemes' && <Schemes />}
+                {currentPage === 'about' && <AboutUs />}
+                {currentPage === 'contact' && <Contact />}
+                {currentPage === 'terms' && <TermsOfService />}
               </motion.div>
             </AnimatePresence>
           </main>

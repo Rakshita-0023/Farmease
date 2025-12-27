@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { WEATHER_API_KEY } from '../config'
 import './WeatherEnhancements.css'
 
 const getCropRecommendations = (weather) => {
@@ -62,39 +63,44 @@ const Weather = () => {
   const fetchWeather = async (city = 'Delhi') => {
     setLoading(true)
     try {
-      const API_KEY = '895284fb2d2c50a520ea537456963d9c'
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
+        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
       )
+      
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status}`)
+      }
+      
       const data = await response.json()
       
-      if (response.ok) {
-        const forecastResponse = await fetch(
-          `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API_KEY}&units=metric`
-        )
-        const forecastData = await forecastResponse.json()
-        
-        setWeather({
-          location: data.name,
-          temperature: Math.round(data.main.temp),
-          condition: data.weather[0].main,
-          humidity: data.main.humidity,
-          windSpeed: Math.round(data.wind.speed * 3.6),
-          dewPoint: Math.round(data.main.temp - ((100 - data.main.humidity) / 5)),
-          pressure: data.main.pressure,
-          visibility: data.visibility ? Math.round(data.visibility / 1000) : null,
-          uvIndex: Math.round(Math.random() * 10), // Placeholder as OpenWeather free tier doesn't include UV
-          soilTemp: Math.round(data.main.temp - 2), // Estimated soil temperature
-          forecast: forecastData.list.slice(0, 3).map((item, index) => ({
-            day: index === 0 ? 'Tomorrow' : `Day ${index + 1}`,
-            temp: Math.round(item.main.temp),
-            condition: item.weather[0].main,
-            precipProb: Math.round((item.pop || 0) * 100)
-          }))
-        })
-      } else {
-        throw new Error(data.message)
+      const forecastResponse = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
+      )
+      
+      if (!forecastResponse.ok) {
+        console.warn('Forecast API failed, using current weather only')
       }
+      
+      const forecastData = forecastResponse.ok ? await forecastResponse.json() : null
+      
+      setWeather({
+        location: data.name,
+        temperature: Math.round(data.main.temp),
+        condition: data.weather[0].main,
+        humidity: data.main.humidity,
+        windSpeed: Math.round(data.wind.speed * 3.6),
+        dewPoint: Math.round(data.main.temp - ((100 - data.main.humidity) / 5)),
+        pressure: data.main.pressure,
+        visibility: data.visibility ? Math.round(data.visibility / 1000) : null,
+        uvIndex: Math.round(Math.random() * 10), // Placeholder as OpenWeather free tier doesn't include UV
+        soilTemp: Math.round(data.main.temp - 2), // Estimated soil temperature
+        forecast: forecastData ? forecastData.list.slice(0, 3).map((item, index) => ({
+          day: index === 0 ? 'Tomorrow' : `Day ${index + 1}`,
+          temp: Math.round(item.main.temp),
+          condition: item.weather[0].main,
+          precipProb: Math.round((item.pop || 0) * 100)
+        })) : []
+      })
     } catch (error) {
       console.error('Weather fetch error:', error)
       setWeather({

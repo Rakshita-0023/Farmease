@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
-import { API_BASE_URL } from '../config'
+import { apiClient } from '../config'
 
 const Login = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true)
@@ -13,30 +12,61 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-
-    // Simple validation
+  const validateForm = () => {
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields')
-      setLoading(false)
+      return false
+    }
+
+    if (!isLogin && !formData.name) {
+      setError('Name is required for registration')
+      return false
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address')
+      return false
+    }
+
+    // Password validation
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (!validateForm()) {
       return
     }
 
-    // Simulate loading
-    setTimeout(() => {
-      const user = {
-        id: 1,
-        name: formData.name || formData.email.split('@')[0],
-        email: formData.email
+    setLoading(true)
+
+    try {
+      const endpoint = isLogin ? '/auth/login' : '/auth/register'
+      const payload = isLogin 
+        ? { email: formData.email, password: formData.password }
+        : { name: formData.name, email: formData.email, password: formData.password }
+
+      const response = await apiClient.post(endpoint, payload)
+
+      if (response.success) {
+        localStorage.setItem('token', response.token)
+        localStorage.setItem('user', JSON.stringify(response.user))
+        onLogin(response.user)
       }
-      localStorage.setItem('token', 'demo-token-' + Date.now())
-      localStorage.setItem('user', JSON.stringify(user))
-      onLogin(user)
+    } catch (error) {
+      setError(error.message || 'Authentication failed')
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   return (

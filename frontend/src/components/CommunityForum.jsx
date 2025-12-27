@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import EmptyState from './EmptyState'
 import './WeatherEnhancements.css'
 
 const CommunityForum = () => {
@@ -81,41 +82,51 @@ const CommunityForum = () => {
             </div>
 
             <div className="forum-feed">
-                {posts.map(post => (
-                    <div key={post.id} className="forum-card">
-                        <div className="post-header">
-                            <div className="author-avatar">{post.author.charAt(0)}</div>
-                            <div className="author-info">
-                                <span className="author-name">{post.author}</span>
-                                <span className="author-role">{post.role}</span>
+                {posts.length === 0 ? (
+                    <EmptyState
+                        icon="👥"
+                        title="No discussions yet"
+                        description="Be the first to start a conversation! Ask a question or share your farming experience."
+                        actionText="Ask First Question"
+                        onAction={() => setShowPostModal(true)}
+                    />
+                ) : (
+                    posts.map(post => (
+                        <div key={post.id} className="forum-card">
+                            <div className="post-header">
+                                <div className="author-avatar">{post.author.charAt(0)}</div>
+                                <div className="author-info">
+                                    <span className="author-name">{post.author}</span>
+                                    <span className="author-role">{post.role}</span>
+                                </div>
+                                <span className="post-time">{post.time}</span>
                             </div>
-                            <span className="post-time">{post.time}</span>
-                        </div>
 
-                        <div className="post-content">
-                            <p>{post.content}</p>
-                            <div className="post-tags">
-                                {post.tags.map((tag, i) => (
-                                    <button key={i} className="tag clickable-tag" onClick={() => alert(`Filter by #${tag} coming soon!`)}>
-                                        #{tag}
-                                    </button>
-                                ))}
+                            <div className="post-content">
+                                <p>{post.content}</p>
+                                <div className="post-tags">
+                                    {post.tags.map((tag, i) => (
+                                        <button key={i} className="tag clickable-tag" onClick={() => alert(`Filter by #${tag} coming soon!`)}>
+                                            #{tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="post-actions">
+                                <button className="action-btn-text large-action">
+                                    <span className="icon">👍</span> {post.likes} Likes
+                                </button>
+                                <button className="action-btn-text large-action">
+                                    <span className="icon">💬</span> {post.comments} Comments
+                                </button>
+                                <button className="action-btn-text large-action">
+                                    <span className="icon">↗️</span> Share
+                                </button>
                             </div>
                         </div>
-
-                        <div className="post-actions">
-                            <button className="action-btn-text large-action">
-                                <span className="icon">👍</span> {post.likes} Likes
-                            </button>
-                            <button className="action-btn-text large-action">
-                                <span className="icon">💬</span> {post.comments} Comments
-                            </button>
-                            <button className="action-btn-text large-action">
-                                <span className="icon">↗️</span> Share
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
 
             {showPostModal && (
