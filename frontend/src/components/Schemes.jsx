@@ -1,6 +1,3 @@
-import { useState } from 'react'
-import './WeatherEnhancements.css'
-
 const Schemes = () => {
     const schemes = [
         {
@@ -51,42 +48,49 @@ const Schemes = () => {
     ]
 
     return (
-        <div className="schemes-page">
-            <div className="page-header">
+        <div className="p-6 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1>🏛️ Government Schemes</h1>
-                    <p>Subsidies and financial aid for farmers</p>
+                    <h1 className="text-2xl font-bold text-gray-800">🏛️ Government Schemes</h1>
+                    <p className="text-gray-500">Subsidies and financial aid for farmers</p>
                 </div>
             </div>
 
-            <div className="schemes-grid">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {schemes.map(scheme => (
-                    <div key={scheme.id} className="scheme-card">
-                        <div className="scheme-header">
-                            <h3>{scheme.name}</h3>
-                            <span className={`status-badge ${scheme.status === 'Active' ? 'active' : 'urgent'}`}>
+                    <div key={scheme.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-lg font-bold text-gray-800 line-clamp-2">{scheme.name}</h3>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap ml-2 ${scheme.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                 {scheme.status}
                             </span>
                         </div>
 
-                        <p className="scheme-desc">{scheme.description}</p>
+                        <p className="text-gray-600 text-sm mb-6 flex-grow">{scheme.description}</p>
 
-                        <div className="scheme-details">
-                            <div className="detail-row">
-                                <span className="label">Eligibility:</span>
-                                <span className="value">{scheme.eligibility}</span>
+                        <div className="space-y-3 mb-6">
+                            <div className="flex justify-between text-sm border-b border-gray-50 pb-2">
+                                <span className="text-gray-500">Eligibility</span>
+                                <span className="font-medium text-gray-900 text-right max-w-[60%]">{scheme.eligibility}</span>
                             </div>
-                            <div className="detail-row">
-                                <span className="label">Deadline:</span>
-                                <span className="value">{scheme.deadline}</span>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Deadline</span>
+                                <span className="font-medium text-gray-900">{scheme.deadline}</span>
                             </div>
                         </div>
 
-                        <div className="scheme-actions">
-                            <a href={scheme.link} target="_blank" rel="noopener noreferrer" className="apply-btn">
+                        <div className="flex gap-3 mt-auto">
+                            <a
+                                href={scheme.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 bg-green-600 text-white text-center py-2 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
+                            >
                                 Apply Now ↗
                             </a>
-                            <button className="check-status-btn">Check Status</button>
+                            <button className="flex-1 bg-white border border-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm">
+                                Check Status
+                            </button>
                         </div>
                     </div>
                 ))}

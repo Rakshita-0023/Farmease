@@ -1,6 +1,6 @@
-import { useState, useEffect, createContext, useContext } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import Dashboard from './components/Dashboard'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import Layout from './components/Layout'
 import EnhancedDashboard from './components/EnhancedDashboard'
 import Login from './components/Login'
 import LandingPage from './components/LandingPage'
@@ -14,91 +14,27 @@ import Schemes from './components/Schemes'
 import AboutUs from './components/AboutUs'
 import Contact from './components/Contact'
 import TermsOfService from './components/TermsOfService'
-
-import AIChatbot from './components/AIChatbot'
-import LocationDetector from './components/LocationDetector'
-import MarketMap from './components/MarketMap'
-import YieldPredictor from './components/YieldPredictor'
-import NotificationSystem from './components/NotificationSystem'
 import AdvancedFeatures from './components/AdvancedFeatures'
-import LoadingAnimation from './components/LoadingAnimation'
 import { getAuthToken, removeAuthToken } from './config'
-import './components/Sidebar.css'
-
-const LanguageContext = createContext()
-
-const translations = {
-  en: {
-    dashboard: 'Dashboard',
-    myFarms: 'My Farms',
-    weather: 'Weather',
-    market: 'Market',
-    tips: 'Tips',
-    welcome: 'Welcome back',
-    logout: 'Logout',
-    weatherToday: 'Weather Today',
-    cropSuggestions: 'AI Crop Suggestions',
-    marketPrices: 'Market Prices',
-    recentActivity: 'Recent Activity'
-  },
-  hi: {
-    dashboard: 'डैशबोर्ड',
-    myFarms: 'मेरे खेत',
-    weather: 'मौसम',
-    market: 'बाज़ार',
-    tips: 'सुझाव',
-    welcome: 'वापसी पर स्वागत',
-    logout: 'लॉग आउट',
-    weatherToday: 'आज का मौसम',
-    cropSuggestions: 'AI फसल सुझाव',
-    marketPrices: 'बाज़ार दर',
-    recentActivity: 'हाल की गतिविधि'
-  },
-  te: {
-    dashboard: 'డాష్‌బోర్డ్',
-    myFarms: 'నా పొలాలు',
-    weather: 'వాతావరణం',
-    market: 'మార్కెట్',
-    tips: 'చిట్కాలు',
-    welcome: 'తిరిగి స్వాగతం',
-    logout: 'లాగ్ అవుట్',
-    weatherToday: 'నేటి వాతావరణం',
-    cropSuggestions: 'AI పంట సూచనలు',
-    marketPrices: 'మార్కెట్ ధరలు',
-    recentActivity: 'ఇటీవలి కార్యకలాపాలు'
-  }
-}
-
-export const useLanguage = () => useContext(LanguageContext)
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('landing')
-  const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState(null)
-  const [language, setLanguage] = useState('en')
   const [userLocation, setUserLocation] = useState(null)
-  const [farms, setFarms] = useState([])
-  const [isListening, setIsListening] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    // Check for existing authentication
     const token = getAuthToken()
     const savedUser = localStorage.getItem('user')
-    
     if (token && savedUser) {
       try {
-        const userData = JSON.parse(savedUser)
-        setUser(userData)
-        setCurrentPage('dashboard')
-      } catch (error) {
-        console.error('Invalid user data:', error)
+        setUser(JSON.parse(savedUser))
+      } catch (e) {
+        console.error("Failed to parse user data", e)
         removeAuthToken()
       }
     }
 
-    // Auto-detect location on app start
+    // Auto-detect location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -107,240 +43,44 @@ function App() {
             longitude: position.coords.longitude
           })
         },
-        (error) => {
-          console.log('Location access denied')
-        }
+        (error) => console.log('Location access denied')
       )
     }
   }, [])
 
-  const startVoiceSearch = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Voice search is not supported in your browser. Please use Chrome or Edge.')
-      return
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
-
-    recognition.lang = language === 'hi' ? 'hi-IN' : 'en-US'
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
-
-    setIsListening(true)
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript
-      setSearchQuery(transcript)
-      setIsListening(false)
-    }
-
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error)
-      setIsListening(false)
-      alert('Voice recognition failed. Please try again.')
-    }
-
-    recognition.onend = () => {
-      setIsListening(false)
-    }
-
-    recognition.start()
-  }
-
-  const t = (key) => translations[language][key] || key
-
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    const userData = localStorage.getItem('user')
-    if (token && userData) {
-      setUser(JSON.parse(userData))
-      setCurrentPage('dashboard')
-    }
-
-    // Load farms from localStorage
-    const userFarms = localStorage.getItem('farms')
-    if (userFarms) {
-      setFarms(JSON.parse(userFarms))
-    }
-  }, [])
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page)
-  }
-
   const handleLogin = (userData) => {
     setUser(userData)
-    handlePageChange('dashboard')
-
-    // Show welcome notification
-    setTimeout(() => {
-      if (window.showWelcomeNotification) {
-        window.showWelcomeNotification(userData.name)
-      }
-    }, 1000)
+    navigate('/')
   }
 
   const handleLogout = () => {
     removeAuthToken()
     setUser(null)
-    setCurrentPage('landing')
-    setFarms([])
-  }
-
-  const navItems = [
-    { id: 'dashboard', icon: '', label: t('dashboard'), labelHi: 'डैशबोर्ड' },
-    { id: 'farms', icon: '', label: t('myFarms'), labelHi: 'मेरे खेत' },
-    { id: 'weather', icon: '', label: t('weather'), labelHi: 'मौसम' },
-    { id: 'market', icon: '', label: t('market'), labelHi: 'बाज़ार' },
-    { id: 'tips', icon: '', label: t('tips'), labelHi: 'सुझाव' },
-    { id: 'advanced', icon: '', label: 'Advanced', labelHi: 'उन्नत' },
-    { id: 'doctor', icon: '', label: 'Plant Doctor', labelHi: 'पौधे डॉक्टर' },
-    { id: 'community', icon: '', label: 'Community', labelHi: 'समुदाय' },
-    { id: 'schemes', icon: '', label: 'Schemes', labelHi: 'योजनाएं' },
-    { id: 'about', icon: '', label: 'About Us', labelHi: 'हमारे बारे में' },
-    { id: 'contact', icon: '', label: 'Contact', labelHi: 'संपर्क' },
-    { id: 'terms', icon: '', label: 'Terms', labelHi: 'नियम' }
-  ]
-
-  if (currentPage === 'landing') {
-    return <LandingPage onGetStarted={() => setCurrentPage('login')} />
-  }
-
-  if (currentPage === 'login') {
-    return <Login onLogin={handleLogin} />
+    navigate('/landing')
   }
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      <div className="app-container">
-        {/* Vertical Sidebar */}
-        <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-          <div className="sidebar-header">
-            <div className="brand-logo">
-              <span className="logo-icon">🌱</span>
-              <span className="logo-text">FarmEase</span>
-            </div>
-          </div>
+    <Routes>
+      <Route path="/landing" element={!user ? <LandingPage onGetStarted={() => navigate('/login')} /> : <Navigate to="/" />} />
+      <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" />} />
 
-          <nav className="sidebar-nav">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
-                onClick={() => handlePageChange(item.id)}
-                title={item.label}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.label}</span>
-                {currentPage === item.id && <span className="active-indicator"></span>}
-              </button>
-            ))}
-          </nav>
+      <Route element={user ? <Layout user={user} onLogout={handleLogout} userLocation={userLocation} setUserLocation={setUserLocation} /> : <Navigate to="/landing" />}>
+        <Route path="/" element={<EnhancedDashboard />} />
+        <Route path="/farms" element={<FarmManagement />} />
+        <Route path="/weather" element={<Weather />} />
+        <Route path="/market" element={<Market />} />
+        <Route path="/tips" element={<Tips />} />
+        <Route path="/advanced" element={<AdvancedFeatures userLocation={userLocation} />} />
+        <Route path="/doctor" element={<PlantDoctor />} />
+        <Route path="/community" element={<CommunityForum />} />
+        <Route path="/schemes" element={<Schemes />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/terms" element={<TermsOfService />} />
+      </Route>
 
-          <div className="sidebar-footer">
-            <LocationDetector onLocationDetected={setUserLocation} />
-          </div>
-        </aside>
-
-        {/* Main Content Area */}
-        <div className="main-wrapper">
-          {/* Top Header */}
-          <header className="top-header">
-            <div className="header-search">
-              <div className="search-container">
-                <span className="search-icon">🔍</span>
-                <input
-                  type="text"
-                  placeholder={language === 'hi' ? 'खोजें...' : 'Search farms, crops, markets...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      // Implement search logic here
-                      console.log('Searching for:', searchQuery)
-                      // For now, we can alert or filter if applicable
-                      if (currentPage === 'farms') {
-                        // Logic to filter farms is handled in FarmManagement if we pass the query
-                        // But for now, let's just show an alert as requested if no direct filtering is available
-                        alert(`Searching for: ${searchQuery}`)
-                      } else {
-                        alert(`Searching for: ${searchQuery}`)
-                      }
-                    }
-                  }}
-                  className="search-input"
-                />
-                <button
-                  className={`voice-search-btn ${isListening ? 'listening' : ''}`}
-                  onClick={startVoiceSearch}
-                  title="Voice Search"
-                >
-                  {isListening ? (
-                    <span className="listening-indicator">
-                      <span className="pulse"></span>
-                      🎙️
-                    </span>
-                  ) : (
-                    '🎤'
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="header-actions">
-              <NotificationSystem userLocation={userLocation} farms={farms} />
-
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="language-selector-header"
-              >
-                <option value="en">🇬🇧 EN</option>
-                <option value="hi">🇮🇳 हि</option>
-                <option value="te">🇮🇳 తె</option>
-              </select>
-
-              <div className="user-profile">
-                <div className="user-avatar">{user?.name?.charAt(0) || 'F'}</div>
-                <div className="user-info">
-                  <span className="user-name">{user?.name || 'Farmer'}</span>
-                  <button onClick={handleLogout} className="logout-link">Logout</button>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <main className="main-content">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentPage}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {currentPage === 'dashboard' && <EnhancedDashboard />}
-                {currentPage === 'farms' && <FarmManagement />}
-                {currentPage === 'weather' && <Weather />}
-                {currentPage === 'market' && <Market />}
-                {currentPage === 'tips' && <Tips />}
-                {currentPage === 'advanced' && <AdvancedFeatures userLocation={userLocation} />}
-                {currentPage === 'doctor' && <PlantDoctor />}
-                {currentPage === 'community' && <CommunityForum />}
-                {currentPage === 'schemes' && <Schemes />}
-                {currentPage === 'about' && <AboutUs />}
-                {currentPage === 'contact' && <Contact />}
-                {currentPage === 'terms' && <TermsOfService />}
-              </motion.div>
-            </AnimatePresence>
-          </main>
-
-
-          <AIChatbot />
-        </div>
-      </div>
-    </LanguageContext.Provider>
+      <Route path="*" element={<Navigate to={user ? "/" : "/landing"} />} />
+    </Routes>
   )
 }
 
