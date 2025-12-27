@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLanguage } from '../App'
+import { useMandiData } from '../hooks/useMandiData'
+import { TrendingUp, TrendingDown, RefreshCw, MapPin, Loader2 } from 'lucide-react'
 
 const getSeasonalCrops = (temperature) => {
   if (temperature >= 25) {
@@ -14,25 +16,30 @@ const getSeasonalCrops = (temperature) => {
 const Dashboard = () => {
   const [weather, setWeather] = useState(null)
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
-  const [marketPrices, setMarketPrices] = useState([])
-  const [priceCache, setPriceCache] = useState({})
-  const [priceLoading, setPriceLoading] = useState({})
-  const [priceErrors, setPriceErrors] = useState({})
   const [recentActivity, setRecentActivity] = useState([])
   const { t } = useLanguage()
+
+  // Fetch real market data for the dashboard (trending crops)
+  const { data: marketPrices = [], isLoading: pricesLoading, refetch: refreshPrices } = useMandiData('', '', '')
+
+  // Get top 6 trending crops for dashboard
+  const trendingCrops = useMemo(() => {
+    return Array.isArray(marketPrices)
+      ? marketPrices.filter(p => p.trend === 'up').slice(0, 6)
+      : []
+  }, [marketPrices])
 
   const getRecentFarmActivity = () => {
     const farms = JSON.parse(localStorage.getItem('farms')) || []
     const activities = []
-    
-    // Get recent farms (last 5)
+
     const recentFarms = farms.slice(-5).reverse()
-    
+
     recentFarms.forEach((farm, index) => {
       const daysAgo = index === 0 ? 'Today' : index === 1 ? 'Yesterday' : `${index + 1} days ago`
       const statusIcon = farm.progress >= 80 ? '🌟' : farm.progress >= 60 ? '🌱' : farm.progress >= 40 ? '🌿' : '🌾'
       const statusText = farm.progress >= 80 ? 'Excellent' : farm.progress >= 60 ? 'Growing Well' : farm.progress >= 40 ? 'Developing' : 'Recently Planted'
-      
+
       activities.push({
         icon: statusIcon,
         text: `${farm.cropType} farm "${farm.name}" - ${statusText}`,
@@ -40,123 +47,16 @@ const Dashboard = () => {
         status: farm.progress >= 60 ? 'good' : 'normal'
       })
     })
-    
-    // If no farms, show default activities
+
     if (activities.length === 0) {
       activities.push(
         { icon: '🌱', text: 'Welcome to FarmEase! Add your first farm to see activity', time: 'Now', status: 'normal' },
-        { icon: '', text: 'Market prices updated with AI analysis', time: '1 hour ago', status: 'good' },
+        { icon: '📊', text: 'Market prices updated with real-time data', time: '1 hour ago', status: 'good' },
         { icon: '🌤️', text: 'Weather data synchronized', time: '2 hours ago', status: 'normal' }
       )
     }
-    
-    return activities.slice(0, 4) // Show max 4 activities
-  }
 
-  const dashboardCrops = [
-    { crop: 'Wheat', icon: '', class: 'wheat' },
-    { crop: 'Rice', icon: '', class: 'rice' },
-    { crop: 'Corn', icon: '', class: 'corn' },
-    { crop: 'Tomatoes', icon: '', class: 'tomato' },
-    { crop: 'Onions', icon: '', class: 'onion' },
-    { crop: 'Potatoes', icon: '', class: 'potato' }
-  ]
-
-  const generateRealisticPrice = (cropName) => {
-    const basePrices = {
-      'Wheat': 2200, 'Rice': 2000, 'Corn': 1800, 'Tomatoes': 3400, 'Onions': 2900, 'Potatoes': 1700
-    }
-    
-    const basePrice = basePrices[cropName] || 2000
-    const variation = (Math.random() - 0.5) * 0.3
-    const price = Math.round(basePrice * (1 + variation))
-    const changePercent = Math.round(variation * 100)
-    const change = changePercent >= 0 ? `+${changePercent}%` : `${changePercent}%`
-    const trend = changePercent >= 0 ? 'up' : 'down'
-    
-    return { price, change, trend }
-  }
-
-  const fetchAIPrice = async (cropName) => {
-    if (priceCache[cropName]) {
-      return priceCache[cropName]
-    }
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1200))
-      const priceData = generateRealisticPrice(cropName)
-      
-      setPriceCache(prev => ({ ...prev, [cropName]: priceData }))
-      return priceData
-    } catch (error) {
-      throw new Error('Failed to fetch price')
-    }
-  }
-
-  const updateCropPrice = async (cropName, index) => {
-    setPriceLoading(prev => ({ ...prev, [index]: true }))
-    setPriceErrors(prev => ({ ...prev, [index]: false }))
-    
-    try {
-      const priceData = await fetchAIPrice(cropName)
-      
-      setMarketPrices(prev => prev.map((item, i) => 
-        i === index ? { 
-          ...item, 
-          ...priceData, 
-          lastUpdated: new Date().toLocaleTimeString(),
-          priceStatus: 'loaded'
-        } : item
-      ))
-    } catch (error) {
-      setPriceErrors(prev => ({ ...prev, [index]: true }))
-      setMarketPrices(prev => prev.map((item, i) => 
-        i === index ? { ...item, priceStatus: 'error' } : item
-      ))
-    } finally {
-      setPriceLoading(prev => ({ ...prev, [index]: false }))
-    }
-  }
-
-  const refreshPrice = async (cropName, index) => {
-    setPriceCache(prev => {
-      const newCache = { ...prev }
-      delete newCache[cropName]
-      return newCache
-    })
-    
-    await updateCropPrice(cropName, index)
-  }
-
-  const renderPriceContent = (item, index) => {
-    if (item.priceStatus === 'loading' || priceLoading[index]) {
-      return (
-        <div className="price price-loading">
-          <span className="price-shimmer">Fetching price... ↻</span>
-        </div>
-      )
-    }
-    
-    if (item.priceStatus === 'error' || priceErrors[index]) {
-      return (
-        <div className="price price-error">
-          <span>Price unavailable</span>
-          <button 
-            className="retry-btn"
-            onClick={() => refreshPrice(item.crop, index)}
-            title="Retry"
-          >
-            ↻
-          </button>
-        </div>
-      )
-    }
-    
-    return (
-      <div className="price price-loaded">
-        ₹{item.price}/quintal
-      </div>
-    )
+    return activities.slice(0, 4)
   }
 
   useEffect(() => {
@@ -170,7 +70,7 @@ const Dashboard = () => {
               `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
             )
             const data = await response.json()
-            
+
             if (response.ok) {
               setWeather({
                 location: data.name,
@@ -181,7 +81,6 @@ const Dashboard = () => {
               })
             }
           }, () => {
-            // Fallback to default location
             setWeather({
               location: 'Default Location',
               temperature: 28,
@@ -202,39 +101,16 @@ const Dashboard = () => {
         })
       }
     }
-    
+
     fetchLocationWeather()
-    
-    // Initialize market prices
-    const initialPrices = dashboardCrops.map((template, index) => ({
-      ...template,
-      price: null,
-      change: null,
-      trend: null,
-      lastUpdated: null,
-      priceStatus: 'loading'
-    }))
-    
-    setMarketPrices(initialPrices)
-    
-    // Fetch prices in background
-    initialPrices.forEach((item, index) => {
-      updateCropPrice(item.crop, index)
-    })
-    
-    // Load recent activity
     setRecentActivity(getRecentFarmActivity())
-    
-    // Listen for farm changes
+
     const handleStorageChange = () => {
       setRecentActivity(getRecentFarmActivity())
     }
-    
+
     window.addEventListener('storage', handleStorageChange)
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-    }
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   return (
@@ -245,9 +121,10 @@ const Dashboard = () => {
       </div>
 
       <div className="dashboard-grid">
+        {/* Weather Card */}
         <div className="dashboard-card">
-          <h3>🌤️ {t('weatherToday')}</h3>
-          {weather && (
+          <h3 className="flex items-center gap-2">🌤️ {t('weatherToday')}</h3>
+          {weather ? (
             <div className="weather-info">
               <div className="temp">{weather.temperature}°C</div>
               <div className="condition">{weather.condition}</div>
@@ -255,69 +132,91 @@ const Dashboard = () => {
                 <span>💧 {weather.humidity}%</span>
                 <span>💨 {weather.windSpeed} km/h</span>
               </div>
+              <div className="location-tag flex items-center gap-1 text-xs text-gray-400 mt-2">
+                <MapPin size={12} /> {weather.location}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-24">
+              <Loader2 className="animate-spin text-green-500" />
             </div>
           )}
         </div>
 
+        {/* Crop Suggestions */}
         <div className="dashboard-card">
-          <h3>🌱 {t('cropSuggestions')}</h3>
+          <h3 className="flex items-center gap-2">🌱 {t('cropSuggestions')}</h3>
           <div className="crop-list">
-            {weather && (
-              <>
-                <div className="crop-item">
-                  <span className="crop-item-name">{getSeasonalCrops(weather.temperature)[0].split(' - ')[0]}</span>
-                  <span className="crop-status">Excellent</span>
+            {weather ? (
+              getSeasonalCrops(weather.temperature).map((crop, i) => (
+                <div key={i} className="crop-item">
+                  <span className="crop-item-name">{crop}</span>
+                  <span className={`crop-status ${i === 0 ? 'excellent' : 'good'}`}>
+                    {i === 0 ? 'Excellent' : i === 1 ? 'Very Good' : 'Good'}
+                  </span>
                 </div>
-                <div className="crop-item">
-                  <span className="crop-item-name">{getSeasonalCrops(weather.temperature)[1].split(' - ')[0]}</span>
-                  <span className="crop-status">Very Good</span>
-                </div>
-                <div className="crop-item">
-                  <span className="crop-item-name">{getSeasonalCrops(weather.temperature)[2].split(' - ')[0]}</span>
-                  <span className="crop-status">Good</span>
-                </div>
-              </>
+              ))
+            ) : (
+              <div className="animate-pulse space-y-2">
+                <div className="h-8 bg-gray-100 rounded"></div>
+                <div className="h-8 bg-gray-100 rounded"></div>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="dashboard-card">
-          <h3> {t('marketPrices')}</h3>
+        {/* Market Prices Card */}
+        <div className="dashboard-card lg:col-span-2">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="flex items-center gap-2">📈 {t('marketPrices')} (Trending)</h3>
+            <button
+              onClick={() => refreshPrices()}
+              disabled={pricesLoading}
+              className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <RefreshCw size={16} className={pricesLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
           <div className="dashboard-market-grid">
-            {marketPrices.map((item, index) => (
-              <div key={index} className={`market-card ${item.class}`}>
-                <div className="market-card-content">
-                  <div className="crop-header">
-                    <div className="crop-icon">{item.icon}</div>
-                    <button 
-                      className="refresh-btn"
-                      onClick={() => refreshPrice(item.crop, index)}
-                      disabled={priceLoading[index]}
-                      title="Refresh price"
-                    >
-                      {priceLoading[index] ? '↻' : '↻'}
-                    </button>
-                  </div>
-                  <div className="crop-name">{item.crop}</div>
-                  {renderPriceContent(item, index)}
-                  {item.change && (
-                    <div className={`change ${item.trend}`}>
-                      {item.change}
+            {pricesLoading ? (
+              [1, 2, 3, 4].map(i => (
+                <div key={i} className="market-card animate-pulse bg-gray-50 h-24 rounded-xl"></div>
+              ))
+            ) : trendingCrops.length > 0 ? (
+              trendingCrops.map((item) => (
+                <div key={item.id} className="market-card">
+                  <div className="market-card-content">
+                    <div className="flex justify-between items-start">
+                      <div className="crop-name font-bold">{item.commodity}</div>
+                      <div className={`text-xs font-bold px-1.5 py-0.5 rounded ${item.trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {item.trend === 'up' ? '↑' : '↓'}
+                      </div>
                     </div>
-                  )}
+                    <div className="price font-black text-lg">₹{item.modal_price.toLocaleString()}</div>
+                    <div className="text-[10px] text-gray-400 uppercase">{item.market}</div>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-gray-400">
+                No trending crops found today.
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        <div className="dashboard-card">
-          <h3> {t('recentActivity')}</h3>
-          <div className="activity-list">
+        {/* Recent Activity */}
+        <div className="dashboard-card lg:col-span-2">
+          <h3 className="flex items-center gap-2">🕒 {t('recentActivity')}</h3>
+          <div className="activity-list mt-4">
             {recentActivity.map((activity, index) => (
-              <div key={index} className={`activity-item ${activity.status}`}>
-                <span>{activity.icon} {activity.text}</span>
-                <span className="time">{activity.time}</span>
+              <div key={index} className={`activity-item ${activity.status} flex justify-between items-center p-3 hover:bg-gray-50 rounded-xl transition-colors`}>
+                <span className="flex items-center gap-3">
+                  <span className="text-xl">{activity.icon}</span>
+                  <span className="text-sm font-medium text-gray-700">{activity.text}</span>
+                </span>
+                <span className="time text-xs text-gray-400">{activity.time}</span>
               </div>
             ))}
           </div>

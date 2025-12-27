@@ -4,7 +4,7 @@ import { MapPin, Sprout, Check, ArrowRight } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../config'
 
-export default function OnboardingWizard({ onComplete }) {
+export default function OnboardingWizard({ onComplete, onSkip }) {
     const [step, setStep] = useState(1)
     const [location, setLocation] = useState(null)
     const [farmData, setFarmData] = useState({
@@ -65,7 +65,13 @@ export default function OnboardingWizard({ onComplete }) {
                     />
                 </div>
 
-                <div className="p-8">
+                <div className="p-8 relative">
+                    <button
+                        onClick={onSkip}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-sm font-medium"
+                    >
+                        Skip for now
+                    </button>
                     <AnimatePresence mode="wait">
                         {step === 1 && (
                             <motion.div

@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-query-devtools": "^5.91.1",
     "axios": "^1.13.1",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
@@ -29,6 +30,7 @@
     "react-i18next": "^16.5.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.11.0",
+    "react-select": "^5.10.2",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

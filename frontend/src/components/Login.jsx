@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiClient } from '../config'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, AlertCircle, X, Zap } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const Login = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true)
@@ -68,35 +69,95 @@ const Login = ({ onLogin }) => {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    // Simulate Google Login Popup
+  const [toast, setToast] = useState(null)
+
+  useEffect(() => {
+    /* global google */
+    if (typeof google !== 'undefined') {
+      google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID",
+        callback: handleCredentialResponse,
+        auto_select: false, // Fix 2: Disable auto-select
+        cancel_on_tap_outside: true,
+        prompt_parent_id: 'google-login-btn'
+      })
+    }
+  }, [])
+
+  const handleCredentialResponse = async (response) => {
+    if (!response.credential) {
+      setToast({ message: 'Login cancelled', type: 'error' })
+      return
+    }
+
     setLoading(true)
-    setError('')
-
     try {
-      // In a real app, this would be window.open() to Google OAuth
-      // For this demo, we'll simulate a successful callback
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      const mockGoogleUser = {
-        email: 'google_user@example.com',
-        name: 'Google User',
-        googleId: 'mock_google_id_123',
-        photoUrl: 'https://lh3.googleusercontent.com/a/default-user=s96-c'
+      // Decode JWT or send to backend
+      const res = await apiClient.post('/auth/google', { token: response.credential })
+      if (res.success) {
+        localStorage.setItem('token', res.token)
+        localStorage.setItem('user', JSON.stringify(res.user))
+        onLogin(res.user)
       }
-
-      const response = await apiClient.post('/auth/google', mockGoogleUser)
-
-      if (response.success) {
-        localStorage.setItem('token', response.token)
-        localStorage.setItem('user', JSON.stringify(response.user))
-        onLogin(response.user)
-      }
-    } catch (error) {
-      console.error('Google login error:', error)
+    } catch (err) {
       setError('Google sign in failed. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = () => {
+    setError('')
+    setToast(null)
+
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+    if (!clientId || clientId === "YOUR_GOOGLE_CLIENT_ID") {
+      setError('Google Client ID is not configured. Please add VITE_GOOGLE_CLIENT_ID to your .env file.')
+      setToast({ message: 'Configuration Missing', type: 'error' })
+      return
+    }
+
+    if (typeof google !== 'undefined') {
+      // Fix 1: Force account selection
+      google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          console.log('Google prompt skipped or not displayed')
+        }
+
+        if (notification.getDismissedReason() === 'user_cancel') {
+          setToast({ message: 'Login cancelled', type: 'info' })
+        }
+      })
+
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'email profile openid',
+        prompt: 'select_account',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            setToast({ message: 'Login cancelled', type: 'error' })
+            return
+          }
+
+          setLoading(true)
+          try {
+            const res = await apiClient.post('/auth/google', { access_token: tokenResponse.access_token })
+            if (res.success) {
+              localStorage.setItem('token', res.token)
+              localStorage.setItem('user', JSON.stringify(res.user))
+              onLogin(res.user)
+            }
+          } catch (err) {
+            setError('Google sign in failed')
+          } finally {
+            setLoading(false)
+          }
+        },
+      })
+      client.requestAccessToken()
+    } else {
+      setError('Google Login is currently unavailable')
     }
   }
 
@@ -227,6 +288,25 @@ const Login = ({ onLogin }) => {
           </button>
         </form>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-[#064E3B] text-white'
+              }`}
+          >
+            {toast.type === 'error' ? <AlertCircle size={20} /> : <Zap size={20} className="text-[#FBBF24] fill-[#FBBF24]" />}
+            <span className="font-bold text-sm tracking-wide">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="ml-2 hover:opacity-70">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

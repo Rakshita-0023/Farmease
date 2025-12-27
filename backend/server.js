@@ -17,19 +17,16 @@ const localData = {
   farms: [],
   activities: [],
   diagnoses: [],
-  posts: []
+  posts: [],
+  marketPrices: []
 }
 
 // Initialize database connection
 async function initDB() {
-  db = await getDb()
-
-  if (!db) {
-    console.log('⚠️ Using in-memory storage (Local Fallback)')
-    useLocalStorage = true
-  } else {
-    await createTables()
-  }
+  // Force local storage for testing
+  console.log('⚠️ Using in-memory storage (Local Fallback) for testing')
+  useLocalStorage = true
+  seedMarketDataLocal() // Seed market data for local storage
 }
 
 async function createTables() {
@@ -92,14 +89,111 @@ async function createTables() {
       comments_count INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS market_prices (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      commodity VARCHAR(255) NOT NULL,
+      variety VARCHAR(255),
+      market VARCHAR(255) NOT NULL,
+      district VARCHAR(255) NOT NULL,
+      state VARCHAR(255) NOT NULL,
+      min_price DECIMAL(10,2) NOT NULL,
+      max_price DECIMAL(10,2) NOT NULL,
+      modal_price DECIMAL(10,2) NOT NULL,
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
+      trend VARCHAR(20) DEFAULT 'stable',
+      date DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_state (state),
+      INDEX idx_district (district),
+      INDEX idx_market (market),
+      INDEX idx_commodity (commodity),
+      INDEX idx_date (date)
     )`
   ]
 
   for (const table of tables) {
     await db.execute(table)
   }
-  console.log('✅ Database tables initialized')
+
+  console.log('✅ Database tables created successfully')
+
+  // Seed market data if table is empty
+  await seedMarketData()
   await migrateTables()
+}
+
+// Seed market data with Dec 2025 prices
+async function seedMarketData() {
+  if (useLocalStorage) return
+
+  try {
+    // ALWAYS clear existing data to prevent duplicates
+    console.log('🧹 Clearing existing market data...')
+    await db.execute('DELETE FROM market_prices')
+
+    console.log('📊 Seeding fresh market data...')
+
+    const marketData = [
+      // GUNTUR (3 crops)
+      { commodity: 'Red Chilli', variety: 'Teja', market: 'Guntur', district: 'Guntur', state: 'Andhra Pradesh', min_price: 17464, max_price: 20060, modal_price: 18500, lat: 16.3067, lng: 80.4365, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Turmeric', variety: 'Finger', market: 'Guntur', district: 'Guntur', state: 'Andhra Pradesh', min_price: 6800, max_price: 7500, modal_price: 7200, lat: 16.3067, lng: 80.4365, trend: 'down', date: '2025-12-27' },
+      { commodity: 'Cotton', variety: 'Bunny', market: 'Guntur', district: 'Guntur', state: 'Andhra Pradesh', min_price: 6500, max_price: 7100, modal_price: 6850, lat: 16.3067, lng: 80.4365, trend: 'up', date: '2025-12-27' },
+
+      // VIJAYAWADA (4 crops)
+      { commodity: 'Maize', variety: 'Hybrid', market: 'Vijayawada', district: 'Krishna', state: 'Andhra Pradesh', min_price: 1750, max_price: 1900, modal_price: 1809, lat: 16.5062, lng: 80.6480, trend: 'down', date: '2025-12-27' },
+      { commodity: 'Brinjal', variety: 'Local', market: 'Vijayawada', district: 'Krishna', state: 'Andhra Pradesh', min_price: 1600, max_price: 2000, modal_price: 1800, lat: 16.5062, lng: 80.6480, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Banana', variety: 'Robusta', market: 'Vijayawada', district: 'Krishna', state: 'Andhra Pradesh', min_price: 1200, max_price: 1600, modal_price: 1450, lat: 16.5062, lng: 80.6480, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Rice', variety: 'Sona Masuri', market: 'Vijayawada', district: 'Krishna', state: 'Andhra Pradesh', min_price: 3200, max_price: 4500, modal_price: 3800, lat: 16.5062, lng: 80.6480, trend: 'up', date: '2025-12-27' },
+
+      // HYDERABAD (6 crops)
+      { commodity: 'Pomegranate', variety: 'Bhagwa', market: 'Hyderabad', district: 'Hyderabad', state: 'Telangana', min_price: 10000, max_price: 14000, modal_price: 12500, lat: 17.3850, lng: 78.4867, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Papaya', variety: 'Taiwan', market: 'Hyderabad', district: 'Hyderabad', state: 'Telangana', min_price: 1200, max_price: 1800, modal_price: 1500, lat: 17.3850, lng: 78.4867, trend: 'down', date: '2025-12-27' },
+      { commodity: 'Onion', variety: 'Red', market: 'Hyderabad', district: 'Hyderabad', state: 'Telangana', min_price: 2500, max_price: 3500, modal_price: 3000, lat: 17.3850, lng: 78.4867, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Tomato', variety: 'Hybrid', market: 'Hyderabad', district: 'Hyderabad', state: 'Telangana', min_price: 1800, max_price: 2400, modal_price: 2100, lat: 17.3850, lng: 78.4867, trend: 'down', date: '2025-12-27' },
+      { commodity: 'Wheat', variety: 'Lokwan', market: 'Hyderabad', district: 'Hyderabad', state: 'Telangana', min_price: 2400, max_price: 2700, modal_price: 2520, lat: 17.3850, lng: 78.4867, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Jowar', variety: 'Hybrid', market: 'Hyderabad', district: 'Hyderabad', state: 'Telangana', min_price: 2100, max_price: 2350, modal_price: 2220, lat: 17.3850, lng: 78.4867, trend: 'up', date: '2025-12-27' },
+
+      // WARANGAL (4 crops)
+      { commodity: 'Cotton', variety: 'Long Staple', market: 'Warangal', district: 'Warangal', state: 'Telangana', min_price: 6800, max_price: 7200, modal_price: 7000, lat: 17.9689, lng: 79.5941, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Paddy', variety: 'Common', market: 'Warangal', district: 'Warangal', state: 'Telangana', min_price: 2100, max_price: 2300, modal_price: 2203, lat: 17.9689, lng: 79.5941, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Groundnut', variety: 'Pods', market: 'Warangal', district: 'Warangal', state: 'Telangana', min_price: 5500, max_price: 6200, modal_price: 5900, lat: 17.9689, lng: 79.5941, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Wheat', variety: 'Durum', market: 'Warangal', district: 'Warangal', state: 'Telangana', min_price: 2450, max_price: 2650, modal_price: 2550, lat: 17.9689, lng: 79.5941, trend: 'up', date: '2025-12-27' },
+
+      // NIZAMABAD (3 crops)
+      { commodity: 'Turmeric', variety: 'Bulb', market: 'Nizamabad', district: 'Nizamabad', state: 'Telangana', min_price: 6500, max_price: 7200, modal_price: 6900, lat: 18.6725, lng: 78.0941, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Soybean', variety: 'Yellow', market: 'Nizamabad', district: 'Nizamabad', state: 'Telangana', min_price: 4200, max_price: 4600, modal_price: 4450, lat: 18.6725, lng: 78.0941, trend: 'down', date: '2025-12-27' },
+      { commodity: 'Jowar', variety: 'White', market: 'Nizamabad', district: 'Nizamabad', state: 'Telangana', min_price: 2150, max_price: 2300, modal_price: 2230, lat: 18.6725, lng: 78.0941, trend: 'up', date: '2025-12-27' },
+
+      // KURNOOL (2 crops)
+      { commodity: 'Onion', variety: 'Bellary', market: 'Kurnool', district: 'Kurnool', state: 'Andhra Pradesh', min_price: 2200, max_price: 3000, modal_price: 2600, lat: 15.8281, lng: 78.0373, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Sunflower', variety: 'Seed', market: 'Kurnool', district: 'Kurnool', state: 'Andhra Pradesh', min_price: 5800, max_price: 6400, modal_price: 6100, lat: 15.8281, lng: 78.0373, trend: 'up', date: '2025-12-27' },
+
+      // KHAMMAM (1 crop)
+      { commodity: 'Red Chilli', variety: '334', market: 'Khammam', district: 'Khammam', state: 'Telangana', min_price: 16500, max_price: 19000, modal_price: 17800, lat: 17.2473, lng: 80.1514, trend: 'up', date: '2025-12-27' },
+
+      // ADILABAD (2 crops)
+      { commodity: 'Cotton', variety: 'Hybrid', market: 'Adilabad', district: 'Adilabad', state: 'Telangana', min_price: 6600, max_price: 7000, modal_price: 6800, lat: 19.6632, lng: 78.5314, trend: 'up', date: '2025-12-27' },
+      { commodity: 'Soybean', variety: 'Black', market: 'Adilabad', district: 'Adilabad', state: 'Telangana', min_price: 4100, max_price: 4500, modal_price: 4300, lat: 19.6632, lng: 78.5314, trend: 'stable', date: '2025-12-27' }
+    ]
+
+    const insertQuery = `INSERT INTO market_prices 
+      (commodity, variety, market, district, state, min_price, max_price, modal_price, latitude, longitude, trend, date) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+    for (const item of marketData) {
+      await db.execute(insertQuery, [
+        item.commodity, item.variety, item.market, item.district, item.state,
+        item.min_price, item.max_price, item.modal_price,
+        item.lat, item.lng, item.trend, item.date
+      ])
+    }
+
+    console.log(`✅ Seeded ${marketData.length} unique market price records`)
+  } catch (error) {
+    console.error('❌ Error seeding market data:', error)
+  }
 }
 
 async function migrateTables() {
@@ -132,6 +226,94 @@ async function migrateTables() {
 // Helper functions for local storage fallback
 const getNextId = (collection) => {
   return Math.max(0, ...localData[collection].map(item => item.id || 0)) + 1
+}
+
+// Market data seeding function - COMPREHENSIVE CROP LIST
+const seedMarketDataLocal = () => {
+  if (useLocalStorage && localData.marketPrices.length === 0) {
+    const marketPrices = [
+      // ========== HYDERABAD MARKETS (Telangana) ==========
+      // Bowenpally Market Yard (North Hyderabad)
+      { id: 1, commodity: 'Wheat', variety: 'HD-2967', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 2400, max_price: 2650, modal_price: 2550, trend: 'up', lat: 17.4750, lng: 78.4767 },
+      { id: 2, commodity: 'Jowar', variety: 'CSH-16', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 2100, max_price: 2350, modal_price: 2220, trend: 'up', lat: 17.4750, lng: 78.4767 },
+      { id: 3, commodity: 'Rice', variety: 'Basmati-1121', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 3500, max_price: 4200, modal_price: 3800, trend: 'stable', lat: 17.4750, lng: 78.4767 },
+      { id: 4, commodity: 'Maize', variety: 'Hybrid', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 1750, max_price: 1950, modal_price: 1850, trend: 'down', lat: 17.4750, lng: 78.4767 },
+      { id: 5, commodity: 'Onion', variety: 'Nashik Red', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 2500, max_price: 3500, modal_price: 3000, trend: 'up', lat: 17.4750, lng: 78.4767 },
+
+      // Gudimalkapur Market (Central-West Hyderabad)
+      { id: 6, commodity: 'Tomato', variety: 'Hybrid', market: 'Gudimalkapur Market', state: 'Telangana', district: 'Hyderabad', min_price: 1800, max_price: 2400, modal_price: 2100, trend: 'down', lat: 17.3850, lng: 78.4467 },
+      { id: 7, commodity: 'Potato', variety: 'Kufri Jyoti', market: 'Gudimalkapur Market', state: 'Telangana', district: 'Hyderabad', min_price: 1200, max_price: 1600, modal_price: 1400, trend: 'stable', lat: 17.3850, lng: 78.4467 },
+      { id: 8, commodity: 'Banana', variety: 'Robusta', market: 'Gudimalkapur Market', state: 'Telangana', district: 'Hyderabad', min_price: 1200, max_price: 1800, modal_price: 1500, trend: 'stable', lat: 17.3850, lng: 78.4467 },
+      { id: 9, commodity: 'Mango', variety: 'Alphonso', market: 'Gudimalkapur Market', state: 'Telangana', district: 'Hyderabad', min_price: 4000, max_price: 6000, modal_price: 5000, trend: 'up', lat: 17.3850, lng: 78.4467 },
+
+      // Mehdipatnam Rythu Bazar (Central Hyderabad)
+      { id: 10, commodity: 'Cabbage', variety: 'Green', market: 'Mehdipatnam Rythu Bazar', state: 'Telangana', district: 'Hyderabad', min_price: 800, max_price: 1200, modal_price: 1000, trend: 'stable', lat: 17.3950, lng: 78.4567 },
+      { id: 11, commodity: 'Cauliflower', variety: 'Snowball', market: 'Mehdipatnam Rythu Bazar', state: 'Telangana', district: 'Hyderabad', min_price: 1500, max_price: 2000, modal_price: 1750, trend: 'up', lat: 17.3950, lng: 78.4567 },
+      { id: 12, commodity: 'Chana Dal', variety: 'Desi', market: 'Mehdipatnam Rythu Bazar', state: 'Telangana', district: 'Hyderabad', min_price: 5500, max_price: 6500, modal_price: 6000, trend: 'up', lat: 17.3950, lng: 78.4567 },
+
+      // L.B. Nagar Market (East Hyderabad)
+      { id: 13, commodity: 'Cotton', variety: 'Bt Cotton', market: 'L.B. Nagar Market', state: 'Telangana', district: 'Hyderabad', min_price: 5800, max_price: 6200, modal_price: 6000, trend: 'up', lat: 17.3450, lng: 78.5567 },
+      { id: 14, commodity: 'Groundnut', variety: 'TMV-2', market: 'L.B. Nagar Market', state: 'Telangana', district: 'Hyderabad', min_price: 5200, max_price: 5800, modal_price: 5500, trend: 'stable', lat: 17.3450, lng: 78.5567 },
+      { id: 15, commodity: 'Sunflower', variety: 'Hybrid', market: 'L.B. Nagar Market', state: 'Telangana', district: 'Hyderabad', min_price: 5800, max_price: 6400, modal_price: 6100, trend: 'up', lat: 17.3450, lng: 78.5567 },
+
+      // ========== VIJAYAWADA MARKETS (Andhra Pradesh) ==========
+      // Gollapudi Market Yard (West Vijayawada)
+      { id: 16, commodity: 'Wheat', variety: 'PBW-343', market: 'Gollapudi Market Yard', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2350, max_price: 2600, modal_price: 2475, trend: 'up', lat: 16.5462, lng: 80.5980 },
+      { id: 17, commodity: 'Rice', variety: 'Sona Masuri', market: 'Gollapudi Market Yard', state: 'Andhra Pradesh', district: 'Krishna', min_price: 3200, max_price: 4500, modal_price: 3850, trend: 'up', lat: 16.5462, lng: 80.5980 },
+      { id: 18, commodity: 'Maize', variety: 'Hybrid', market: 'Gollapudi Market Yard', state: 'Andhra Pradesh', district: 'Krishna', min_price: 1750, max_price: 1900, modal_price: 1850, trend: 'down', lat: 16.5462, lng: 80.5980 },
+      { id: 19, commodity: 'Onion', variety: 'Red', market: 'Gollapudi Market Yard', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2200, max_price: 3000, modal_price: 2600, trend: 'up', lat: 16.5462, lng: 80.5980 },
+
+      // Patamata Rythu Bazar (East Vijayawada)
+      { id: 20, commodity: 'Tomato', variety: 'Hybrid', market: 'Patamata Rythu Bazar', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2000, max_price: 3000, modal_price: 2500, trend: 'up', lat: 16.4962, lng: 80.6780 },
+      { id: 21, commodity: 'Potato', variety: 'Local', market: 'Patamata Rythu Bazar', state: 'Andhra Pradesh', district: 'Krishna', min_price: 1100, max_price: 1500, modal_price: 1300, trend: 'stable', lat: 16.4962, lng: 80.6780 },
+      { id: 22, commodity: 'Banana', variety: 'Robusta', market: 'Patamata Rythu Bazar', state: 'Andhra Pradesh', district: 'Krishna', min_price: 1200, max_price: 1600, modal_price: 1450, trend: 'up', lat: 16.4962, lng: 80.6780 },
+
+      // Singh Nagar Market (North Vijayawada)
+      { id: 23, commodity: 'Mango', variety: 'Banganapalli', market: 'Singh Nagar Market', state: 'Andhra Pradesh', district: 'Krishna', min_price: 3500, max_price: 5000, modal_price: 4250, trend: 'stable', lat: 16.5362, lng: 80.6380 },
+      { id: 24, commodity: 'Orange', variety: 'Nagpur', market: 'Singh Nagar Market', state: 'Andhra Pradesh', district: 'Krishna', min_price: 3000, max_price: 4000, modal_price: 3500, trend: 'stable', lat: 16.5362, lng: 80.6380 },
+      { id: 25, commodity: 'Cabbage', variety: 'Green', market: 'Singh Nagar Market', state: 'Andhra Pradesh', district: 'Krishna', min_price: 900, max_price: 1300, modal_price: 1100, trend: 'stable', lat: 16.5362, lng: 80.6380 },
+
+      // ========== GUNTUR MARKETS (Andhra Pradesh) ==========
+      { id: 26, commodity: 'Chilli', variety: 'Teja', market: 'Guntur Chilli Yard', state: 'Andhra Pradesh', district: 'Guntur', min_price: 17464, max_price: 20060, modal_price: 18200, trend: 'up', lat: 16.3067, lng: 80.4365 },
+      { id: 27, commodity: 'Turmeric', variety: 'Finger', market: 'Guntur Chilli Yard', state: 'Andhra Pradesh', district: 'Guntur', min_price: 6800, max_price: 7500, modal_price: 7200, trend: 'down', lat: 16.3067, lng: 80.4365 },
+      { id: 28, commodity: 'Cotton', variety: 'Bunny', market: 'Guntur Market Yard', state: 'Andhra Pradesh', district: 'Guntur', min_price: 6500, max_price: 7100, modal_price: 6850, trend: 'up', lat: 16.3167, lng: 80.4465 },
+      { id: 29, commodity: 'Groundnut', variety: 'TMV-2', market: 'Guntur Market Yard', state: 'Andhra Pradesh', district: 'Guntur', min_price: 5200, max_price: 5800, modal_price: 5500, trend: 'up', lat: 16.3167, lng: 80.4465 },
+
+      // ========== WARANGAL MARKETS (Telangana) ==========
+      { id: 30, commodity: 'Cotton', variety: 'Long Staple', market: 'Enumamula Market Yard', state: 'Telangana', district: 'Warangal', min_price: 6800, max_price: 7200, modal_price: 7000, trend: 'up', lat: 17.9889, lng: 79.6141 },
+      { id: 31, commodity: 'Paddy', variety: 'Common', market: 'Enumamula Market Yard', state: 'Telangana', district: 'Warangal', min_price: 2100, max_price: 2300, modal_price: 2203, trend: 'up', lat: 17.9889, lng: 79.6141 },
+      { id: 32, commodity: 'Groundnut', variety: 'Pods', market: 'Warangal City Market', state: 'Telangana', district: 'Warangal', min_price: 5500, max_price: 6200, modal_price: 5900, trend: 'up', lat: 17.9689, lng: 79.5941 },
+
+      // ========== NIZAMABAD MARKETS (Telangana) ==========
+      { id: 33, commodity: 'Turmeric', variety: 'Bulb', market: 'Nizamabad Market Yard', state: 'Telangana', district: 'Nizamabad', min_price: 6500, max_price: 7200, modal_price: 6900, trend: 'up', lat: 18.6825, lng: 78.1041 },
+      { id: 34, commodity: 'Jowar', variety: 'White', market: 'Nizamabad Market Yard', state: 'Telangana', district: 'Nizamabad', min_price: 2150, max_price: 2300, modal_price: 2230, trend: 'up', lat: 18.6825, lng: 78.1041 },
+
+      // ========== KURNOOL MARKETS (Andhra Pradesh) ==========
+      { id: 35, commodity: 'Onion', variety: 'Bellary', market: 'Kurnool Market Yard', state: 'Andhra Pradesh', district: 'Kurnool', min_price: 2200, max_price: 3000, modal_price: 2600, trend: 'up', lat: 15.8381, lng: 78.0473 },
+
+      // ========== ADDITIONAL DATA FOR VARIETY ==========
+      { id: 36, commodity: 'Arhar Dal', variety: 'Tur', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 6000, max_price: 7000, modal_price: 6500, trend: 'stable', lat: 17.4750, lng: 78.4767 },
+      { id: 37, commodity: 'Mustard', variety: 'Yellow', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 5000, max_price: 6000, modal_price: 5500, trend: 'stable', lat: 17.4750, lng: 78.4767 },
+      { id: 38, commodity: 'Apple', variety: 'Shimla', market: 'Gudimalkapur Market', state: 'Telangana', district: 'Hyderabad', min_price: 8000, max_price: 12000, modal_price: 10000, trend: 'stable', lat: 17.3850, lng: 78.4467 },
+      { id: 39, commodity: 'Coffee', variety: 'Arabica', market: 'L.B. Nagar Market', state: 'Telangana', district: 'Hyderabad', min_price: 15000, max_price: 20000, modal_price: 17500, trend: 'up', lat: 17.3450, lng: 78.5567 },
+      { id: 40, commodity: 'Tea', variety: 'CTC', market: 'L.B. Nagar Market', state: 'Telangana', district: 'Hyderabad', min_price: 12000, max_price: 16000, modal_price: 14000, trend: 'stable', lat: 17.3450, lng: 78.5567 },
+      { id: 41, commodity: 'Ragi', variety: 'Finger Millet', market: 'Gollapudi Market Yard', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2500, max_price: 3000, modal_price: 2750, trend: 'stable', lat: 16.5462, lng: 80.5980 },
+      { id: 42, commodity: 'Rubber', variety: 'Natural', market: 'L.B. Nagar Market', state: 'Telangana', district: 'Hyderabad', min_price: 18000, max_price: 22000, modal_price: 20000, trend: 'up', lat: 17.3450, lng: 78.5567 },
+      { id: 43, commodity: 'Bajra', variety: 'HHB-67', market: 'Bowenpally Market Yard', state: 'Telangana', district: 'Hyderabad', min_price: 1900, max_price: 2100, modal_price: 2000, trend: 'stable', lat: 17.4750, lng: 78.4767 },
+      { id: 44, commodity: 'Moong Dal', variety: 'Green', market: 'Mehdipatnam Rythu Bazar', state: 'Telangana', district: 'Hyderabad', min_price: 7000, max_price: 8000, modal_price: 7500, trend: 'stable', lat: 17.3950, lng: 78.4567 },
+      { id: 45, commodity: 'Jowar', variety: 'White', market: 'Nizamabad Market Yard', state: 'Telangana', district: 'Nizamabad', min_price: 2150, max_price: 2300, modal_price: 2230, trend: 'up', lat: 18.6825, lng: 78.1041 },
+      { id: 46, commodity: 'Rice', variety: 'PR-126', market: 'Nizamabad Market Yard', state: 'Telangana', district: 'Nizamabad', min_price: 3300, max_price: 3800, modal_price: 3550, trend: 'stable', lat: 18.6825, lng: 78.1041 },
+      { id: 47, commodity: 'Sunflower', variety: 'Seed', market: 'Kurnool Market Yard', state: 'Andhra Pradesh', district: 'Kurnool', min_price: 5800, max_price: 6400, modal_price: 6100, trend: 'up', lat: 15.8381, lng: 78.0473 },
+      { id: 48, commodity: 'Banana', variety: 'Robusta', market: 'Kurnool Market Yard', state: 'Andhra Pradesh', district: 'Kurnool', min_price: 1200, max_price: 1800, modal_price: 1500, trend: 'down', lat: 15.8381, lng: 78.0473 },
+      { id: 49, commodity: 'Jute', variety: 'Tossa', market: 'Enumamula Market Yard', state: 'Telangana', district: 'Warangal', min_price: 4000, max_price: 5000, modal_price: 4500, trend: 'stable', lat: 17.9889, lng: 79.6141 },
+      { id: 50, commodity: 'Sugarcane', variety: 'Co-86032', market: 'Warangal City Market', state: 'Telangana', district: 'Warangal', min_price: 280, max_price: 320, modal_price: 300, trend: 'stable', lat: 17.9689, lng: 79.5941 },
+      { id: 51, commodity: 'Cauliflower', variety: 'Snowball', market: 'Singh Nagar Market', state: 'Andhra Pradesh', district: 'Krishna', min_price: 1600, max_price: 2200, modal_price: 1900, trend: 'up', lat: 16.5362, lng: 80.6380 },
+      { id: 52, commodity: 'Paddy', variety: 'Common', market: 'Gollapudi Market Yard', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2100, max_price: 2300, modal_price: 2200, trend: 'stable', lat: 16.5462, lng: 80.5980 }
+    ]
+
+    localData.marketPrices = marketPrices
+    console.log('✅ Seeded market data with', marketPrices.length, 'comprehensive crop records')
+  }
 }
 
 const findUser = async (email) => {
@@ -454,6 +636,37 @@ app.get('/api/forum/posts', async (req, res) => {
   }
 })
 
+app.post('/api/forum/posts', authenticateToken, async (req, res) => {
+  try {
+    const { content, tags } = req.body
+    if (!content) return res.status(400).json({ error: 'Content is required' })
+
+    const [result] = await db.execute(
+      'INSERT INTO forum_posts (user_id, content, tags) VALUES (?, ?, ?)',
+      [req.user.userId, content, JSON.stringify(tags || [])]
+    )
+    res.json({ success: true, postId: result.insertId })
+  } catch (error) {
+    console.error('Create post error:', error)
+    res.status(500).json({ error: 'Failed to create post' })
+  }
+})
+
+app.post('/api/forum/posts/:id/like', authenticateToken, async (req, res) => {
+  try {
+    // In a real app, we would check if user already liked it in a separate table
+    // For now, just increment the counter
+    await db.execute(
+      'UPDATE forum_posts SET likes = likes + 1 WHERE id = ?',
+      [req.params.id]
+    )
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Like post error:', error)
+    res.status(500).json({ error: 'Failed to like post' })
+  }
+})
+
 app.post('/api/plant-diagnosis', authenticateToken, async (req, res) => {
   try {
     const { disease, confidence, symptoms, remedy, type, image_url } = req.body
@@ -484,6 +697,157 @@ app.get('/api/plant-diagnosis/history', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Fetch diagnosis history error:', error)
     res.status(500).json({ error: 'Failed to fetch diagnosis history' })
+  }
+})
+
+// ==================== MARKET PRICES API ====================
+app.get('/api/market-prices', async (req, res) => {
+  try {
+    const { state, district, market } = req.query
+
+    let prices = []
+
+    if (useLocalStorage) {
+      // Use local storage data
+      prices = localData.marketPrices.filter(item => {
+        if (state && item.state !== state) return false
+        if (district && item.district !== district) return false
+        if (market && item.market !== market) return false
+        return true
+      })
+    } else {
+      // Use database
+      let query = 'SELECT * FROM market_prices WHERE 1=1'
+      const params = []
+
+      if (state) {
+        query += ' AND state = ?'
+        params.push(state)
+      }
+
+      if (district) {
+        query += ' AND district = ?'
+        params.push(district)
+      }
+
+      if (market) {
+        query += ' AND market = ?'
+        params.push(market)
+      }
+
+      query += ' ORDER BY date DESC, commodity ASC'
+
+      const [dbPrices] = await db.execute(query, params)
+      prices = dbPrices
+    }
+
+    // Transform data to match frontend format
+    const formattedPrices = prices.map(item => ({
+      id: `${item.market.toLowerCase()}-${item.commodity.toLowerCase()}-${item.id}`,
+      commodity: item.commodity,
+      variety: item.variety,
+      market: item.market,
+      district: item.district,
+      state: item.state,
+      min_price: parseFloat(item.min_price),
+      max_price: parseFloat(item.max_price),
+      modal_price: parseFloat(item.modal_price),
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lng),
+      trend: item.trend,
+      date: item.date || new Date().toISOString().split('T')[0]
+    }))
+
+    console.log(`📊 Returning ${formattedPrices.length} market price records`)
+    res.json(formattedPrices)
+  } catch (error) {
+    console.error('Fetch market prices error:', error)
+    res.status(500).json({ error: 'Failed to fetch market prices' })
+  }
+})
+
+// ==================== MARKET COMPARISON API ====================
+app.get('/api/market/compare', async (req, res) => {
+  try {
+    const { crop, location } = req.query
+    let prices = []
+
+    if (useLocalStorage) {
+      prices = [...localData.marketPrices]
+    } else {
+      const [dbPrices] = await db.execute('SELECT * FROM market_prices')
+      prices = dbPrices
+    }
+
+    let result = []
+
+    if (crop) {
+      // Crop-First: Show this crop across all locations
+      const cropData = prices.filter(p => p.commodity.toLowerCase() === crop.toLowerCase())
+
+      if (cropData.length > 0) {
+        const avgPrice = cropData.reduce((sum, p) => sum + parseFloat(p.modal_price), 0) / cropData.length
+
+        result = cropData.map(p => ({
+          ...p,
+          avg_price: avgPrice,
+          variance: parseFloat(p.modal_price) - avgPrice,
+          is_cheapest: parseFloat(p.modal_price) === Math.min(...cropData.map(cd => parseFloat(cd.modal_price))),
+          is_highest: parseFloat(p.modal_price) === Math.max(...cropData.map(cd => parseFloat(cd.modal_price)))
+        }))
+      }
+    } else if (location) {
+      // Location-First: Show all crops in this location (Market, District, or State)
+      const locationData = prices.filter(p =>
+        p.market.toLowerCase().includes(location.toLowerCase()) ||
+        p.district.toLowerCase() === location.toLowerCase() ||
+        p.state.toLowerCase() === location.toLowerCase()
+      )
+
+      // Calculate variance against state average for each crop
+      result = locationData.map(p => {
+        const sameCropAllLocations = prices.filter(allP => allP.commodity === p.commodity)
+        const stateAvg = sameCropAllLocations.reduce((sum, allP) => sum + parseFloat(allP.modal_price), 0) / sameCropAllLocations.length
+
+        return {
+          ...p,
+          avg_price: stateAvg,
+          variance: parseFloat(p.modal_price) - stateAvg
+        }
+      })
+    } else {
+      // Default: Top 10 Trending
+      result = prices
+        .filter(p => p.trend === 'up')
+        .sort((a, b) => b.modal_price - a.modal_price)
+        .slice(0, 10)
+    }
+
+    // Standardize format
+    const formatted = result.map(item => ({
+      id: item.id,
+      commodity: item.commodity,
+      variety: item.variety,
+      market: item.market,
+      state: item.state,
+      district: item.district,
+      min_price: parseFloat(item.min_price),
+      max_price: parseFloat(item.max_price),
+      modal_price: parseFloat(item.modal_price),
+      avg_price: item.avg_price ? parseFloat(item.avg_price) : null,
+      variance: item.variance ? parseFloat(item.variance) : null,
+      is_cheapest: item.is_cheapest || false,
+      is_highest: item.is_highest || false,
+      trend: item.trend,
+      lat: item.lat || item.latitude,
+      lng: item.lng || item.longitude,
+      date: item.date || new Date().toISOString().split('T')[0]
+    }))
+
+    res.json(formatted)
+  } catch (error) {
+    console.error('Market comparison error:', error)
+    res.status(500).json({ error: 'Failed to fetch comparison data' })
   }
 })
 

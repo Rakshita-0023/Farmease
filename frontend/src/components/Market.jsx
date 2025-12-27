@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table, RefreshCw, ChevronDown, Filter } from 'lucide-react'
+import { Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table, RefreshCw, ChevronDown } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useMandiData } from '../hooks/useMandiData'
@@ -18,92 +18,157 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// CROP IMAGES MAPPING - 1:1 match between crop names and images
+const CROP_IMAGES = {
+  // Grains & Cereals
+  'Wheat': '/wheat.jpeg',
+  'Jowar': '/jowar.webp',
+  'Maize': '/corn.jpg',
+  'Corn': '/corn.jpg',
+  'Rice': '/rice.jpg',
+  'Paddy': '/rice.jpg',
+  'Bajra': '/bajra.jpg',
+  'Ragi': '/ragi.webp',
+
+  // Pulses/Dals
+  'Arhar Dal': '/Arhar_Dal.webp',
+  'Chana Dal': '/Chana_Dal.webp',
+  'Moong Dal': '/Moong_Dal.jpg',
+
+  // Spices
+  'Chilli': '/tomato.jpeg',
+  'Turmeric': '/Mustard.jpg',
+  'Mustard': '/Mustard.jpg',
+
+  // Vegetables
+  'Onion': '/onions.avif',
+  'Tomato': '/tomato.jpeg',
+  'Potato': '/potato.jpg',
+  'Cabbage': '/cabbage.jpeg',
+  'Cauliflower': '/Cauliflower.jpg',
+
+  // Fruits
+  'Banana': '/Bananas.jpg',
+  'Mango': '/Mangoes.jpg',
+  'Apple': '/Apples.jpeg',
+  'Orange': '/Oranges.jpg',
+
+  // Cash Crops
+  'Cotton': '/cotton.jpg',
+  'Groundnut': '/Groundnut.jpg',
+  'Sunflower': '/Sunflower.jpg',
+  'Jute': '/Jute.jpg',
+  'Sugarcane': '/sugercane.jpg',
+  'Coffee': '/coffee.jpeg',
+  'Tea': '/tea.jpg',
+  'Rubber': '/Rubber.jpg'
+}
+
 const Market = () => {
   const { userLocation } = useOutletContext()
+  
+  // UI State
   const [viewMode, setViewMode] = useState('grid')
   const [searchTerm, setSearchTerm] = useState('')
-
-  // Location State
-  const [selectedState, setSelectedState] = useState('')
-  const [selectedDistrict, setSelectedDistrict] = useState('')
-  const [selectedMandi, setSelectedMandi] = useState('')
+  const [selectedCity, setSelectedCity] = useState('Hyderabad')
   const [isLocating, setIsLocating] = useState(false)
 
-  // Use the custom hook for data fetching
-  const { data: marketData = [], isLoading, refetch } = useMandiData(selectedState, selectedDistrict, selectedMandi)
+  // City options with proper state/district mapping
+  const cities = [
+    { value: 'Hyderabad', label: 'Hyderabad', state: 'Telangana', district: 'Hyderabad' },
+    { value: 'Vijayawada', label: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna' }
+  ]
 
-  // Location Hierarchy Data
-  const locationHierarchy = {
-    'Telangana': {
-      'Hyderabad': ['Hyderabad'],
-      'Warangal': ['Warangal'],
-      'Nizamabad': ['Nizamabad'],
-      'Adilabad': ['Adilabad'],
-      'Khammam': ['Khammam']
-    },
-    'Andhra Pradesh': {
-      'Guntur': ['Guntur'],
-      'Krishna': ['Vijayawada'],
-      'Kurnool': ['Kurnool']
-    }
-  }
+  // Get current city config
+  const currentCity = cities.find(c => c.value === selectedCity) || cities[0]
 
-  const states = Object.keys(locationHierarchy)
-  const districts = selectedState ? Object.keys(locationHierarchy[selectedState]) : []
-  const mandis = selectedDistrict ? locationHierarchy[selectedState][selectedDistrict] : []
+  // Use the existing useMandiData hook with proper error handling
+  const { 
+    data: marketData = [], 
+    isLoading, 
+    error, 
+    refetch,
+    isError 
+  } = useMandiData(
+    currentCity.state,
+    currentCity.district,
+    currentCity.value
+  )
+
+  // Get image for commodity with proper fallback
+  const getImageForCommodity = useCallback((commodity) => {
+    return CROP_IMAGES[commodity] || '/wheat.jpeg'
+  }, [])
 
   // Handle GPS Location
-  const handleUseLocation = () => {
+  const handleUseLocation = useCallback(() => {
     setIsLocating(true)
+    
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          // Simulate reverse geocoding for demo
-          setTimeout(() => {
-            setSelectedState('Andhra Pradesh')
-            setSelectedDistrict('Guntur')
-            setSelectedMandi('Guntur')
-            setIsLocating(false)
-          }, 1000)
+          const { latitude, longitude } = position.coords
+          
+          // Simple distance calculation to find nearest city
+          const distances = cities.map(city => {
+            const cityCoords = {
+              'Hyderabad': { lat: 17.3850, lng: 78.4867 },
+              'Vijayawada': { lat: 16.5062, lng: 80.6480 }
+            }
+            
+            const coords = cityCoords[city.value]
+            if (!coords) return { city: city.value, distance: Infinity }
+            
+            const distance = Math.sqrt(
+              Math.pow(latitude - coords.lat, 2) + 
+              Math.pow(longitude - coords.lng, 2)
+            )
+            
+            return { city: city.value, distance }
+          })
+          
+          const nearest = distances.reduce((min, curr) => 
+            curr.distance < min.distance ? curr : min
+          )
+          
+          setSelectedCity(nearest.city)
+          setIsLocating(false)
         },
         (error) => {
-          console.error(error)
+          console.error('Location error:', error)
           setIsLocating(false)
           alert('Could not access location. Please select manually.')
-        }
+        },
+        { timeout: 10000 }
       )
+    } else {
+      setIsLocating(false)
+      alert('Geolocation is not supported by this browser.')
     }
-  }
+  }, [cities])
 
-  // Filter Logic
+  // Filter Logic - Memoized to prevent unnecessary re-renders
   const filteredData = useMemo(() => {
-    let data = marketData
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase()
-      data = data.filter(item =>
-        item.commodity.toLowerCase().includes(lower) ||
-        item.market.toLowerCase().includes(lower)
-      )
-    }
-    return data
+    if (!Array.isArray(marketData)) return []
+    if (!searchTerm) return marketData
+    
+    const lower = searchTerm.toLowerCase()
+    return marketData.filter(item =>
+      item.commodity?.toLowerCase().includes(lower) ||
+      item.market?.toLowerCase().includes(lower) ||
+      item.variety?.toLowerCase().includes(lower)
+    )
   }, [marketData, searchTerm])
 
-  // Image Mapping (Reliable Unsplash URLs)
-  const getImageForCommodity = (commodity) => {
-    const map = {
-      'Red Chilli': 'https://images.unsplash.com/photo-1563503649-656d0267746e?auto=format&fit=crop&w=400&q=80',
-      'Maize': 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=400&q=80',
-      'Brinjal': 'https://images.unsplash.com/photo-1621459569687-313620803d4e?auto=format&fit=crop&w=400&q=80',
-      'Pomegranate': 'https://images.unsplash.com/photo-1541336032412-2048a678540d?auto=format&fit=crop&w=400&q=80',
-      'Papaya': 'https://images.unsplash.com/photo-1517260739337-6799d239ce83?auto=format&fit=crop&w=400&q=80',
-      'Banana': 'https://images.unsplash.com/photo-1528825871115-3581a5387919?auto=format&fit=crop&w=400&q=80',
-      'Cotton': 'https://images.unsplash.com/photo-1594315590298-3296052b32a1?auto=format&fit=crop&w=400&q=80',
-      'Wheat': 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=400&q=80',
-      'Rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80'
-    }
-    // Fallback image
-    return map[commodity] || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=400&q=80'
-  }
+  // Debug logging
+  console.log('Market component state:', {
+    selectedCity,
+    currentCity,
+    marketDataLength: marketData?.length,
+    isLoading,
+    isError,
+    error: error?.message
+  })
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
@@ -140,49 +205,19 @@ const Market = () => {
       {/* Smart Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Location Dropdowns */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1">
-            <div className="relative">
+          {/* City Selection */}
+          <div className="flex gap-3 flex-1">
+            <div className="relative flex-1">
               <select
-                value={selectedState}
-                onChange={(e) => {
-                  setSelectedState(e.target.value)
-                  setSelectedDistrict('')
-                  setSelectedMandi('')
-                }}
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
                 className="w-full pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
               >
-                <option value="">Select State</option>
-                {states.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-            </div>
-
-            <div className="relative">
-              <select
-                value={selectedDistrict}
-                onChange={(e) => {
-                  setSelectedDistrict(e.target.value)
-                  setSelectedMandi('')
-                }}
-                disabled={!selectedState}
-                className="w-full pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm disabled:opacity-50"
-              >
-                <option value="">Select District</option>
-                {districts.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-            </div>
-
-            <div className="relative">
-              <select
-                value={selectedMandi}
-                onChange={(e) => setSelectedMandi(e.target.value)}
-                disabled={!selectedDistrict}
-                className="w-full pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm disabled:opacity-50"
-              >
-                <option value="">Select Mandi</option>
-                {mandis.map(m => <option key={m} value={m}>{m}</option>)}
+                {cities.map(city => (
+                  <option key={city.value} value={city.value}>
+                    {city.label} ({city.state})
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
             </div>
@@ -193,10 +228,10 @@ const Market = () => {
             <button
               onClick={handleUseLocation}
               disabled={isLocating}
-              className="px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+              className="px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
             >
               {isLocating ? <RefreshCw size={18} className="animate-spin" /> : <MapPin size={18} />}
-              Nearest Mandi
+              {isLocating ? 'Locating...' : 'Nearest Mandi'}
             </button>
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -208,39 +243,66 @@ const Market = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <button
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+            >
+              <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
           </div>
         </div>
       </div>
 
       {/* Map Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-64 z-0">
-        <MapContainer center={[17.0, 79.5]} zoom={7} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          {filteredData.map(item => (
-            <Marker key={item.id} position={[item.lat, item.lng]}>
-              <Popup>
-                <div className="text-sm font-sans">
-                  <strong className="block text-green-700">{item.market}</strong>
-                  {item.commodity}: ₹{item.modal_price}
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
-      </div>
+      {filteredData.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-64 z-0">
+          <MapContainer center={[17.0, 79.5]} zoom={7} style={{ height: '100%', width: '100%' }}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {filteredData.map(item => (
+              item.lat && item.lng && (
+                <Marker key={item.id} position={[item.lat, item.lng]}>
+                  <Popup>
+                    <div className="text-sm font-sans">
+                      <strong className="block text-green-700">{item.market}</strong>
+                      {item.commodity}: ₹{item.modal_price}
+                    </div>
+                  </Popup>
+                </Marker>
+              )
+            ))}
+          </MapContainer>
+        </div>
+      )}
+
+      {/* Error State */}
+      {isError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+          <p className="font-medium">Error loading market data</p>
+          <p className="text-sm">{error?.message || 'Unknown error occurred'}</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
 
       {/* Loading State */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
             <div key={i} className="bg-white rounded-xl h-64 animate-pulse border border-gray-100">
               <div className="h-32 bg-gray-100 rounded-t-xl"></div>
               <div className="p-4 space-y-3">
                 <div className="h-4 bg-gray-100 rounded w-3/4"></div>
                 <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+                <div className="h-6 bg-gray-100 rounded w-full"></div>
               </div>
             </div>
           ))}
@@ -251,46 +313,51 @@ const Market = () => {
           {viewMode === 'grid' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredData.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all group">
-                  <div className="h-32 overflow-hidden relative">
-                    <img
-                      src={getImageForCommodity(item.commodity)}
-                      alt={item.commodity}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-2 right-2">
-                      <span className={`text-xs px-2 py-1 rounded-full ${item.trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} flex items-center gap-1 shadow-sm font-medium`}>
-                        {item.trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {item.trend === 'up' ? 'Up' : 'Down'}
+                <div key={item.id} className="relative h-64 rounded-2xl shadow-md overflow-hidden group hover:shadow-xl transition-all duration-300">
+                  {/* Full Background Image */}
+                  <img
+                    src={getImageForCommodity(item.commodity)}
+                    alt={item.commodity}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    onError={(e) => {
+                      e.target.src = '/wheat.jpeg'
+                    }}
+                  />
+
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10"></div>
+
+                  {/* Content */}
+                  <div className="absolute inset-0 p-5 flex flex-col justify-between text-white">
+                    <div className="flex justify-between items-start">
+                      <span className="bg-black/30 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                        {item.market}
+                      </span>
+                      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+                        item.trend === 'up' ? 'bg-green-500/80' : 
+                        item.trend === 'down' ? 'bg-red-500/80' : 
+                        'bg-gray-500/80'
+                      } backdrop-blur-sm`}>
+                        {item.trend === 'up' ? <TrendingUp size={12} /> : 
+                         item.trend === 'down' ? <TrendingDown size={12} /> : '📊'}
+                        {item.trend === 'up' ? 'Rising' : 
+                         item.trend === 'down' ? 'Falling' : 'Stable'}
                       </span>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                      <h3 className="font-bold text-white text-lg leading-none">{item.commodity}</h3>
-                      <p className="text-gray-200 text-xs mt-1">{item.variety}</p>
-                    </div>
-                  </div>
 
-                  <div className="p-4">
-                    <div className="flex justify-between items-end mb-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Modal Price</p>
-                        <p className="text-2xl font-bold text-gray-900">₹{item.modal_price.toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded-md">{item.market}</p>
-                      </div>
-                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold mb-1 shadow-sm">{item.commodity}</h3>
+                      <p className="text-gray-300 text-sm mb-3">{item.variety}</p>
 
-                    <div className="space-y-2 pt-2 border-t border-gray-50">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Range</span>
-                        <span className="font-medium text-gray-700">₹{item.min_price.toLocaleString()} - ₹{item.max_price.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Gap</span>
-                        <span className={`font-medium ${item.max_price - item.min_price > 500 ? 'text-orange-600' : 'text-green-600'}`}>
-                          ₹{(item.max_price - item.min_price).toLocaleString()}
-                        </span>
+                      <div className="flex items-end justify-between border-t border-white/20 pt-3">
+                        <div>
+                          <p className="text-xs text-gray-400">Modal Price</p>
+                          <p className="text-xl font-bold">₹{item.modal_price?.toLocaleString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Range</p>
+                          <p className="text-sm font-medium">₹{item.min_price} - {item.max_price}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -318,7 +385,14 @@ const Market = () => {
                       <tr key={item.id} className="hover:bg-gray-50/50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={getImageForCommodity(item.commodity)} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            <img 
+                              src={getImageForCommodity(item.commodity)} 
+                              alt="" 
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={(e) => {
+                                e.target.src = '/wheat.jpeg'
+                              }}
+                            />
                             <div>
                               <div className="font-medium text-gray-900">{item.commodity}</div>
                               <div className="text-xs text-gray-500">{item.variety}</div>
@@ -326,11 +400,16 @@ const Market = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-600">{item.market}</td>
-                        <td className="px-6 py-4 text-gray-600">₹{item.min_price.toLocaleString()} - ₹{item.max_price.toLocaleString()}</td>
-                        <td className="px-6 py-4 font-bold text-gray-900">₹{item.modal_price.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-gray-600">₹{item.min_price?.toLocaleString()} - ₹{item.max_price?.toLocaleString()}</td>
+                        <td className="px-6 py-4 font-bold text-gray-900">₹{item.modal_price?.toLocaleString()}</td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 ${item.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                            {item.trend === 'up' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                          <span className={`inline-flex items-center gap-1 ${
+                            item.trend === 'up' ? 'text-green-600' : 
+                            item.trend === 'down' ? 'text-red-600' : 
+                            'text-gray-600'
+                          }`}>
+                            {item.trend === 'up' ? <TrendingUp size={16} /> : 
+                             item.trend === 'down' ? <TrendingDown size={16} /> : '📊'}
                           </span>
                         </td>
                       </tr>
@@ -338,6 +417,23 @@ const Market = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* No Data State */}
+          {!isLoading && !isError && filteredData.length === 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+              <div className="text-6xl mb-4">📊</div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">No market data found</h3>
+              <p className="text-gray-500 mb-4">
+                {searchTerm ? `No results for "${searchTerm}"` : `No data available for ${selectedCity}`}
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+              >
+                Refresh Data
+              </button>
             </div>
           )}
         </>

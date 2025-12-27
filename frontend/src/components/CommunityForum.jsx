@@ -1,77 +1,75 @@
 import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../config'
-import { MessageSquare, Heart, Share2, Send, User, Tag, Clock, ThumbsUp } from 'lucide-react'
+import { MessageSquare, Heart, Share2, Send, User, Tag, Clock, ThumbsUp, Loader2 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 
 const CommunityForum = () => {
-    const [posts, setPosts] = useState([])
-    const [loading, setLoading] = useState(true)
     const [newPost, setNewPost] = useState('')
     const [showPostModal, setShowPostModal] = useState(false)
     const [activeTab, setActiveTab] = useState('feed') // 'feed', 'my-posts', 'popular'
+    const queryClient = useQueryClient()
+    const user = JSON.parse(localStorage.getItem('user')) || {}
 
-    useEffect(() => {
-        fetchPosts()
-    }, [])
+    // Fetch posts
+    const { data: posts = [], isLoading } = useQuery({
+        queryKey: ['forum-posts'],
+        queryFn: () => apiClient.get('/forum/posts')
+    })
 
-    const fetchPosts = async () => {
-        try {
-            // In a real app, fetch from API
-            // const response = await apiClient.get('/forum/posts')
-            // setPosts(response.data)
-
-            // Simulating API call
-            setTimeout(() => {
-                const saved = localStorage.getItem('forum_posts')
-                if (saved) {
-                    setPosts(JSON.parse(saved))
-                } else {
-                    setPosts(MOCK_POSTS)
-                }
-                setLoading(false)
-            }, 800)
-        } catch (error) {
-            console.error('Failed to fetch posts', error)
-            setLoading(false)
+    // Create post mutation
+    const createPostMutation = useMutation({
+        mutationFn: async (content) => {
+            return apiClient.post('/forum/posts', {
+                content,
+                tags: ['General'], // Default tag for now
+                author_name: user.name || 'Farmer'
+            })
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['forum-posts'])
+            setNewPost('')
+            setShowPostModal(false)
         }
-    }
+    })
 
-    const handlePostSubmit = async (e) => {
+    // Like mutation (Optimistic UI)
+    const likeMutation = useMutation({
+        mutationFn: async (postId) => {
+            return apiClient.post(`/forum/posts/${postId}/like`)
+        },
+        onMutate: async (postId) => {
+            await queryClient.cancelQueries(['forum-posts'])
+            const previousPosts = queryClient.getQueryData(['forum-posts'])
+
+            queryClient.setQueryData(['forum-posts'], old => {
+                return old.map(post =>
+                    post.id === postId
+                        ? { ...post, likes: (post.likes || 0) + 1, isLiked: true }
+                        : post
+                )
+            })
+            return { previousPosts }
+        },
+        onError: (err, newTodo, context) => {
+            queryClient.setQueryData(['forum-posts'], context.previousPosts)
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries(['forum-posts'])
+        }
+    })
+
+    const handlePostSubmit = (e) => {
         e.preventDefault()
         if (!newPost.trim()) return
-
-        const post = {
-            id: Date.now(),
-            author: 'You', // In real app, get from user context
-            role: 'Farmer',
-            content: newPost,
-            likes: 0,
-            comments: 0,
-            time: 'Just now',
-            tags: ['General'],
-            isLiked: false
-        }
-
-        const updatedPosts = [post, ...posts]
-        setPosts(updatedPosts)
-        localStorage.setItem('forum_posts', JSON.stringify(updatedPosts))
-        setNewPost('')
-        setShowPostModal(false)
+        createPostMutation.mutate(newPost)
     }
 
-    const handleLike = (postId) => {
-        const updatedPosts = posts.map(post => {
-            if (post.id === postId) {
-                return {
-                    ...post,
-                    likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-                    isLiked: !post.isLiked
-                }
-            }
-            return post
-        })
-        setPosts(updatedPosts)
-        localStorage.setItem('forum_posts', JSON.stringify(updatedPosts))
-    }
+    const filteredPosts = posts.filter(post => {
+        if (activeTab === 'my-posts') return post.user_id === user.id
+        if (activeTab === 'popular') return (post.likes || 0) > 5
+        return true
+    })
 
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
@@ -110,7 +108,7 @@ const CommunityForum = () => {
             </div>
 
             {/* Feed */}
-            {loading ? (
+            {isLoading ? (
                 <div className="space-y-4">
                     {[1, 2, 3].map(i => (
                         <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-pulse">
@@ -127,7 +125,7 @@ const CommunityForum = () => {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {posts.length === 0 ? (
+                    {filteredPosts.length === 0 ? (
                         <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
                             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <MessageSquare className="text-gray-400" size={32} />
@@ -136,19 +134,22 @@ const CommunityForum = () => {
                             <p className="text-gray-500 mt-1">Be the first to start a conversation!</p>
                         </div>
                     ) : (
-                        posts.map(post => (
+                        filteredPosts.map(post => (
                             <div key={post.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex gap-3">
                                         <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center text-green-700 font-bold">
-                                            {post.author.charAt(0)}
+                                            {(post.author_name || 'F').charAt(0)}
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-gray-900">{post.author}</h3>
+                                            <h3 className="font-semibold text-gray-900">{post.author_name || 'Farmer'}</h3>
                                             <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                <span className="bg-gray-100 px-2 py-0.5 rounded-full">{post.role}</span>
+                                                <span className="bg-gray-100 px-2 py-0.5 rounded-full">Farmer</span>
                                                 <span>•</span>
-                                                <span className="flex items-center gap-1"><Clock size={12} /> {post.time}</span>
+                                                <span className="flex items-center gap-1">
+                                                    <Clock size={12} />
+                                                    {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'Just now'}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -157,7 +158,7 @@ const CommunityForum = () => {
                                 <p className="text-gray-800 mb-4 leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    {post.tags.map((tag, i) => (
+                                    {(post.tags || ['General']).map((tag, i) => (
                                         <span key={i} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-md flex items-center gap-1">
                                             <Tag size={12} /> {tag}
                                         </span>
@@ -166,15 +167,15 @@ const CommunityForum = () => {
 
                                 <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
                                     <button
-                                        onClick={() => handleLike(post.id)}
+                                        onClick={() => likeMutation.mutate(post.id)}
                                         className={`flex items-center gap-2 text-sm font-medium transition-colors ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
                                     >
                                         <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} />
-                                        {post.likes} Likes
+                                        {post.likes || 0} Likes
                                     </button>
                                     <button className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
                                         <MessageSquare size={18} />
-                                        {post.comments} Comments
+                                        {post.comments_count || 0} Comments
                                     </button>
                                     <button className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-green-600 transition-colors ml-auto">
                                         <Share2 size={18} />
@@ -212,9 +213,10 @@ const CommunityForum = () => {
                                 </button>
                                 <button
                                     onClick={handlePostSubmit}
-                                    disabled={!newPost.trim()}
-                                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!newPost.trim() || createPostMutation.isPending}
+                                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
+                                    {createPostMutation.isPending && <Loader2 size={16} className="animate-spin" />}
                                     Post
                                 </button>
                             </div>
@@ -225,41 +227,5 @@ const CommunityForum = () => {
         </div>
     )
 }
-
-const MOCK_POSTS = [
-    {
-        id: 1,
-        author: 'Ram Kumar',
-        role: 'Wheat Expert',
-        content: 'What is the best time to sow HD-2967 wheat variety in Punjab? I usually do it in early November but hearing mixed reviews this year due to temperature changes.',
-        likes: 12,
-        comments: 4,
-        time: '2 hours ago',
-        tags: ['Wheat', 'Sowing'],
-        isLiked: false
-    },
-    {
-        id: 2,
-        author: 'Sita Devi',
-        role: 'Organic Farmer',
-        content: 'Sharing my success with waste decomposer. Soil health improved significantly in 3 months! The earthworm count has doubled and water retention is much better.',
-        likes: 45,
-        comments: 12,
-        time: '5 hours ago',
-        tags: ['Organic', 'Soil Health'],
-        isLiked: true
-    },
-    {
-        id: 3,
-        author: 'Mohan Singh',
-        role: 'Farmer',
-        content: 'My potato leaves are turning yellow with small black spots. Is this blight? Please help identify the disease and suggest organic remedies if possible.',
-        likes: 8,
-        comments: 6,
-        time: '1 day ago',
-        tags: ['Potato', 'Disease'],
-        isLiked: false
-    }
-]
 
 export default CommunityForum

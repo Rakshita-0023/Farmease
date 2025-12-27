@@ -136,59 +136,34 @@ const EnhancedDashboard = () => {
     return list
   }, [farms, weather])
 
+  const [hasDismissedOnboarding, setHasDismissedOnboarding] = useState(
+    sessionStorage.getItem('onboarding_dismissed') === 'true'
+  )
+
+  const dismissOnboarding = () => {
+    setHasDismissedOnboarding(true)
+    sessionStorage.setItem('onboarding_dismissed', 'true')
+  }
+
   if (farmsLoading) {
     return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div></div>
   }
 
-  if (farms.length === 0) {
-    return (
-      <div className="p-6 space-y-8">
-        <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-2xl p-8 text-white shadow-lg">
-          <h1 className="text-3xl font-bold mb-2">👋 Welcome to FarmEase, {user.name}!</h1>
-          <p className="text-green-100 text-lg">Let's get your digital farm set up for success.</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-800">🚀 Getting Started Checklist</h2>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
-                <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold shrink-0">1</div>
-                <div>
-                  <h3 className="font-bold text-gray-800">Add your first farm</h3>
-                  <p className="text-gray-500 text-sm mt-1">Map your land and tell us what you're growing.</p>
-                  <button onClick={() => refetchFarms()} className="mt-3 text-green-600 font-medium text-sm hover:underline">
-                    Refresh after adding
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm opacity-60">
-                <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold shrink-0">2</div>
-                <div>
-                  <h3 className="font-bold text-gray-800">Check Market Prices</h3>
-                  <p className="text-gray-500 text-sm mt-1">See real-time rates for your crops in nearby mandis.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm opacity-60">
-                <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold shrink-0">3</div>
-                <div>
-                  <h3 className="font-bold text-gray-800">Get Weather Alerts</h3>
-                  <p className="text-gray-500 text-sm mt-1">Receive personalized forecasts for your exact location.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <OnboardingWizard onComplete={refetchFarms} />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const showOnboarding = farms.length === 0 && !hasDismissedOnboarding
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 relative">
+      {/* Onboarding Overlay - Only shows if no farms and not dismissed */}
+      {showOnboarding && (
+        <OnboardingWizard
+          onComplete={() => {
+            refetchFarms()
+            dismissOnboarding()
+          }}
+          onSkip={dismissOnboarding}
+        />
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">🌱 Welcome back, {user.name || 'Farmer'}!</h1>
@@ -266,13 +241,13 @@ const EnhancedDashboard = () => {
             ) : (
               alerts.map((alert, i) => (
                 <div key={i} className={`p-4 rounded-lg border-l-4 ${alert.severity === 'high' ? 'bg-red-50 border-red-500' :
-                    alert.severity === 'medium' ? 'bg-yellow-50 border-yellow-500' :
-                      'bg-blue-50 border-blue-500'
+                  alert.severity === 'medium' ? 'bg-yellow-50 border-yellow-500' :
+                    'bg-blue-50 border-blue-500'
                   } flex justify-between items-center`}>
                   <div>
                     <p className={`font-medium ${alert.severity === 'high' ? 'text-red-800' :
-                        alert.severity === 'medium' ? 'text-yellow-800' :
-                          'text-blue-800'
+                      alert.severity === 'medium' ? 'text-yellow-800' :
+                        'text-blue-800'
                       }`}>{alert.message}</p>
                     <p className="text-xs text-gray-500 mt-1">Just now</p>
                   </div>
