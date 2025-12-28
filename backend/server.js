@@ -26,6 +26,14 @@ async function initDB() {
     } else {
       console.error('❌ Google Auth: Client ID NOT FOUND in environment variables!');
     }
+    
+    // Check SECRET_KEY
+    const secretKey = process.env.SECRET_KEY;
+    if (secretKey) {
+      console.log('✅ JWT Secret Key loaded');
+    } else {
+      console.error('❌ SECRET_KEY NOT FOUND in environment variables!');
+    }
   } catch (error) {
     console.error('❌ Database connection failed:', error.message)
     process.exit(1) // Fail loudly instead of silent fallback
@@ -274,7 +282,7 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' })
   }
 
-  jwt.verify(token, process.env.SECRET_KEY, (err, user) => {
+  jwt.verify(token, process.env.SECRET_KEY || 'farmease-fallback-secret-2024', (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid token' })
     }
@@ -321,7 +329,7 @@ app.post('/api/auth/register', async (req, res) => {
     // Generate token
     const token = jwt.sign(
       { userId: result.insertId, email },
-      process.env.SECRET_KEY,
+      process.env.SECRET_KEY || 'farmease-fallback-secret-2024',
       { expiresIn: '7d' }
     )
 
@@ -359,7 +367,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Generate token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.SECRET_KEY,
+      process.env.SECRET_KEY || 'farmease-fallback-secret-2024',
       { expiresIn: '7d' }
     )
 
@@ -461,7 +469,7 @@ app.post('/api/auth/google', async (req, res) => {
     // Generate JWT token
     const authToken = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.SECRET_KEY,
+      process.env.SECRET_KEY || 'farmease-fallback-secret-2024',
       { expiresIn: '7d' }
     );
 
