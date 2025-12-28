@@ -18,6 +18,7 @@
     "axios": "^1.13.1",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.23.24",
     "i18next": "^25.7.3",
     "i18next-browser-languagedetector": "^8.2.0",
