@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Lottie from 'lottie-react'
-import bellAnimation from '../../public/Icons  Bell (Notification).json'
+import bellAnimation from '../assets/animations/bell.json'
 
 const NotificationSystem = ({ userLocation, farms }) => {
   const [notifications, setNotifications] = useState([])
@@ -24,7 +24,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
         tag: 'farmease-notification'
       })
     }
-    
+
     // Add to in-app notifications
     const notification = {
       id: Date.now(),
@@ -34,23 +34,23 @@ const NotificationSystem = ({ userLocation, farms }) => {
       timestamp: new Date(),
       read: false
     }
-    
+
     setNotifications(prev => [notification, ...prev.slice(0, 9)]) // Keep last 10
   }
 
   const checkWeatherAlerts = async () => {
     if (!userLocation) return
-    
+
     try {
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${userLocation.latitude}&lon=${userLocation.longitude}&appid=895284fb2d2c50a520ea537456963d9c&units=metric`
       )
       const data = await response.json()
-      
+
       if (response.ok) {
         const weather = data.weather[0].main.toLowerCase()
         const temp = data.main.temp
-        
+
         // Alert for extreme weather
         if (weather.includes('rain') || weather.includes('storm')) {
           showNotification(
@@ -78,8 +78,8 @@ const NotificationSystem = ({ userLocation, farms }) => {
   }
 
   const markAsRead = (id) => {
-    setNotifications(prev => 
-      prev.map(notif => 
+    setNotifications(prev =>
+      prev.map(notif =>
         notif.id === id ? { ...notif, read: true } : notif
       )
     )
@@ -106,7 +106,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
 
     // Check weather alerts every 30 minutes
     const weatherInterval = setInterval(checkWeatherAlerts, 1800000)
-    
+
     // Initial weather check after 5 seconds
     setTimeout(checkWeatherAlerts, 5000)
 
@@ -132,29 +132,29 @@ const NotificationSystem = ({ userLocation, farms }) => {
       {/* Notification Bell */}
       <div className="notification-bell">
         <button className="bell-btn" title="Notifications">
-          <Lottie 
-            animationData={bellAnimation} 
-            style={{ width: 24, height: 24 }} 
+          <Lottie
+            animationData={bellAnimation}
+            style={{ width: 24, height: 24 }}
             loop={true}
           />
           {unreadCount > 0 && (
             <span className="notification-badge">{unreadCount}</span>
           )}
         </button>
-        
+
         {/* Notification Dropdown */}
         <div className="notifications-dropdown">
           <div className="notifications-header">
             <h4>
-              <Lottie 
-                animationData={bellAnimation} 
-                style={{ width: 20, height: 20, display: 'inline-block', marginRight: '8px' }} 
+              <Lottie
+                animationData={bellAnimation}
+                style={{ width: 20, height: 20, display: 'inline-block', marginRight: '8px' }}
                 loop={true}
               />
               Notifications
             </h4>
             {permission !== 'granted' && (
-              <button 
+              <button
                 className="enable-notifications"
                 onClick={requestNotificationPermission}
               >
@@ -162,7 +162,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
               </button>
             )}
           </div>
-          
+
           <div className="notifications-list">
             {notifications.length === 0 ? (
               <div className="no-notifications">
@@ -170,7 +170,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
               </div>
             ) : (
               notifications.map(notification => (
-                <div 
+                <div
                   key={notification.id}
                   className={`notification-item ${notification.read ? 'read' : 'unread'}`}
                   onClick={() => markAsRead(notification.id)}
@@ -179,7 +179,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
                     <div className="notification-header">
                       <span className="notification-icon">{notification.icon}</span>
                       <span className="notification-title">{notification.title}</span>
-                      <button 
+                      <button
                         className="close-notification"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -211,7 +211,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
                 <div className="toast-title">{notification.title}</div>
                 <div className="toast-body">{notification.body}</div>
               </div>
-              <button 
+              <button
                 className="toast-close"
                 onClick={() => markAsRead(notification.id)}
               >

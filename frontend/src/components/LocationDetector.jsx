@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Lottie from 'lottie-react'
-import locationPinAnimation from '../../public/Location Pin.json'
+import locationPinAnimation from '../assets/animations/location-pin.json'
 
 const LocationDetector = ({ onLocationDetected }) => {
   const [location, setLocation] = useState(null)
@@ -42,10 +42,10 @@ const LocationDetector = ({ onLocationDetected }) => {
 
       setLocation(locationInfo)
       onLocationDetected(locationInfo)
-      
+
       // Store in localStorage for future use
       localStorage.setItem('userLocation', JSON.stringify(locationInfo))
-      
+
     } catch (err) {
       setError(err.message)
       // Use default location if detection fails
@@ -88,9 +88,9 @@ const LocationDetector = ({ onLocationDetected }) => {
   return (
     <div className="location-detector compact">
       <div className="location-info">
-        <Lottie 
-          animationData={locationPinAnimation} 
-          style={{ width: 24, height: 24 }} 
+        <Lottie
+          animationData={locationPinAnimation}
+          style={{ width: 24, height: 24 }}
           loop={true}
         />
         <span className="location-text">

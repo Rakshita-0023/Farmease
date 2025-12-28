@@ -519,43 +519,58 @@ app.post('/api/auth/login', async (req, res) => {
   }
 })
 
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
+
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { email, name, googleId, photoUrl } = req.body
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.VITE_GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, sub: googleId, picture: photoUrl } = payload;
 
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' })
+      return res.status(400).json({ error: 'Email is required' });
     }
 
     // Check if user exists
-    let user = await findUser(email)
+    let user = await findUser(email);
 
     if (!user) {
       // Create new user (password is random/dummy for google users)
-      const dummyPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
-      const passwordHash = await bcrypt.hash(dummyPassword, 10)
+      const dummyPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      const passwordHash = await bcrypt.hash(dummyPassword, 10);
 
-      const result = await createUser(name || email.split('@')[0], email, passwordHash)
-      user = { id: result.insertId, name: name || email.split('@')[0], email }
+      const result = await createUser(name || email.split('@')[0], email, passwordHash);
+      user = { id: result.insertId, name: name || email.split('@')[0], email };
     }
 
     // Generate token
-    const token = jwt.sign(
+    const authToken = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.SECRET_KEY,
       { expiresIn: '7d' }
-    )
+    );
 
     res.json({
       success: true,
-      token,
+      token: authToken,
       user: { id: user.id, name: user.name, email: user.email, photoUrl }
-    })
+    });
   } catch (error) {
-    console.error('Google auth error:', error)
-    res.status(500).json({ error: 'Google authentication failed' })
+    console.error('Google auth error:', error);
+    res.status(500).json({ error: 'Google authentication failed' });
   }
-})
+});
 
 // Protected routes
 app.get('/api/farms', authenticateToken, async (req, res) => {
