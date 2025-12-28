@@ -1,18 +1,20 @@
 const mysql = require("mysql2/promise");
 
 const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST || undefined,
-  user: process.env.MYSQL_USER || undefined,
-  password: process.env.MYSQL_PASSWORD || undefined,
-  database: process.env.MYSQL_DATABASE || undefined,
-  port: process.env.MYSQL_PORT || 3306,
-
-  // If using DATABASE_URL (Railway)
   uri: process.env.DATABASE_URL,
-
+  ssl: { rejectUnauthorized: false },
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
 });
+
+(async () => {
+  try {
+    await pool.query("SELECT 1");
+    console.log("✅ Railway MySQL connected successfully");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err.message);
+    process.exit(1);
+  }
+})();
 
 module.exports = pool;

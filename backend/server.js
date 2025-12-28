@@ -13,7 +13,7 @@ async function initDB() {
   try {
     // Test database connection
     await db.query('SELECT 1')
-    console.log('✅ MySQL connected successfully')
+    console.log('✅ Railway MySQL connected successfully')
     
     // Create tables and seed data
     await createTables()
