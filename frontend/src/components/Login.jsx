@@ -80,7 +80,7 @@ const Login = ({ onLogin }) => {
 
     try {
       console.log('🚀 Sending token to backend...')
-      console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5001/api')
+      console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'https://farmease-tqgy.onrender.com/api')
 
       // Send the credential (JWT) to the backend
       const res = await apiClient.post('/auth/google', {
