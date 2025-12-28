@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://farmease-tqgy.onrender.com/api'
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://farmease-tqgy.onrender.com'
 
 // Weather API Configuration (move to backend in production)
 export const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
@@ -34,7 +34,8 @@ export const apiClient = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${url}`, config)
+      const response = await fetch(`${API_BASE_URL}/api${url}`, config)
+      console.log('🔗 API Request:', `${API_BASE_URL}/api${url}`, 'Status:', response.status)
 
       if (response.status === 401) {
         // Token expired or invalid
