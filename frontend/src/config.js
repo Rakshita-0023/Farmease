@@ -46,7 +46,10 @@ export const apiClient = {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Request failed')
+        const error = new Error(data.error || 'Request failed')
+        error.status = response.status
+        error.data = data
+        throw error
       }
 
       return data

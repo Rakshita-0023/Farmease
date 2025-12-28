@@ -72,29 +72,63 @@ const Login = ({ onLogin }) => {
   }
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    console.log('Google Login Success:', credentialResponse)
+    console.log('✅ Google Login Success - Credential received')
+    console.log('📋 Credential preview:', credentialResponse.credential.substring(0, 50) + '...')
+
     setLoading(true)
+    setError('') // Clear any previous errors
+
     try {
+      console.log('🚀 Sending token to backend...')
+      console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5001/api')
+
       // Send the credential (JWT) to the backend
       const res = await apiClient.post('/auth/google', {
         token: credentialResponse.credential
       })
 
+      console.log('📥 Backend response:', res)
+
       if (res.success) {
+        console.log('✅ Authentication successful!')
         localStorage.setItem('token', res.token)
         localStorage.setItem('user', JSON.stringify(res.user))
         onLogin(res.user)
+      } else {
+        // Backend returned success: false
+        console.error('❌ Backend returned failure:', res)
+        const errorMsg = res.details || res.error || 'Authentication failed'
+        setError(`Google sign in failed: ${errorMsg}`)
+        setToast({ message: errorMsg, type: 'error' })
       }
     } catch (err) {
-      console.error('Backend Google Auth Error:', err)
-      setError('Google sign in failed. Please try again.')
+      console.error('❌ Backend Google Auth Error:', err)
+
+      // Extract detailed error information from our enhanced apiClient error object
+      let errorMessage = 'Google sign in failed. Please try again.'
+
+      if (err.data) {
+        // Server responded with error data
+        console.error('📛 Server error response:', err.data)
+        const errorDetails = err.data.details || err.data.error || ''
+        errorMessage = errorDetails ? `Server error: ${errorDetails}` : `Server error (${err.status})`
+      } else if (err.message) {
+        // Other error (network, etc)
+        console.error('📛 Request error:', err.message)
+        errorMessage = err.message.includes('Failed to fetch')
+          ? 'Cannot connect to server. Please check your internet connection or API URL.'
+          : `Request failed: ${err.message}`
+      }
+
+      setError(errorMessage)
+      setToast({ message: errorMessage, type: 'error' })
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogleError = () => {
-    console.error('Google Login Failed')
+    console.error('❌ Google Login Failed or Cancelled')
     setToast({ message: 'Google Login Failed', type: 'error' })
   }
 

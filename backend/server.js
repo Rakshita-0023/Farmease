@@ -520,55 +520,113 @@ app.post('/api/auth/login', async (req, res) => {
 })
 
 const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { token } = req.body;
 
+    // Detailed validation
     if (!token) {
-      return res.status(400).json({ error: 'Token is required' });
+      console.error('❌ Google Auth: No token provided');
+      return res.status(400).json({
+        success: false,
+        error: 'Token is required',
+        details: 'No Google ID token found in request body'
+      });
     }
 
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: process.env.VITE_GOOGLE_CLIENT_ID,
-    });
+    // Get Google Client ID from environment
+    const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+
+    if (!googleClientId) {
+      console.error('❌ Google Auth: GOOGLE_CLIENT_ID not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error',
+        details: 'Google Client ID not configured on server'
+      });
+    }
+
+    console.log('🔐 Verifying Google token...');
+    console.log('📋 Client ID:', googleClientId.substring(0, 20) + '...');
+
+    // Initialize OAuth2Client with the correct client ID
+    const client = new OAuth2Client(googleClientId);
+
+    // Verify the ID token
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: googleClientId,
+      });
+    } catch (verifyError) {
+      console.error('❌ Token verification failed:', verifyError.message);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid Google token',
+        details: verifyError.message
+      });
+    }
 
     const payload = ticket.getPayload();
     const { email, name, sub: googleId, picture: photoUrl } = payload;
 
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+      console.error('❌ No email in Google token payload');
+      return res.status(400).json({
+        success: false,
+        error: 'Email not found',
+        details: 'Google account does not have an email address'
+      });
     }
+
+    console.log('✅ Token verified for:', email);
 
     // Check if user exists
     let user = await findUser(email);
 
     if (!user) {
+      console.log('📝 Creating new user for:', email);
       // Create new user (password is random/dummy for google users)
       const dummyPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
       const passwordHash = await bcrypt.hash(dummyPassword, 10);
 
       const result = await createUser(name || email.split('@')[0], email, passwordHash);
       user = { id: result.insertId, name: name || email.split('@')[0], email };
+      console.log('✅ New user created with ID:', user.id);
+    } else {
+      console.log('✅ Existing user found:', user.id);
     }
 
-    // Generate token
+    // Generate JWT token
     const authToken = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.SECRET_KEY,
       { expiresIn: '7d' }
     );
 
+    console.log('✅ Google authentication successful for:', email);
+
     res.json({
       success: true,
       token: authToken,
-      user: { id: user.id, name: user.name, email: user.email, photoUrl }
+      user: {
+        id: user.id,
+        name: user.name || name,
+        email: user.email,
+        photoUrl
+      }
     });
   } catch (error) {
-    console.error('Google auth error:', error);
-    res.status(500).json({ error: 'Google authentication failed' });
+    console.error('❌ Google auth error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Google authentication failed',
+      details: error.message,
+      type: error.name
+    });
   }
 });
 
