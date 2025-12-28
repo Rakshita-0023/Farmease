@@ -27,6 +27,14 @@ async function initDB() {
   console.log('⚠️ Using in-memory storage (Local Fallback) for testing')
   useLocalStorage = true
   seedMarketDataLocal() // Seed market data for local storage
+
+  // Startup check for Google Config
+  const googleId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+  if (googleId) {
+    console.log('✅ Google Auth: Client ID loaded (Starts with ' + googleId.substring(0, 10) + '...)');
+  } else {
+    console.error('❌ Google Auth: Client ID NOT FOUND in environment variables!');
+  }
 }
 
 async function createTables() {
@@ -535,20 +543,24 @@ app.post('/api/auth/google', async (req, res) => {
       });
     }
 
-    // Get Google Client ID from environment
-    const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    // Get Google Client ID from environment (check multiple possible names)
+    const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+
+    console.log('🔍 Debug: Checking Google Config...');
+    console.log('   - GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? 'Found (Starts with ' + process.env.GOOGLE_CLIENT_ID.substring(0, 10) + '...)' : 'Not Found');
+    console.log('   - VITE_GOOGLE_CLIENT_ID:', process.env.VITE_GOOGLE_CLIENT_ID ? 'Found (Starts with ' + process.env.VITE_GOOGLE_CLIENT_ID.substring(0, 10) + '...)' : 'Not Found');
 
     if (!googleClientId) {
-      console.error('❌ Google Auth: GOOGLE_CLIENT_ID not configured');
+      console.error('❌ Google Auth: Google Client ID not found in environment variables');
       return res.status(500).json({
         success: false,
         error: 'Server configuration error',
-        details: 'Google Client ID not configured on server'
+        details: 'Google Client ID not configured on server. Ensure GOOGLE_CLIENT_ID is set in your environment variables or .env file.'
       });
     }
 
     console.log('🔐 Verifying Google token...');
-    console.log('📋 Client ID:', googleClientId.substring(0, 20) + '...');
+    console.log('📋 Using Client ID:', googleClientId.substring(0, 20) + '...');
 
     // Initialize OAuth2Client with the correct client ID
     const client = new OAuth2Client(googleClientId);
