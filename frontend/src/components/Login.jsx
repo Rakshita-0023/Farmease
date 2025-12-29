@@ -52,13 +52,34 @@ const Login = ({ onLogin }) => {
     setLoading(true)
 
     try {
+      const API_BASE = import.meta.env.PROD
+        ? import.meta.env.VITE_API_BASE_URL
+        : '/api'
+
       const endpoint = isLogin ? '/auth/login' : '/auth/register'
       const payload = isLogin
         ? { email: formData.email, password: formData.password }
         : { name: formData.name, email: formData.email, password: formData.password }
 
-      console.log('🔗 API Request:', endpoint)
-      const response = await apiClient.post(endpoint, payload)
+      console.log('🔗 API Base:', API_BASE)
+      console.log('🔗 Full URL:', `${API_BASE}${endpoint}`)
+
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      console.log('📊 Response Status:', res.status)
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Authentication failed')
+      }
+
+      const response = await res.json()
 
       if (response.success) {
         localStorage.setItem('token', response.token)
@@ -66,6 +87,7 @@ const Login = ({ onLogin }) => {
         onLogin(response.user)
       }
     } catch (error) {
+      console.error('❌ Auth Error:', error)
       setError(error.message || 'Authentication failed')
     } finally {
       setLoading(false)
@@ -80,15 +102,33 @@ const Login = ({ onLogin }) => {
     setError('') // Clear any previous errors
 
     try {
+      const API_BASE = import.meta.env.PROD
+        ? import.meta.env.VITE_API_BASE_URL
+        : '/api'
+
       console.log('🚀 Sending token to backend...')
-      console.log('🌐 API_BASE_URL:', API_BASE_URL)
-      console.log('🔗 Full URL:', `${API_BASE_URL}/auth/google`)
+      console.log('🌐 API_BASE:', API_BASE)
+      console.log('🔗 Full URL:', `${API_BASE}/auth/google`)
 
       // Send the credential (JWT) to the backend
-      const res = await apiClient.post('/auth/google', {
-        token: credentialResponse.credential
+      const response = await fetch(`${API_BASE}/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: credentialResponse.credential
+        })
       })
 
+      console.log('📊 Response Status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.details || errorData.error || 'Google authentication failed')
+      }
+
+      const res = await response.json()
       console.log('📥 Backend response:', res)
 
       if (res.success) {

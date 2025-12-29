@@ -3,6 +3,12 @@ export const API_BASE_URL = import.meta.env.PROD
   ? import.meta.env.VITE_API_BASE_URL
   : "/api";
 
+if (import.meta.env.PROD && !API_BASE_URL) {
+  throw new Error("VITE_API_BASE_URL is missing in production");
+}
+
+export default API_BASE_URL;
+
 // Debug logs for production verification (MANDATORY)
 console.log("IS_PROD:", import.meta.env.PROD);
 console.log("API_ENV_VAR:", import.meta.env.VITE_API_BASE_URL);
