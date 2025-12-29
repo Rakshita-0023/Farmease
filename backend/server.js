@@ -888,14 +888,20 @@ app.get('/api/market/cities', async (req, res) => {
     }
     lat = parseFloat(lat); lng = parseFloat(lng)
 
-    const [prices] = await db.execute('SELECT * FROM market_prices')
+    let prices = []
+    if (useLocalStorage) {
+      prices = localData.marketPrices
+    } else {
+      const [dbPrices] = await db.execute('SELECT * FROM market_prices')
+      prices = dbPrices
+    }
 
     // Group by city/market
     const cityGroups = {}
 
     prices.forEach(p => {
-      const marketLat = parseFloat(p.latitude)
-      const marketLng = parseFloat(p.longitude)
+      const marketLat = parseFloat(p.lat || p.latitude)
+      const marketLng = parseFloat(p.lng || p.longitude)
 
       // Distance calculation
       const R = 6371; const dLat = (marketLat - lat) * (Math.PI / 180); const dLng = (marketLng - lng) * (Math.PI / 180)
@@ -950,7 +956,13 @@ app.get('/api/market/city/:cityName', async (req, res) => {
       return res.status(400).json({ error: 'City name is required to fetch market data' })
     }
 
-    const [prices] = await db.execute('SELECT * FROM market_prices WHERE market = ?', [cityName])
+    let prices = []
+    if (useLocalStorage) {
+      prices = localData.marketPrices.filter(p => p.market === cityName)
+    } else {
+      const [dbPrices] = await db.execute('SELECT * FROM market_prices WHERE market = ?', [cityName])
+      prices = dbPrices
+    }
 
     if (prices.length === 0) {
       return res.status(404).json({ error: `No market data found for city: ${cityName}` })
@@ -1021,7 +1033,29 @@ app.get('/api/market/trends', async (req, res) => {
 // Get all available cities for manual selection
 app.get('/api/market/all-cities', async (req, res) => {
   try {
-    const [cities] = await db.execute('SELECT DISTINCT market as city, state, latitude, longitude FROM market_prices')
+    let cities = []
+    
+    if (useLocalStorage) {
+      // Use local storage data
+      const uniqueCities = new Map()
+      localData.marketPrices.forEach(item => {
+        const key = `${item.market}-${item.state}`
+        if (!uniqueCities.has(key)) {
+          uniqueCities.set(key, {
+            city: item.market,
+            state: item.state,
+            latitude: item.lat,
+            longitude: item.lng
+          })
+        }
+      })
+      cities = Array.from(uniqueCities.values())
+    } else {
+      // Use database
+      const [dbCities] = await db.execute('SELECT DISTINCT market as city, state, latitude, longitude FROM market_prices')
+      cities = dbCities
+    }
+    
     res.json(cities)
   } catch (error) {
     console.error('All cities error:', error)
