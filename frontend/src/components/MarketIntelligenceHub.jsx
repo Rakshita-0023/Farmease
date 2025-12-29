@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Select from 'react-select'
+import { useLocation } from '../LocationContext'
 import {
     TrendingUp,
     TrendingDown,
@@ -74,27 +75,51 @@ const customSelectStyles = {
 }
 
 const MarketIntelligenceHub = () => {
-    const { userLocation } = useOutletContext()
+    const { location: globalLocation, loading: locationLoading, updateLocation } = useLocation()
     const [selectedLocations, setSelectedLocations] = useState([])
     const [selectedCrops, setSelectedCrops] = useState([])
     const [searchTerm, setSearchTerm] = useState('')
 
+    const locationOptions = [
+        { value: 'Hyderabad', label: 'Hyderabad', lat: 17.3850, lng: 78.4867, state: 'Telangana' },
+        { value: 'Vijayawada', label: 'Vijayawada', lat: 16.5062, lng: 80.6480, state: 'Andhra Pradesh' },
+        { value: 'Guntur', label: 'Guntur', lat: 16.3067, lng: 80.4365, state: 'Andhra Pradesh' },
+        { value: 'Warangal', label: 'Warangal', lat: 17.9689, lng: 79.5941, state: 'Telangana' },
+        { value: 'Nizamabad', label: 'Nizamabad', lat: 18.6725, lng: 78.0941, state: 'Telangana' },
+        { value: 'Kurnool', label: 'Kurnool', lat: 15.8281, lng: 78.0373, state: 'Andhra Pradesh' }
+    ]
+
+    // Sync dropdown with global location on mount or when globalLocation changes
+    useEffect(() => {
+        if (globalLocation?.city) {
+            const matchedOption = locationOptions.find(opt =>
+                opt.value.toLowerCase() === globalLocation.city.toLowerCase()
+            )
+            if (matchedOption) {
+                setSelectedLocations([matchedOption])
+            }
+        }
+    }, [globalLocation])
+
+    const handleLocationChange = (selected) => {
+        setSelectedLocations(selected)
+        if (selected && selected.length > 0) {
+            const first = selected[0]
+            updateLocation({
+                city: first.value,
+                state: first.state,
+                latitude: first.lat,
+                longitude: first.lng,
+                country: 'India'
+            })
+        }
+    }
+
     // Fetch data based on filters
-    // Note: useMarketComparison hook might need adjustment for multi-select, 
-    // but for now we'll use the first selected item or empty for trending
     const locationQuery = selectedLocations.length > 0 ? selectedLocations[0].value : ''
     const cropQuery = selectedCrops.length > 0 ? selectedCrops[0].value : ''
 
     const { data: marketData = [], isLoading, refetch } = useMarketComparison(cropQuery, locationQuery)
-
-    const locationOptions = [
-        { value: 'Hyderabad', label: 'Hyderabad' },
-        { value: 'Vijayawada', label: 'Vijayawada' },
-        { value: 'Guntur', label: 'Guntur' },
-        { value: 'Warangal', label: 'Warangal' },
-        { value: 'Nizamabad', label: 'Nizamabad' },
-        { value: 'Kurnool', label: 'Kurnool' }
-    ]
 
     const cropOptions = Object.keys(CROP_IMAGE_DIRECTORY).map(crop => ({
         value: crop,
@@ -156,7 +181,7 @@ const MarketIntelligenceHub = () => {
                             placeholder="Market Locations..."
                             styles={customSelectStyles}
                             value={selectedLocations}
-                            onChange={setSelectedLocations}
+                            onChange={handleLocationChange}
                             className="text-sm"
                         />
                         <Select

@@ -18,14 +18,15 @@ import TermsOfService from './components/TermsOfService'
 import AdvancedFeatures from './components/AdvancedFeatures'
 import { getAuthToken, removeAuthToken } from './config'
 
+import { LocationProvider } from './LocationContext'
+
 function App() {
   const [user, setUser] = useState(null)
-  const [userLocation, setUserLocation] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    let isMounted = true // Cleanup flag to prevent memory leaks
+    let isMounted = true
 
     const initializeApp = async () => {
       try {
@@ -43,36 +44,6 @@ function App() {
             removeAuthToken()
           }
         }
-
-        // Auto-detect location with timeout
-        if (navigator.geolocation && isMounted) {
-          const locationPromise = new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 10000,
-              enableHighAccuracy: false,
-              maximumAge: 300000 // 5 minutes
-            })
-          })
-
-          try {
-            const position = await locationPromise
-            if (isMounted) {
-              setUserLocation({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-              })
-            }
-          } catch (error) {
-            console.log('Location access denied or failed:', error.message)
-            // Set default location (Delhi) if geolocation fails
-            if (isMounted) {
-              setUserLocation({
-                latitude: 28.6139,
-                longitude: 77.2090
-              })
-            }
-          }
-        }
       } catch (error) {
         console.error('App initialization error:', error)
       } finally {
@@ -84,7 +55,6 @@ function App() {
 
     initializeApp()
 
-    // Cleanup function to prevent memory leaks
     return () => {
       isMounted = false
     }
@@ -115,47 +85,47 @@ function App() {
   }
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route
-        path="/landing"
-        element={!user ? <LandingPage onGetStarted={() => navigate('/login')} /> : <Navigate to="/" replace />}
-      />
-      <Route
-        path="/login"
-        element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" replace />}
-      />
+    <LocationProvider user={user}>
+      <Routes>
+        {/* Public Routes */}
+        <Route
+          path="/landing"
+          element={!user ? <LandingPage onGetStarted={() => navigate('/login')} /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/login"
+          element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" replace />}
+        />
 
-      {/* Protected Routes */}
-      <Route
-        element={user ? (
-          <Layout
-            user={user}
-            onLogout={handleLogout}
-            userLocation={userLocation}
-            setUserLocation={setUserLocation}
-          />
-        ) : (
-          <Navigate to="/landing" replace />
-        )}
-      >
-        <Route path="/" element={<EnhancedDashboard />} />
-        <Route path="/farms" element={<FarmManagement />} />
-        <Route path="/weather" element={<Weather />} />
-        <Route path="/market" element={<MarketIntelligenceHub />} />
-        <Route path="/tips" element={<Tips />} />
-        <Route path="/advanced" element={<AdvancedFeatures userLocation={userLocation} />} />
-        <Route path="/doctor" element={<PlantDoctor />} />
-        <Route path="/community" element={<CommunityForum />} />
-        <Route path="/schemes" element={<Schemes />} />
-        <Route path="/about" element={<AboutUs />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/terms" element={<TermsOfService />} />
-      </Route>
+        {/* Protected Routes */}
+        <Route
+          element={user ? (
+            <Layout
+              user={user}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/landing" replace />
+          )}
+        >
+          <Route path="/" element={<EnhancedDashboard />} />
+          <Route path="/farms" element={<FarmManagement />} />
+          <Route path="/weather" element={<Weather />} />
+          <Route path="/market" element={<MarketIntelligenceHub />} />
+          <Route path="/tips" element={<Tips />} />
+          <Route path="/advanced" element={<AdvancedFeatures />} />
+          <Route path="/doctor" element={<PlantDoctor />} />
+          <Route path="/community" element={<CommunityForum />} />
+          <Route path="/schemes" element={<Schemes />} />
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/terms" element={<TermsOfService />} />
+        </Route>
 
-      {/* Catch-all route */}
-      <Route path="*" element={<Navigate to={user ? "/" : "/landing"} replace />} />
-    </Routes>
+        {/* Catch-all route */}
+        <Route path="*" element={<Navigate to={user ? "/" : "/landing"} replace />} />
+      </Routes>
+    </LocationProvider>
   )
 }
 

@@ -4,8 +4,10 @@ import { apiClient, WEATHER_API_KEY } from '../config'
 import OnboardingWizard from './OnboardingWizard'
 import { Cloud, Sun, CloudRain, Wind, Droplets, Thermometer, MapPin } from 'lucide-react'
 import './EnhancedDashboard.css'
+import { useLocation } from '../LocationContext'
 
 const EnhancedDashboard = () => {
+  const { location: globalLocation } = useLocation()
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const [alertFilter, setAlertFilter] = useState('all')
 
@@ -15,19 +17,11 @@ const EnhancedDashboard = () => {
   })
 
   const { data: weather, isLoading: weatherLoading } = useQuery({
-    queryKey: ['weather'],
+    queryKey: ['weather', globalLocation?.latitude, globalLocation?.longitude],
     queryFn: async () => {
-      // Try to get location
-      let lat = 28.6139, lon = 77.2090 // Default Delhi
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-        })
-        lat = position.coords.latitude
-        lon = position.coords.longitude
-      } catch (e) {
-        console.log('Location access denied, using default')
-      }
+      if (!globalLocation) return null;
+
+      const { latitude: lat, longitude: lon } = globalLocation;
 
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
@@ -42,7 +36,8 @@ const EnhancedDashboard = () => {
         location: data.name,
         icon: getWeatherIcon(data.weather[0].main)
       }
-    }
+    },
+    enabled: !!globalLocation
   })
 
   // Map raw weather conditions

@@ -1,6 +1,9 @@
 import InteractiveMarketMap from './InteractiveMarketMap'
+import { useLocation } from '../LocationContext'
 
-const AdvancedFeatures = ({ userLocation }) => {
+const AdvancedFeatures = () => {
+  const { location: globalLocation } = useLocation()
+
   return (
     <div className="advanced-features">
       <div className="features-header">
@@ -10,7 +13,7 @@ const AdvancedFeatures = ({ userLocation }) => {
 
       <div className="features-content mt-6">
         <div className="feature-section">
-          <InteractiveMarketMap userLocation={userLocation} />
+          <InteractiveMarketMap userLocation={globalLocation} />
         </div>
       </div>
     </div>

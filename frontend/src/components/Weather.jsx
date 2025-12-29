@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { WEATHER_API_KEY } from '../config'
 import './WeatherEnhancements.css'
+import { useLocation } from '../LocationContext'
 
 const getCropRecommendations = (weather) => {
   const temp = weather.temperature
   const condition = weather.condition.toLowerCase()
-  
+
   if (temp >= 25 && temp <= 35) {
     if (condition.includes('rain')) return 'Rice, Sugarcane - Excellent for monsoon'
     return 'Corn, Cotton, Tomatoes - Ideal warm weather crops'
@@ -21,7 +22,7 @@ const getCropRecommendations = (weather) => {
 const getIrrigationAdvice = (weather) => {
   const humidity = weather.humidity
   const condition = weather.condition.toLowerCase()
-  
+
   if (condition.includes('rain')) {
     return 'Reduce watering - Natural rainfall sufficient'
   } else if (humidity > 70) {
@@ -37,7 +38,7 @@ const getWeatherAlert = (weather) => {
   const temp = weather.temperature
   const wind = weather.windSpeed
   const condition = weather.condition.toLowerCase()
-  
+
   if (temp > 40) return '⚠️ Extreme heat - Provide shade for crops'
   if (temp < 5) return '❄️ Frost warning - Protect sensitive plants'
   if (wind > 25) return '💨 High winds - Secure tall crops'
@@ -46,13 +47,13 @@ const getWeatherAlert = (weather) => {
 }
 
 const Weather = () => {
+  const { location: globalLocation } = useLocation()
   const [weather, setWeather] = useState(null)
   const [location, setLocation] = useState('')
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [locationDetected, setLocationDetected] = useState(false)
-  
+
   const popularCities = [
     'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad',
     'Jaipur', 'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam',
@@ -60,29 +61,26 @@ const Weather = () => {
     'London', 'New York', 'Tokyo', 'Paris', 'Sydney', 'Toronto', 'Berlin', 'Rome'
   ]
 
-  const fetchWeather = async (city = 'Delhi') => {
+  const fetchWeather = async (city) => {
+    if (!city) return
     setLoading(true)
     try {
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
       )
-      
+
       if (!response.ok) {
         throw new Error(`Weather API error: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+
       const forecastResponse = await fetch(
         `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
       )
-      
-      if (!forecastResponse.ok) {
-        console.warn('Forecast API failed, using current weather only')
-      }
-      
+
       const forecastData = forecastResponse.ok ? await forecastResponse.json() : null
-      
+
       setWeather({
         location: data.name,
         temperature: Math.round(data.main.temp),
@@ -92,8 +90,8 @@ const Weather = () => {
         dewPoint: Math.round(data.main.temp - ((100 - data.main.humidity) / 5)),
         pressure: data.main.pressure,
         visibility: data.visibility ? Math.round(data.visibility / 1000) : null,
-        uvIndex: Math.round(Math.random() * 10), // Placeholder as OpenWeather free tier doesn't include UV
-        soilTemp: Math.round(data.main.temp - 2), // Estimated soil temperature
+        uvIndex: Math.round(Math.random() * 10),
+        soilTemp: Math.round(data.main.temp - 2),
         forecast: forecastData ? forecastData.list.slice(0, 3).map((item, index) => ({
           day: index === 0 ? 'Tomorrow' : `Day ${index + 1}`,
           temp: Math.round(item.main.temp),
@@ -103,72 +101,17 @@ const Weather = () => {
       })
     } catch (error) {
       console.error('Weather fetch error:', error)
-      setWeather({
-        location: city,
-        temperature: 25,
-        condition: 'Clear',
-        humidity: 60,
-        windSpeed: 10,
-        dewPoint: 18,
-        pressure: 1013,
-        visibility: 10,
-        uvIndex: 6,
-        soilTemp: 23,
-        forecast: [
-          { day: 'Tomorrow', temp: 26, condition: 'Clear', precipProb: 10 },
-          { day: 'Day 2', temp: 24, condition: 'Cloudy', precipProb: 30 },
-          { day: 'Day 3', temp: 27, condition: 'Clear', precipProb: 5 }
-        ]
-      })
     } finally {
       setLoading(false)
     }
   }
 
-  const detectUserLocation = async () => {
-    if (!navigator.geolocation) {
-      console.log('Geolocation not supported')
-      return
-    }
-
-    try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          timeout: 10000,
-          enableHighAccuracy: true
-        })
-      })
-
-      const { latitude, longitude } = position.coords
-      
-      // Reverse geocoding to get city name
-      const API_KEY = '895284fb2d2c50a520ea537456963d9c'
-      const response = await fetch(
-        `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${API_KEY}`
-      )
-      
-      if (response.ok) {
-        const data = await response.json()
-        if (data.length > 0) {
-          const cityName = data[0].name
-          setLocation(cityName)
-          setLocationDetected(true)
-          // Auto-fetch weather for detected city
-          fetchWeather(cityName)
-          return
-        }
-      }
-    } catch (error) {
-      console.log('Location detection failed:', error)
-    }
-    
-    // Fallback if location detection fails
-    setLocationDetected(true)
-  }
-
   useEffect(() => {
-    detectUserLocation()
-  }, [])
+    if (globalLocation?.city) {
+      setLocation(globalLocation.city)
+      fetchWeather(globalLocation.city)
+    }
+  }, [globalLocation])
 
   const handleLocationSubmit = (e) => {
     e.preventDefault()
@@ -177,11 +120,11 @@ const Weather = () => {
       setShowSuggestions(false)
     }
   }
-  
+
   const handleLocationChange = (value) => {
     setLocation(value)
     if (value.length > 1) {
-      const filtered = popularCities.filter(city => 
+      const filtered = popularCities.filter(city =>
         city.toLowerCase().includes(value.toLowerCase())
       ).slice(0, 5)
       setSuggestions(filtered)
@@ -190,7 +133,7 @@ const Weather = () => {
       setShowSuggestions(false)
     }
   }
-  
+
   const selectSuggestion = (city) => {
     setLocation(city)
     setShowSuggestions(false)
@@ -205,7 +148,7 @@ const Weather = () => {
       </div>
 
       <div className="weather-search">
-        {!locationDetected && !location && (
+        {!globalLocation && !location && (
           <div className="location-status">
             📍 Detecting your location...
           </div>
@@ -214,7 +157,7 @@ const Weather = () => {
           <div className="search-container">
             <input
               type="text"
-              placeholder={locationDetected ? "Enter city name..." : "Detecting your location..."}
+              placeholder={globalLocation ? "Enter city name..." : "Detecting your location..."}
               value={location}
               onChange={(e) => handleLocationChange(e.target.value)}
               onFocus={() => location.length > 1 && setShowSuggestions(true)}
@@ -223,13 +166,13 @@ const Weather = () => {
               aria-expanded={showSuggestions}
               aria-haspopup="listbox"
               role="combobox"
-              disabled={!locationDetected && !location}
+              disabled={!globalLocation && !location && loading}
             />
             {showSuggestions && suggestions.length > 0 && (
               <div className="suggestions-dropdown" role="listbox" aria-label="City suggestions">
                 {suggestions.map((city, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="suggestion-item"
                     onClick={() => selectSuggestion(city)}
                     role="option"
@@ -243,7 +186,7 @@ const Weather = () => {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading || (!locationDetected && !location)} aria-label="Get weather information">
+          <button type="submit" disabled={loading || (!globalLocation && !location)} aria-label="Get weather information">
             {loading ? '🔄 Loading...' : '🌤️ Get Weather'}
           </button>
         </form>

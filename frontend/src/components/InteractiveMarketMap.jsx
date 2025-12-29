@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import './WeatherEnhancements.css'
 import { useMarketComparison } from '../hooks/useMandiData'
 import { MapPin, BarChart3, ChevronDown, RefreshCw, TrendingUp, TrendingDown, Navigation } from 'lucide-react'
+import { useLocation } from '../LocationContext'
 
 // Fix for default markers in React Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png'
@@ -33,7 +34,8 @@ const marketIcon = new L.Icon({
   popupAnchor: [0, -48]
 })
 
-const InteractiveMarketMap = ({ userLocation }) => {
+const InteractiveMarketMap = () => {
+  const { location: userLocation } = useLocation()
   const [selectedCity, setSelectedCity] = useState('')
   const [selectedCrop, setSelectedCrop] = useState('')
   const [selectedMarket, setSelectedMarket] = useState(null)
