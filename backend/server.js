@@ -40,6 +40,11 @@ async function createTables() {
       name VARCHAR(255) NOT NULL,
       email VARCHAR(255) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
+      city VARCHAR(255),
+      state VARCHAR(255),
+      country VARCHAR(255) DEFAULT 'India',
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS farms (
@@ -328,7 +333,16 @@ app.post('/api/auth/register', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: result.insertId, name, email }
+      user: { 
+        id: result.insertId, 
+        name, 
+        email,
+        city: null,
+        state: null,
+        country: 'India',
+        latitude: null,
+        longitude: null
+      }
     })
   } catch (error) {
     console.error('Registration error:', error)
@@ -366,7 +380,16 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, name: user.name, email: user.email }
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email,
+        city: user.city,
+        state: user.state,
+        country: user.country,
+        latitude: user.latitude,
+        longitude: user.longitude
+      }
     })
   } catch (error) {
     console.error('Login error:', error)
@@ -474,6 +497,11 @@ app.post('/api/auth/google', async (req, res) => {
         id: user.id,
         name: user.name || name,
         email: user.email,
+        city: user.city,
+        state: user.state,
+        country: user.country,
+        latitude: user.latitude,
+        longitude: user.longitude,
         photoUrl
       }
     });
@@ -490,6 +518,74 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // Protected routes
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const [users] = await db.execute(
+      'SELECT id, name, email, city, state, country, latitude, longitude FROM users WHERE id = ?',
+      [req.user.userId]
+    )
+    
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    
+    res.json(users[0])
+  } catch (error) {
+    console.error('Get profile error:', error)
+    res.status(500).json({ error: 'Failed to get user profile' })
+  }
+})
+
+app.get('/api/location/detect', authenticateToken, async (req, res) => {
+  try {
+    const { lat, lng } = req.query
+    
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'Latitude and longitude are required' })
+    }
+    
+    // Use OpenWeatherMap reverse geocoding
+    const response = await fetch(
+      `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'}`
+    )
+    
+    const locationData = await response.json()
+    
+    if (locationData.length === 0) {
+      return res.status(404).json({ error: 'Location not found' })
+    }
+    
+    const location = {
+      city: locationData[0].name,
+      state: locationData[0].state,
+      country: locationData[0].country,
+      latitude: parseFloat(lat),
+      longitude: parseFloat(lng)
+    }
+    
+    res.json(location)
+  } catch (error) {
+    console.error('Location detection error:', error)
+    res.status(500).json({ error: 'Failed to detect location' })
+  }
+})
+
+app.put('/api/user/location', authenticateToken, async (req, res) => {
+  try {
+    const { city, state, country, latitude, longitude } = req.body
+    
+    await db.execute(
+      'UPDATE users SET city = ?, state = ?, country = ?, latitude = ?, longitude = ? WHERE id = ?',
+      [city, state, country || 'India', latitude, longitude, req.user.userId]
+    )
+    
+    res.json({ success: true, message: 'Location updated successfully' })
+  } catch (error) {
+    console.error('Update location error:', error)
+    res.status(500).json({ error: 'Failed to update location' })
+  }
+})
+
 app.get('/api/farms', authenticateToken, async (req, res) => {
   try {
     const farms = await getUserFarms(req.user.userId)
