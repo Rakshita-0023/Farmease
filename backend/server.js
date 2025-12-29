@@ -30,9 +30,15 @@ const localData = {
 
 // Initialize database connection
 async function initDB() {
-  // Force local storage for development/testing
-  console.log('⚠️ Using in-memory storage (Local Fallback) for development')
-  useLocalStorage = true
+  try {
+    // Try to connect to database
+    await db.query('SELECT 1')
+    console.log('✅ Database connected successfully')
+    useLocalStorage = false
+  } catch (err) {
+    console.warn('⚠️ Database connection failed, falling back to in-memory storage')
+    useLocalStorage = true
+  }
 
   // Seed local market data
   if (localData.marketPrices.length === 0) {
@@ -934,6 +940,8 @@ app.get('/api/market/cities', async (req, res) => {
     const result = Object.values(cityGroups).map(c => ({
       city: c.name,
       state: c.state,
+      latitude: prices.find(p => p.market === c.name)?.latitude || prices.find(p => p.market === c.name)?.lat,
+      longitude: prices.find(p => p.market === c.name)?.longitude || prices.find(p => p.market === c.name)?.lng,
       distanceKm: c.distance,
       majorCrops: c.crops.slice(0, 3),
       avgPrice: Math.round(c.totalModal / c.count),
@@ -997,7 +1005,15 @@ app.get('/api/market/trends', async (req, res) => {
     // For now, generate some realistic historical data based on current prices
     const [currentPrices] = await db.execute('SELECT * FROM market_prices')
 
-    const result = currentPrices.map(p => {
+    let filteredPrices = currentPrices;
+    if (crop) {
+      filteredPrices = filteredPrices.filter(p => p.commodity.toLowerCase() === crop.toLowerCase());
+    }
+    if (city) {
+      filteredPrices = filteredPrices.filter(p => p.market.toLowerCase() === city.toLowerCase());
+    }
+
+    const result = filteredPrices.map(p => {
       const basePrice = parseFloat(p.modal_price)
       const history = []
       for (let i = 6; i >= 0; i--) {
@@ -1017,13 +1033,7 @@ app.get('/api/market/trends', async (req, res) => {
       }
     })
 
-    if (crop) {
-      res.json(result.filter(r => r.commodity.toLowerCase() === crop.toLowerCase()))
-    } else if (city) {
-      res.json(result.filter(r => r.market.toLowerCase() === city.toLowerCase()))
-    } else {
-      res.json(result.slice(0, 10))
-    }
+    res.json(result)
   } catch (error) {
     console.error('Market trends error:', error)
     res.status(500).json({ error: 'Failed to fetch market trends' })
@@ -1034,7 +1044,7 @@ app.get('/api/market/trends', async (req, res) => {
 app.get('/api/market/all-cities', async (req, res) => {
   try {
     let cities = []
-    
+
     if (useLocalStorage) {
       // Use local storage data
       const uniqueCities = new Map()
@@ -1055,7 +1065,7 @@ app.get('/api/market/all-cities', async (req, res) => {
       const [dbCities] = await db.execute('SELECT DISTINCT market as city, state, latitude, longitude FROM market_prices')
       cities = dbCities
     }
-    
+
     res.json(cities)
   } catch (error) {
     console.error('All cities error:', error)
@@ -1155,9 +1165,16 @@ app.get('/api/market-prices', async (req, res) => {
 // ==================== MARKET COMPARISON API ====================
 app.get('/api/market/compare', async (req, res) => {
   try {
-    const { crop, location } = req.query
+    const { crop, location, city } = req.query
 
-    const [prices] = await db.execute('SELECT * FROM market_prices')
+    let prices = []
+    if (useLocalStorage) {
+      prices = localData.marketPrices
+    } else {
+      const [dbPrices] = await db.execute('SELECT * FROM market_prices')
+      prices = dbPrices
+    }
+
     let result = []
 
     if (crop) {
@@ -1175,12 +1192,13 @@ app.get('/api/market/compare', async (req, res) => {
           is_highest: parseFloat(p.modal_price) === Math.max(...cropData.map(cd => parseFloat(cd.modal_price)))
         }))
       }
-    } else if (location) {
+    } else if (location || city) {
+      const targetLocation = location || city
       // Location-First: Show all crops in this location (Market, District, or State)
       const locationData = prices.filter(p =>
-        p.market.toLowerCase().includes(location.toLowerCase()) ||
-        p.district.toLowerCase() === location.toLowerCase() ||
-        p.state.toLowerCase() === location.toLowerCase()
+        p.market.toLowerCase().includes(targetLocation.toLowerCase()) ||
+        p.district.toLowerCase() === targetLocation.toLowerCase() ||
+        p.state.toLowerCase() === targetLocation.toLowerCase()
       )
 
       // Calculate variance against state average for each crop
@@ -1195,9 +1213,8 @@ app.get('/api/market/compare', async (req, res) => {
         }
       })
     } else {
-      // Default: Top 10 Trending
-      result = prices
-        .filter(p => p.trend === 'up')
+      // Default: Show top 10 most expensive crops across all markets
+      result = [...prices]
         .sort((a, b) => b.modal_price - a.modal_price)
         .slice(0, 10)
     }
