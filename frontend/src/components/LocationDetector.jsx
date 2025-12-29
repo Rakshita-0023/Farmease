@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Lottie from 'lottie-react'
 import locationPinAnimation from '../assets/animations/location-pin.json'
 
-const LocationDetector = ({ onLocationDetected }) => {
+const LocationDetector = ({ onLocationDetected, user }) => {
   const [location, setLocation] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -48,13 +48,19 @@ const LocationDetector = ({ onLocationDetected }) => {
 
     } catch (err) {
       setError(err.message)
-      // Use default location if detection fails
-      const defaultLocation = {
-        latitude: 28.6139,
-        longitude: 77.2090,
-        city: 'New Delhi',
-        state: 'Delhi',
-        country: 'IN'
+      // Use user's saved location or default
+      const defaultLocation = user?.city ? {
+        latitude: user.latitude || 17.4847,
+        longitude: user.longitude || 78.4138,
+        city: user.city,
+        state: user.state,
+        country: user.country || 'India'
+      } : {
+        latitude: 17.4847,
+        longitude: 78.4138,
+        city: 'Kukatpalli',
+        state: 'Telangana',
+        country: 'India'
       }
       setLocation(defaultLocation)
       onLocationDetected(defaultLocation)
@@ -64,39 +70,50 @@ const LocationDetector = ({ onLocationDetected }) => {
   }
 
   useEffect(() => {
-    // Check if location is already stored
-    const storedLocation = localStorage.getItem('userLocation')
-    if (storedLocation) {
-      const locationInfo = JSON.parse(storedLocation)
-      setLocation(locationInfo)
-      onLocationDetected(locationInfo)
+    // Priority: 1. User's saved location, 2. Stored location, 3. Detect new
+    if (user?.city) {
+      const userLocation = {
+        latitude: user.latitude || 17.4847,
+        longitude: user.longitude || 78.4138,
+        city: user.city,
+        state: user.state,
+        country: user.country || 'India'
+      }
+      setLocation(userLocation)
+      onLocationDetected(userLocation)
       setLoading(false)
     } else {
-      detectLocation()
+      const storedLocation = localStorage.getItem('userLocation')
+      if (storedLocation) {
+        const locationInfo = JSON.parse(storedLocation)
+        setLocation(locationInfo)
+        onLocationDetected(locationInfo)
+        setLoading(false)
+      } else {
+        detectLocation()
+      }
     }
-  }, [])
+  }, [user])
 
   if (loading) {
     return (
-      <div className="location-detector loading">
-        <div className="location-spinner"></div>
-        <p>Detecting your location...</p>
+      <div className="flex items-center gap-2 text-white/60 text-xs">
+        <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
+        <span>Detecting...</span>
       </div>
     )
   }
 
   return (
-    <div className="location-detector compact">
-      <div className="location-info">
-        <Lottie
-          animationData={locationPinAnimation}
-          style={{ width: 24, height: 24 }}
-          loop={true}
-        />
-        <span className="location-text">
-          {location?.city}
-        </span>
-      </div>
+    <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
+      <Lottie
+        animationData={locationPinAnimation}
+        style={{ width: 16, height: 16 }}
+        loop={true}
+      />
+      <span className="text-white/90 text-xs font-medium">
+        📍 {location?.city || 'Unknown'}
+      </span>
     </div>
   )
 }

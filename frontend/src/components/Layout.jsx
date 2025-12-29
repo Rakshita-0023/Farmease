@@ -117,7 +117,7 @@ export default function Layout({ user, onLogout, userLocation, setUserLocation }
 
                 <div className="p-6 border-t border-white/10">
                     <div className={`${sidebarCollapsed && window.innerWidth >= 768 ? 'hidden' : 'block'}`}>
-                        <LocationDetector onLocationDetected={setUserLocation} />
+                        <LocationDetector onLocationDetected={setUserLocation} user={user} />
                     </div>
 
                     {(!sidebarCollapsed || window.innerWidth < 768) && (
