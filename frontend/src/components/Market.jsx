@@ -72,6 +72,38 @@ const Market = () => {
     )
   }, [marketData, searchTerm])
 
+  // Debug logging
+  console.log('Market component state:', {
+    userLocation,
+    currentCity,
+    marketDataLength: marketData?.length,
+    isLoading,
+    isError,
+    error: error?.message
+  })
+
+  // Show location status in UI for debugging
+  if (!userLocation) {
+    return (
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
+          <div className="text-4xl mb-4">📍</div>
+          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Location Required</h2>
+          <p className="text-yellow-700 mb-4">
+            We need your location to show nearby market prices. Please allow location access or wait for detection to complete.
+          </p>
+          <button
+            onClick={handleUseLocation}
+            disabled={isLocating}
+            className="px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition-colors"
+          >
+            {isLocating ? 'Detecting Location...' : 'Enable Location'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}

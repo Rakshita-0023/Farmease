@@ -229,6 +229,88 @@ async function seedMarketData() {
   }
 }
 
+// ==================== LOCATION API ====================
+app.get('/api/location/detect', async (req, res) => {
+  try {
+    const { lat, lng } = req.query
+
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'Latitude and longitude are required' })
+    }
+
+    // Simple reverse geocoding based on coordinates
+    const latitude = parseFloat(lat)
+    const longitude = parseFloat(lng)
+
+    let city = 'Unknown'
+    let state = 'Unknown'
+    let country = 'India'
+
+    // Simple coordinate-based city detection for Indian cities
+    if (latitude >= 17.2 && latitude <= 17.6 && longitude >= 78.2 && longitude <= 78.7) {
+      city = 'Hyderabad'
+      state = 'Telangana'
+    } else if (latitude >= 16.3 && latitude <= 16.7 && longitude >= 80.3 && longitude <= 80.8) {
+      city = 'Vijayawada'
+      state = 'Andhra Pradesh'
+    } else if (latitude >= 16.1 && latitude <= 16.5 && longitude >= 80.1 && longitude <= 80.6) {
+      city = 'Guntur'
+      state = 'Andhra Pradesh'
+    } else if (latitude >= 17.8 && latitude <= 18.2 && longitude >= 79.4 && longitude <= 79.8) {
+      city = 'Warangal'
+      state = 'Telangana'
+    } else if (latitude >= 18.5 && latitude <= 18.9 && longitude >= 77.9 && longitude <= 78.3) {
+      city = 'Nizamabad'
+      state = 'Telangana'
+    } else if (latitude >= 28.4 && latitude <= 28.8 && longitude >= 76.9 && longitude <= 77.4) {
+      city = 'Delhi'
+      state = 'Delhi'
+    } else if (latitude >= 19.0 && latitude <= 19.3 && longitude >= 72.7 && longitude <= 73.1) {
+      city = 'Mumbai'
+      state = 'Maharashtra'
+    } else if (latitude >= 12.8 && latitude <= 13.2 && longitude >= 77.4 && longitude <= 77.8) {
+      city = 'Bangalore'
+      state = 'Karnataka'
+    } else {
+      // Default to nearest major city based on rough distance
+      const distances = [
+        { city: 'Hyderabad', state: 'Telangana', lat: 17.3850, lng: 78.4867 },
+        { city: 'Vijayawada', state: 'Andhra Pradesh', lat: 16.5062, lng: 80.6480 },
+        { city: 'Delhi', state: 'Delhi', lat: 28.6139, lng: 77.2090 },
+        { city: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777 },
+        { city: 'Bangalore', state: 'Karnataka', lat: 12.9716, lng: 77.5946 }
+      ].map(location => ({
+        ...location,
+        distance: Math.sqrt(
+          Math.pow(latitude - location.lat, 2) + 
+          Math.pow(longitude - location.lng, 2)
+        )
+      }))
+
+      const nearest = distances.reduce((min, curr) => 
+        curr.distance < min.distance ? curr : min
+      )
+
+      city = nearest.city
+      state = nearest.state
+    }
+
+    const locationInfo = {
+      city,
+      state,
+      country,
+      latitude,
+      longitude
+    }
+
+    console.log(`📍 Location detected: ${city}, ${state} (${latitude}, ${longitude})`)
+    res.json(locationInfo)
+  } catch (error) {
+    console.error('Location detection error:', error)
+    res.status(500).json({ error: 'Failed to detect location' })
+  }
+})
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {

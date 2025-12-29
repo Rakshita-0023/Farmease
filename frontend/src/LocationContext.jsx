@@ -11,73 +11,137 @@ export const useLocation = () => {
     return context;
 };
 
-export const LocationProvider = ({ children }) => {
+export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
-    const [markets, setMarkets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const updateLocation = async (newLocation, persist = true) => {
+        setLoading(true);
+        try {
+            // Ensure we have all required fields
+            const locationData = {
+                city: newLocation.city || 'Unknown',
+                state: newLocation.state || 'Unknown',
+                country: newLocation.country || 'India',
+                latitude: parseFloat(newLocation.latitude),
+                longitude: parseFloat(newLocation.longitude)
+            };
+
+            setLocation(locationData);
+            localStorage.setItem('userLocation', JSON.stringify(locationData));
+
+            if (persist && user) {
+                try {
+                    await apiClient.put('/user/location', locationData);
+                } catch (err) {
+                    console.error('Failed to persist location to backend:', err);
+                }
+            }
+        } catch (err) {
+            console.error('Error updating location:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const detectLocation = async () => {
         setLoading(true);
         setError(null);
 
         try {
-            console.log('📍 Initiating location detection...');
+            console.log('📍 Starting location detection...');
 
-            // 1. Try to get GPS coordinates from browser
-            let coords = null;
-            try {
-                const position = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        timeout: 5000,
-                        maximumAge: 0
-                    });
+            if (!navigator.geolocation) {
+                throw new Error('Geolocation not supported by this browser');
+            }
+
+            console.log('📍 Requesting GPS coordinates...');
+            // Get GPS coordinates from browser
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
                 });
-                coords = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
-                console.log('📍 Browser GPS obtained:', coords);
-            } catch (geoError) {
-                console.log('⚠️ Browser GPS unavailable, falling back to IP detection:', geoError.message);
-            }
+            });
 
-            // 2. Call backend with or without coords
-            const queryParams = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : '';
-            console.log(`📍 Fetching from backend: /market/nearby${queryParams}`);
+            const { latitude, longitude } = position.coords;
+            console.log('📍 GPS coordinates obtained:', { latitude, longitude });
 
-            const response = await apiClient.get(`/market/nearby${queryParams}`);
+            // Get location details from backend
+            console.log('📍 Calling backend API...');
+            const locationInfo = await apiClient.get(`/location/detect?lat=${latitude}&lng=${longitude}`);
+            console.log('📍 Backend response:', locationInfo);
 
-            // 3. Update state with backend response
-            // Backend contract: { resolvedLocation: {...}, markets: [...] }
-            setLocation(response.resolvedLocation);
-            setMarkets(response.markets);
-
-            console.log('✅ Location synced:', response.resolvedLocation);
-            console.log('✅ Nearby markets:', response.markets.length);
-
+            await updateLocation(locationInfo);
+            console.log('✅ Location detection completed successfully');
         } catch (err) {
-            console.error('Location detection failed:', err);
-            // Handle specific backend error codes if needed
-            if (err.code === 'CURRENT_LOCATION_UNAVAILABLE') {
-                setError('Unable to determine your current location. Market data cannot be displayed.');
-            } else {
-                setError(err.message || 'Failed to detect location');
+            console.error('❌ Location detection failed:', err);
+            setError(err.message);
+
+            // Fallback to Hyderabad if detection fails and no saved location
+            if (!location) {
+                console.log('📍 Using fallback location: Hyderabad');
+                const defaultLocation = {
+                    city: 'Hyderabad',
+                    state: 'Telangana',
+                    country: 'India',
+                    latitude: 17.3850,
+                    longitude: 78.4867
+                };
+                await updateLocation(defaultLocation, false);
             }
-            // Clear data on error
-            setLocation(null);
-            setMarkets([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        detectLocation();
-    }, []);
+        const initializeLocation = async () => {
+            console.log('🚀 LocationContext initializing...');
+            
+            // 1. Check if user has a saved location in profile
+            if (user?.city) {
+                console.log('📍 Using user profile location:', user.city);
+                const userLoc = {
+                    city: user.city,
+                    state: user.state,
+                    country: user.country || 'India',
+                    latitude: user.latitude || 17.3850,
+                    longitude: user.longitude || 78.4867
+                };
+                setLocation(userLoc);
+                setLoading(false);
+                return;
+            }
+
+            // 2. Check localStorage
+            const stored = localStorage.getItem('userLocation');
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    console.log('📍 Using stored location:', parsed);
+                    setLocation(parsed);
+                    setLoading(false);
+                    return;
+                } catch (e) {
+                    console.log('📍 Invalid stored location, removing...');
+                    localStorage.removeItem('userLocation');
+                }
+            }
+
+            // 3. Detect automatically
+            console.log('📍 No saved location found, detecting...');
+            await detectLocation();
+        };
+
+        initializeLocation();
+    }, [user]);
 
     return (
-        <LocationContext.Provider value={{ location, markets, loading, error, detectLocation }}>
+        <LocationContext.Provider value={{ location, loading, error, updateLocation, detectLocation }}>
             {children}
         </LocationContext.Provider>
     );
