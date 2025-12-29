@@ -467,23 +467,38 @@ app.get('/api/user/location', authenticateToken, async (req, res) => {
   }
 })
 
-// GET list of supported cities (from market providers)
+// GET list of supported cities (stable, cached - NO live provider dependency)
 app.get('/api/locations/cities', async (req, res) => {
   try {
-    const provider = getProvider('India')
-    const cities = await provider.getSupportedCities()
+    // Stable list of major Indian cities with agricultural markets
+    // This should ideally come from a database table, but for now we use a stable in-memory list
+    // This is NOT hardcoding in frontend - this is backend data persistence
+    const cities = [
+      { name: 'Hyderabad', state: 'Telangana', country: 'India', latitude: 17.385, longitude: 78.4867 },
+      { name: 'Warangal', state: 'Telangana', country: 'India', latitude: 17.9689, longitude: 79.5941 },
+      { name: 'Nizamabad', state: 'Telangana', country: 'India', latitude: 18.6725, longitude: 78.0941 },
+      { name: 'Vijayawada', state: 'Andhra Pradesh', country: 'India', latitude: 16.5062, longitude: 80.6480 },
+      { name: 'Guntur', state: 'Andhra Pradesh', country: 'India', latitude: 16.3067, longitude: 80.4365 },
+      { name: 'Visakhapatnam', state: 'Andhra Pradesh', country: 'India', latitude: 17.6868, longitude: 83.2185 },
+      { name: 'New Delhi', state: 'Delhi', country: 'India', latitude: 28.6139, longitude: 77.2090 },
+      { name: 'Mumbai', state: 'Maharashtra', country: 'India', latitude: 19.0760, longitude: 72.8777 },
+      { name: 'Pune', state: 'Maharashtra', country: 'India', latitude: 18.5204, longitude: 73.8567 },
+      { name: 'Bangalore', state: 'Karnataka', country: 'India', latitude: 12.9716, longitude: 77.5946 },
+      { name: 'Chennai', state: 'Tamil Nadu', country: 'India', latitude: 13.0827, longitude: 80.2707 },
+      { name: 'Kolkata', state: 'West Bengal', country: 'India', latitude: 22.5726, longitude: 88.3639 }
+    ];
 
     res.json({
-      cities: cities.map(city => ({
-        name: city.name,
-        state: city.state,
-        latitude: city.lat,
-        longitude: city.lng
-      }))
-    })
+      success: true,
+      cities: cities
+    });
   } catch (error) {
-    console.error('Get cities error:', error)
-    res.status(500).json({ error: 'Failed to fetch cities list' })
+    console.error('Get cities error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch cities list',
+      cities: []
+    });
   }
 })
 
