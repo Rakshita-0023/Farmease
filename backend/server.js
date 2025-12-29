@@ -8,6 +8,15 @@ require('dotenv').config()
 const app = express()
 const PORT = process.env.PORT || 5001
 
+// Root route for health check
+app.get("/", (req, res) => {
+  res.json({
+    status: "Backend is running",
+    service: "Farmease API",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Local storage fallback
 let useLocalStorage = false
 const localData = {
@@ -282,12 +291,12 @@ app.get('/api/location/detect', async (req, res) => {
       ].map(location => ({
         ...location,
         distance: Math.sqrt(
-          Math.pow(latitude - location.lat, 2) + 
+          Math.pow(latitude - location.lat, 2) +
           Math.pow(longitude - location.lng, 2)
         )
       }))
 
-      const nearest = distances.reduce((min, curr) => 
+      const nearest = distances.reduce((min, curr) =>
         curr.distance < min.distance ? curr : min
       )
 
@@ -416,6 +425,10 @@ const validateInput = (schema) => (req, res, next) => {
 }
 
 // Authentication routes
+// Aliases for common endpoints
+app.post('/api/login', (req, res, next) => { req.url = '/api/auth/login'; next(); });
+app.post('/api/register', (req, res, next) => { req.url = '/api/auth/register'; next(); });
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body
@@ -816,25 +829,25 @@ app.get('/api/plant-diagnosis/history', authenticateToken, async (req, res) => {
 app.get('/api/market/nearby', async (req, res) => {
   try {
     let { lat, lng } = req.query
-    
+
     // If no coordinates provided, use default location
     if (!lat || !lng) {
       lat = 17.4847
       lng = 78.4138
     }
-    
+
     lat = parseFloat(lat)
     lng = parseFloat(lng)
-    
+
     // Get location name using reverse geocoding
     let city = 'Unknown'
     let state = 'Unknown'
-    
+
     try {
       const response = await fetch(
         `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'}`
       )
-      
+
       if (response.ok) {
         const locationData = await response.json()
         if (locationData.length > 0) {
@@ -845,14 +858,14 @@ app.get('/api/market/nearby', async (req, res) => {
     } catch (geoError) {
       console.log('Geocoding failed, using default names')
     }
-    
+
     // Get nearby markets from database
     const [prices] = await db.execute('SELECT * FROM market_prices')
-    
+
     const marketsWithDistance = prices.map(market => {
       const marketLat = parseFloat(market.latitude)
       const marketLng = parseFloat(market.longitude)
-      
+
       // Calculate distance using Haversine formula
       const R = 6371 // Earth's radius in km
       const dLat = (marketLat - lat) * (Math.PI / 180)
@@ -862,19 +875,19 @@ app.get('/api/market/nearby', async (req, res) => {
         Math.sin(dLng / 2) * Math.sin(dLng / 2)
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
       const distance = R * c
-      
+
       return {
         ...market,
         distanceKm: parseFloat(distance.toFixed(1))
       }
     })
-    
+
     // Filter markets within 100km and sort by distance
     const nearbyMarkets = marketsWithDistance
       .filter(m => m.distanceKm <= 100)
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 20) // Limit to 20 nearest markets
-    
+
     res.json({
       resolvedLocation: {
         lat,
@@ -885,7 +898,7 @@ app.get('/api/market/nearby', async (req, res) => {
       },
       markets: nearbyMarkets
     })
-    
+
   } catch (error) {
     console.error('Nearby markets error:', error)
     res.status(500).json({ error: 'Failed to fetch nearby markets' })
@@ -1043,20 +1056,21 @@ app.get('/api/market/compare', async (req, res) => {
 // Global error handling middleware - MUST return JSON
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error)
-  
+
   // Always return JSON, never HTML
-  res.status(500).json({ 
+  res.status(500).json({
     success: false,
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   })
 })
 
-// 404 handler - return JSON for API routes
-app.use('/api/*', (req, res) => {
+// 404 handler - return JSON for all undefined routes
+app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'API endpoint not found',
+    error: 'Route not found',
+    message: `The requested path ${req.originalUrl} does not exist on this server.`,
     path: req.originalUrl
   })
 })
