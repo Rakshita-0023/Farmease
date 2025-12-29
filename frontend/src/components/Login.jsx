@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { apiClient } from '../config'
+import { apiClient, API_BASE_URL } from '../config'
 import { Eye, EyeOff, Loader2, AlertCircle, X, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
@@ -57,7 +57,7 @@ const Login = ({ onLogin }) => {
         ? { email: formData.email, password: formData.password }
         : { name: formData.name, email: formData.email, password: formData.password }
 
-      console.log('🔗 API Request:', endpoint, 'with payload:', payload)
+      console.log('🔗 API Request:', endpoint)
       const response = await apiClient.post(endpoint, payload)
 
       if (response.success) {
@@ -81,8 +81,8 @@ const Login = ({ onLogin }) => {
 
     try {
       console.log('🚀 Sending token to backend...')
-      console.log('🌐 API URL:', import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com')
-      console.log('🔗 Full URL:', `${import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com'}/api/auth/google`)
+      console.log('🌐 API_BASE_URL:', API_BASE_URL)
+      console.log('🔗 Full URL:', `${API_BASE_URL}/auth/google`)
 
       // Send the credential (JWT) to the backend
       const res = await apiClient.post('/auth/google', {
