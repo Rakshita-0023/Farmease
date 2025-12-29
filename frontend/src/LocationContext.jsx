@@ -14,23 +14,45 @@ export const useLocation = () => {
 export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
     const [markets, setMarkets] = useState([]);
+    const [allCities, setAllCities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Fetch all available cities for manual selection
+    useEffect(() => {
+        const fetchCities = async () => {
+            try {
+                const cities = await apiClient.get('/market/all-cities');
+                setAllCities(cities || []);
+            } catch (err) {
+                console.error('Failed to fetch cities list:', err);
+            }
+        };
+        fetchCities();
+    }, []);
 
     const updateLocation = async (newLocation, persist = true) => {
         setLoading(true);
         try {
-            // Ensure we have all required fields
             const locationData = {
-                city: newLocation.city || 'Unknown',
+                city: newLocation.city || newLocation.name || 'Unknown',
                 state: newLocation.state || 'Unknown',
                 country: newLocation.country || 'India',
-                latitude: parseFloat(newLocation.latitude),
-                longitude: parseFloat(newLocation.longitude)
+                latitude: parseFloat(newLocation.latitude || newLocation.lat),
+                longitude: parseFloat(newLocation.longitude || newLocation.lng),
+                lat: parseFloat(newLocation.latitude || newLocation.lat),
+                lng: parseFloat(newLocation.longitude || newLocation.lng),
+                source: newLocation.source || 'manual'
             };
 
             setLocation(locationData);
             localStorage.setItem('userLocation', JSON.stringify(locationData));
+
+            // Fetch markets for this specific location
+            const marketResponse = await apiClient.get(`/market/nearby?lat=${locationData.latitude}&lng=${locationData.longitude}`);
+            if (marketResponse.markets) {
+                setMarkets(marketResponse.markets);
+            }
 
             if (persist && user) {
                 try {
@@ -58,62 +80,27 @@ export const LocationProvider = ({ children, user }) => {
                 throw new Error('Geolocation not supported by this browser');
             }
 
-            console.log('📍 Requesting GPS coordinates...');
-            // Get GPS coordinates from browser
             const position = await new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: 5000,
                     maximumAge: 0
                 });
             });
 
             const { latitude, longitude } = position.coords;
-            console.log('📍 GPS coordinates obtained:', { latitude, longitude });
+            const response = await apiClient.get(`/location/resolve?lat=${latitude}&lng=${longitude}`);
 
-            // Get location details from backend
-            console.log('📍 Calling backend API...');
-            const locationInfo = await apiClient.get(`/location/detect?lat=${latitude}&lng=${longitude}`);
-            console.log('📍 Backend response:', locationInfo);
-
-            await updateLocation(locationInfo);
-
-            // Fetch nearby markets after location is detected
-            console.log('📍 Fetching nearby markets...');
-            const marketResponse = await apiClient.get(`/market/nearby?lat=${latitude}&lng=${longitude}`);
-            console.log('📊 Market response:', marketResponse);
-            
-            if (marketResponse.markets) {
-                setMarkets(marketResponse.markets);
+            if (response.locationRequired) {
+                setLocation(null);
+                setError('Please select your city to view market data');
+            } else {
+                await updateLocation({ ...response, source: 'gps' });
             }
-
-            console.log('✅ Location detection completed successfully');
         } catch (err) {
             console.error('❌ Location detection failed:', err);
-            setError(err.message);
-
-            // Fallback to Hyderabad if detection fails and no saved location
-            if (!location) {
-                console.log('📍 Using fallback location: Hyderabad');
-                const defaultLocation = {
-                    city: 'Hyderabad',
-                    state: 'Telangana',
-                    country: 'India',
-                    latitude: 17.3850,
-                    longitude: 78.4867
-                };
-                await updateLocation(defaultLocation, false);
-                
-                // Fetch markets for fallback location
-                try {
-                    const fallbackMarkets = await apiClient.get(`/market/nearby?lat=17.3850&lng=78.4867`);
-                    if (fallbackMarkets.markets) {
-                        setMarkets(fallbackMarkets.markets);
-                    }
-                } catch (marketErr) {
-                    console.error('❌ Failed to fetch fallback markets:', marketErr);
-                }
-            }
+            setLocation(null);
+            setError('Location access denied or unavailable. Please select your city manually.');
         } finally {
             setLoading(false);
         }
@@ -121,31 +108,15 @@ export const LocationProvider = ({ children, user }) => {
 
     useEffect(() => {
         const initializeLocation = async () => {
-            console.log('🚀 LocationContext initializing...');
-            
             // 1. Check if user has a saved location in profile
             if (user?.city) {
-                console.log('📍 Using user profile location:', user.city);
-                const userLoc = {
+                await updateLocation({
                     city: user.city,
                     state: user.state,
-                    country: user.country || 'India',
-                    latitude: user.latitude || 17.3850,
-                    longitude: user.longitude || 78.4867
-                };
-                setLocation(userLoc);
-                
-                // Fetch markets for user location
-                try {
-                    const marketResponse = await apiClient.get(`/market/nearby?lat=${userLoc.latitude}&lng=${userLoc.longitude}`);
-                    if (marketResponse.markets) {
-                        setMarkets(marketResponse.markets);
-                    }
-                } catch (marketErr) {
-                    console.error('❌ Failed to fetch user location markets:', marketErr);
-                }
-                
-                setLoading(false);
+                    latitude: user.latitude,
+                    longitude: user.longitude,
+                    source: 'profile'
+                }, false);
                 return;
             }
 
@@ -154,37 +125,30 @@ export const LocationProvider = ({ children, user }) => {
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored);
-                    console.log('📍 Using stored location:', parsed);
-                    setLocation(parsed);
-                    
-                    // Fetch markets for stored location
-                    try {
-                        const marketResponse = await apiClient.get(`/market/nearby?lat=${parsed.latitude}&lng=${parsed.longitude}`);
-                        if (marketResponse.markets) {
-                            setMarkets(marketResponse.markets);
-                        }
-                    } catch (marketErr) {
-                        console.error('❌ Failed to fetch stored location markets:', marketErr);
-                    }
-                    
-                    setLoading(false);
+                    await updateLocation(parsed, false);
                     return;
                 } catch (e) {
-                    console.log('📍 Invalid stored location, removing...');
                     localStorage.removeItem('userLocation');
                 }
             }
 
             // 3. Detect automatically
-            console.log('📍 No saved location found, detecting...');
             await detectLocation();
         };
 
         initializeLocation();
-    }, [user]);
+    }, [user?.id]); // Only re-run if user ID changes
 
     return (
-        <LocationContext.Provider value={{ location, markets, loading, error, updateLocation, detectLocation }}>
+        <LocationContext.Provider value={{
+            location,
+            markets,
+            allCities,
+            loading,
+            error,
+            updateLocation,
+            detectLocation
+        }}>
             {children}
         </LocationContext.Provider>
     );

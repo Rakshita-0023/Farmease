@@ -22,7 +22,7 @@ const LocationDetector = () => {
         <div className="flex items-center gap-2 overflow-hidden">
           <MapPin size={16} className="text-green-400" />
           <span className="text-white/90 text-xs font-bold truncate">
-            {location?.city || 'Unknown'}
+            {location?.city || 'Select City'}
           </span>
         </div>
         <button

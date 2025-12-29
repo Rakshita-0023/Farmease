@@ -239,85 +239,48 @@ async function seedMarketData() {
 }
 
 // ==================== LOCATION API ====================
-app.get('/api/location/detect', async (req, res) => {
+app.get('/api/location/resolve', async (req, res) => {
   try {
     const { lat, lng } = req.query
 
     if (!lat || !lng) {
-      return res.status(400).json({ error: 'Latitude and longitude are required' })
+      return res.json({ locationRequired: true, message: 'Please select your city to view market data' })
     }
 
-    // Simple reverse geocoding based on coordinates
     const latitude = parseFloat(lat)
     const longitude = parseFloat(lng)
 
-    let city = 'Unknown'
-    let state = 'Unknown'
-    let country = 'India'
-
-    // Simple coordinate-based city detection for Indian cities
-    if (latitude >= 17.2 && latitude <= 17.6 && longitude >= 78.2 && longitude <= 78.7) {
-      city = 'Hyderabad'
-      state = 'Telangana'
-    } else if (latitude >= 16.3 && latitude <= 16.7 && longitude >= 80.3 && longitude <= 80.8) {
-      city = 'Vijayawada'
-      state = 'Andhra Pradesh'
-    } else if (latitude >= 16.1 && latitude <= 16.5 && longitude >= 80.1 && longitude <= 80.6) {
-      city = 'Guntur'
-      state = 'Andhra Pradesh'
-    } else if (latitude >= 17.8 && latitude <= 18.2 && longitude >= 79.4 && longitude <= 79.8) {
-      city = 'Warangal'
-      state = 'Telangana'
-    } else if (latitude >= 18.5 && latitude <= 18.9 && longitude >= 77.9 && longitude <= 78.3) {
-      city = 'Nizamabad'
-      state = 'Telangana'
-    } else if (latitude >= 28.4 && latitude <= 28.8 && longitude >= 76.9 && longitude <= 77.4) {
-      city = 'Delhi'
-      state = 'Delhi'
-    } else if (latitude >= 19.0 && latitude <= 19.3 && longitude >= 72.7 && longitude <= 73.1) {
-      city = 'Mumbai'
-      state = 'Maharashtra'
-    } else if (latitude >= 12.8 && latitude <= 13.2 && longitude >= 77.4 && longitude <= 77.8) {
-      city = 'Bangalore'
-      state = 'Karnataka'
-    } else {
-      // Default to nearest major city based on rough distance
-      const distances = [
-        { city: 'Hyderabad', state: 'Telangana', lat: 17.3850, lng: 78.4867 },
-        { city: 'Vijayawada', state: 'Andhra Pradesh', lat: 16.5062, lng: 80.6480 },
-        { city: 'Delhi', state: 'Delhi', lat: 28.6139, lng: 77.2090 },
-        { city: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777 },
-        { city: 'Bangalore', state: 'Karnataka', lat: 12.9716, lng: 77.5946 }
-      ].map(location => ({
-        ...location,
-        distance: Math.sqrt(
-          Math.pow(latitude - location.lat, 2) +
-          Math.pow(longitude - location.lng, 2)
-        )
-      }))
-
-      const nearest = distances.reduce((min, curr) =>
-        curr.distance < min.distance ? curr : min
+    // Use OpenWeatherMap for accurate reverse geocoding
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'}`
       )
 
-      city = nearest.city
-      state = nearest.state
+      if (response.ok) {
+        const locationData = await response.json()
+        if (locationData.length > 0) {
+          return res.json({
+            city: locationData[0].name,
+            state: locationData[0].state || 'Unknown',
+            source: 'gps'
+          })
+        }
+      }
+    } catch (geoError) {
+      console.error('Reverse geocoding failed:', geoError)
     }
 
-    const locationInfo = {
-      city,
-      state,
-      country,
-      latitude,
-      longitude
-    }
-
-    console.log(`📍 Location detected: ${city}, ${state} (${latitude}, ${longitude})`)
-    res.json(locationInfo)
+    // If we can't resolve it to a known city via API, return locationRequired: true to force manual selection.
+    res.json({ locationRequired: true, message: 'Could not resolve your precise city. Please select manually.' })
   } catch (error) {
-    console.error('Location detection error:', error)
-    res.status(500).json({ error: 'Failed to detect location' })
+    console.error('Location resolution error:', error)
+    res.status(500).json({ error: 'Internal server error during location resolution' })
   }
+})
+
+// Keep detect for backward compatibility but redirect to resolve logic
+app.get('/api/location/detect', (req, res) => {
+  res.redirect(`/api/location/resolve?lat=${req.query.lat}&lng=${req.query.lng}`)
 })
 
 // Health check endpoint
@@ -830,18 +793,19 @@ app.get('/api/market/nearby', async (req, res) => {
   try {
     let { lat, lng } = req.query
 
-    // If no coordinates provided, use default location
     if (!lat || !lng) {
-      lat = 17.4847
-      lng = 78.4138
+      return res.status(400).json({
+        locationRequired: true,
+        error: 'Latitude and longitude are required for nearby markets'
+      })
     }
 
     lat = parseFloat(lat)
     lng = parseFloat(lng)
 
     // Get location name using reverse geocoding
-    let city = 'Unknown'
-    let state = 'Unknown'
+    let city = null
+    let state = null
 
     try {
       const response = await fetch(
@@ -851,12 +815,19 @@ app.get('/api/market/nearby', async (req, res) => {
       if (response.ok) {
         const locationData = await response.json()
         if (locationData.length > 0) {
-          city = locationData[0].name || 'Unknown'
-          state = locationData[0].state || 'Unknown'
+          city = locationData[0].name
+          state = locationData[0].state
         }
       }
     } catch (geoError) {
-      console.log('Geocoding failed, using default names')
+      console.error('Geocoding failed in nearby markets')
+    }
+
+    if (!city) {
+      return res.status(400).json({
+        locationRequired: true,
+        message: 'Could not resolve your city from coordinates. Please select manually.'
+      })
     }
 
     // Get nearby markets from database
@@ -902,6 +873,180 @@ app.get('/api/market/nearby', async (req, res) => {
   } catch (error) {
     console.error('Nearby markets error:', error)
     res.status(500).json({ error: 'Failed to fetch nearby markets' })
+  }
+})
+
+// Get list of cities/districts with market summaries
+app.get('/api/market/cities', async (req, res) => {
+  try {
+    let { lat, lng } = req.query
+    if (!lat || !lng) {
+      return res.status(400).json({
+        locationRequired: true,
+        error: 'Location coordinates are required to fetch nearby cities'
+      })
+    }
+    lat = parseFloat(lat); lng = parseFloat(lng)
+
+    const [prices] = await db.execute('SELECT * FROM market_prices')
+
+    // Group by city/market
+    const cityGroups = {}
+
+    prices.forEach(p => {
+      const marketLat = parseFloat(p.latitude)
+      const marketLng = parseFloat(p.longitude)
+
+      // Distance calculation
+      const R = 6371; const dLat = (marketLat - lat) * (Math.PI / 180); const dLng = (marketLng - lng) * (Math.PI / 180)
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat * (Math.PI / 180)) * Math.cos(marketLat * (Math.PI / 180)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+      const distance = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
+
+      if (distance <= 150) { // Slightly larger radius for cities
+        const cityName = p.market // In this schema, market is often the city
+        if (!cityGroups[cityName]) {
+          cityGroups[cityName] = {
+            name: cityName,
+            state: p.state,
+            distance: parseFloat(distance.toFixed(1)),
+            crops: [],
+            totalModal: 0,
+            count: 0,
+            trends: { up: 0, down: 0, stable: 0 }
+          }
+        }
+
+        if (!cityGroups[cityName].crops.includes(p.commodity)) {
+          cityGroups[cityName].crops.push(p.commodity)
+        }
+        cityGroups[cityName].totalModal += parseFloat(p.modal_price)
+        cityGroups[cityName].count++
+        cityGroups[cityName].trends[p.trend]++
+      }
+    })
+
+    const result = Object.values(cityGroups).map(c => ({
+      city: c.name,
+      state: c.state,
+      distanceKm: c.distance,
+      majorCrops: c.crops.slice(0, 3),
+      avgPrice: Math.round(c.totalModal / c.count),
+      trend: c.trends.up > c.trends.down ? 'up' : (c.trends.down > c.trends.up ? 'down' : 'stable')
+    })).sort((a, b) => a.distanceKm - b.distanceKm)
+
+    res.json(result)
+  } catch (error) {
+    console.error('Market cities error:', error)
+    res.status(500).json({ error: 'Failed to fetch nearby cities' })
+  }
+})
+
+// Get detailed markets for a specific city
+app.get('/api/market/city/:cityName', async (req, res) => {
+  try {
+    const { cityName } = req.params
+
+    if (!cityName || cityName === 'undefined' || cityName === 'null') {
+      return res.status(400).json({ error: 'City name is required to fetch market data' })
+    }
+
+    const [prices] = await db.execute('SELECT * FROM market_prices WHERE market = ?', [cityName])
+
+    if (prices.length === 0) {
+      return res.status(404).json({ error: `No market data found for city: ${cityName}` })
+    }
+
+    res.json({
+      city: cityName,
+      state: prices[0].state,
+      markets: prices.map(p => ({
+        id: p.id,
+        name: p.market, // In this schema, market is the name
+        commodity: p.commodity,
+        variety: p.variety,
+        min_price: p.min_price,
+        max_price: p.max_price,
+        modal_price: p.modal_price,
+        trend: p.trend,
+        date: p.date
+      }))
+    })
+  } catch (error) {
+    console.error('City detail error:', error)
+    res.status(500).json({ error: 'Failed to fetch city details' })
+  }
+})
+
+// Get historical trends for Advanced Page
+app.get('/api/market/trends', async (req, res) => {
+  try {
+    const { crop, city } = req.query
+
+    // For now, generate some realistic historical data based on current prices
+    const [currentPrices] = await db.execute('SELECT * FROM market_prices')
+
+    const result = currentPrices.map(p => {
+      const basePrice = parseFloat(p.modal_price)
+      const history = []
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date()
+        date.setDate(date.getDate() - (i * 7))
+        // Random fluctuation +/- 10%
+        const fluctuation = 1 + (Math.random() * 0.2 - 0.1)
+        history.push({
+          date: date.toISOString().split('T')[0],
+          price: Math.round(basePrice * fluctuation)
+        })
+      }
+      return {
+        commodity: p.commodity,
+        market: p.market,
+        history
+      }
+    })
+
+    if (crop) {
+      res.json(result.filter(r => r.commodity.toLowerCase() === crop.toLowerCase()))
+    } else if (city) {
+      res.json(result.filter(r => r.market.toLowerCase() === city.toLowerCase()))
+    } else {
+      res.json(result.slice(0, 10))
+    }
+  } catch (error) {
+    console.error('Market trends error:', error)
+    res.status(500).json({ error: 'Failed to fetch market trends' })
+  }
+})
+
+// Get all available cities for manual selection
+app.get('/api/market/all-cities', async (req, res) => {
+  try {
+    const [cities] = await db.execute('SELECT DISTINCT market as city, state, latitude, longitude FROM market_prices')
+    res.json(cities)
+  } catch (error) {
+    console.error('All cities error:', error)
+    res.status(500).json({ error: 'Failed to fetch cities' })
+  }
+})
+
+// Search markets and crops
+app.get('/api/market/search', async (req, res) => {
+  try {
+    const { q } = req.query
+    if (!q) return res.json([])
+
+    const query = `
+      SELECT * FROM market_prices 
+      WHERE commodity LIKE ? OR market LIKE ? OR variety LIKE ?
+      LIMIT 50
+    `
+    const pattern = `%${q}%`
+    const [results] = await db.execute(query, [pattern, pattern, pattern])
+
+    res.json(results)
+  } catch (error) {
+    console.error('Search error:', error)
+    res.status(500).json({ error: 'Search failed' })
   }
 })
 

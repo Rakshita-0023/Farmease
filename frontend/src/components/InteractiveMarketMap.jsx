@@ -77,12 +77,15 @@ const InteractiveMarketMap = () => {
   // Auto-center logic
   const centerPos = useMemo(() => {
     if (selectedMarket) {
-      return [selectedMarket.lat, selectedMarket.lng]
+      return [selectedMarket.lat || selectedMarket.latitude, selectedMarket.lng || selectedMarket.longitude]
+    }
+    if (userLocation?.latitude) {
+      return [userLocation.latitude, userLocation.longitude]
     }
     if (userLocation?.lat) {
       return [userLocation.lat, userLocation.lng]
     }
-    return [20.5937, 78.9629] // India Center Fallback
+    return [17.3850, 78.4867] // Hyderabad Center Fallback
   }, [selectedMarket, userLocation])
 
   const zoomLevel = selectedMarket ? 11 : 8
@@ -140,8 +143,8 @@ const InteractiveMarketMap = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {userLocation?.lat && (
-            <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
+          {(userLocation?.latitude || userLocation?.lat) && (
+            <Marker position={[userLocation.latitude || userLocation.lat, userLocation.longitude || userLocation.lng]} icon={userIcon}>
               <Popup>
                 <div className="font-bold text-blue-600">📍 Your Location</div>
               </Popup>
