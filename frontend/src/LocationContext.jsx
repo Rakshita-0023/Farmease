@@ -25,7 +25,7 @@ export const LocationProvider = ({ children, user }) => {
         }
 
         try {
-            const response = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}`);
+            const response = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
             setAllCities(response.cities || []);
         } catch (err) {
             console.error('Failed to search cities:', err);

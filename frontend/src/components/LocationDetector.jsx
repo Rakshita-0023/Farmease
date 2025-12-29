@@ -35,14 +35,24 @@ const LocationDetector = () => {
         </button>
       </div>
       {error && (
-        <p className="text-[10px] text-red-400 px-1 font-medium">
-          ❌ {error}
-        </p>
+        <div className="flex flex-col gap-1 px-1">
+          <p className="text-[10px] text-red-400 font-medium">
+            ❌ {error}
+          </p>
+          <p className="text-[8px] text-white/40 uppercase tracking-tighter">
+            v2.1 - Worldwide Search Active
+          </p>
+        </div>
       )}
       {location && (
-        <p className="text-[10px] text-green-400 px-1 font-medium">
-          📍 {location.city}, {location.state}
-        </p>
+        <div className="flex flex-col gap-0 px-1">
+          <p className="text-[10px] text-green-400 font-medium">
+            📍 {location.city}, {location.state}
+          </p>
+          <p className="text-[8px] text-white/40 uppercase tracking-tighter">
+            v2.1 - Worldwide Search Active
+          </p>
+        </div>
       )}
     </div>
   )

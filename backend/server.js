@@ -892,23 +892,6 @@ app.get('/api/market/trends', async (req, res) => {
   }
 })
 
-// Get all available cities for manual selection
-app.get('/api/market/all-cities', async (req, res) => {
-  try {
-    const provider = getProvider('India'); // Default to India for list
-    if (provider.getSupportedCities) {
-      const cities = await provider.getSupportedCities();
-      return res.json(cities);
-    }
-
-    // Fallback if provider doesn't support listing
-    res.json([]);
-  } catch (error) {
-    console.error('Fetch all cities error:', error)
-    res.status(500).json({ error: 'Failed to fetch cities list' })
-  }
-})
-
 // Search markets and crops
 app.get('/api/market/search', async (req, res) => {
   try {
