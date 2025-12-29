@@ -226,10 +226,10 @@ const Market = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
                 {allCities.map(city => (
                   <button
-                    key={`${city.city}-${city.state}`}
+                    key={`${city.name}-${city.state}`}
                     onClick={() => {
                       updateLocation({
-                        city: city.city,
+                        city: city.name,
                         state: city.state,
                         latitude: city.latitude,
                         longitude: city.longitude,
@@ -239,7 +239,7 @@ const Market = () => {
                     }}
                     className="text-left p-4 rounded-2xl bg-gray-50/50 hover:bg-green-600 group transition-all duration-300 border border-transparent hover:border-green-400"
                   >
-                    <div className="font-bold text-gray-800 group-hover:text-white transition-colors">{city.city}</div>
+                    <div className="font-bold text-gray-800 group-hover:text-white transition-colors">{city.name}</div>
                     <div className="text-[10px] text-gray-400 group-hover:text-green-100 uppercase tracking-widest font-black transition-colors">{city.state}</div>
                   </button>
                 ))}
