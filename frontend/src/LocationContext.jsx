@@ -22,19 +22,51 @@ export const LocationProvider = ({ children }) => {
         setError(null);
 
         try {
-            // Call backend to detect location (via IP) and get nearby markets
-            console.log('📍 Fetching location & markets from backend...');
-            const response = await apiClient.get('/market/nearby');
+            console.log('📍 Initiating location detection...');
 
-            setLocation(response.userLocation);
+            // 1. Try to get GPS coordinates from browser
+            let coords = null;
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        timeout: 5000,
+                        maximumAge: 0
+                    });
+                });
+                coords = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                console.log('📍 Browser GPS obtained:', coords);
+            } catch (geoError) {
+                console.log('⚠️ Browser GPS unavailable, falling back to IP detection:', geoError.message);
+            }
+
+            // 2. Call backend with or without coords
+            const queryParams = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : '';
+            console.log(`📍 Fetching from backend: /market/nearby${queryParams}`);
+
+            const response = await apiClient.get(`/market/nearby${queryParams}`);
+
+            // 3. Update state with backend response
+            // Backend contract: { resolvedLocation: {...}, markets: [...] }
+            setLocation(response.resolvedLocation);
             setMarkets(response.markets);
 
-            console.log('✅ Location synced:', response.userLocation);
+            console.log('✅ Location synced:', response.resolvedLocation);
             console.log('✅ Nearby markets:', response.markets.length);
+
         } catch (err) {
             console.error('Location detection failed:', err);
-            setError(err.message || 'Failed to detect location');
-            // No fallback - UI should handle the error state
+            // Handle specific backend error codes if needed
+            if (err.code === 'CURRENT_LOCATION_UNAVAILABLE') {
+                setError('Unable to determine your current location. Market data cannot be displayed.');
+            } else {
+                setError(err.message || 'Failed to detect location');
+            }
+            // Clear data on error
+            setLocation(null);
+            setMarkets([]);
         } finally {
             setLoading(false);
         }

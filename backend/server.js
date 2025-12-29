@@ -565,87 +565,6 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
   }
 })
 
-app.get('/api/location/detect', async (req, res) => {
-  try {
-    const { lat, lng } = req.query
-
-    if (!lat || !lng) {
-      return res.status(400).json({ error: 'Latitude and longitude are required' })
-    }
-
-    // Simple reverse geocoding based on coordinates
-    const latitude = parseFloat(lat)
-    const longitude = parseFloat(lng)
-
-    let city = 'Unknown'
-    let state = 'Unknown'
-    let country = 'India'
-
-    // Simple coordinate-based city detection for Indian cities
-    if (latitude >= 17.2 && latitude <= 17.6 && longitude >= 78.2 && longitude <= 78.7) {
-      city = 'Hyderabad'
-      state = 'Telangana'
-    } else if (latitude >= 16.3 && latitude <= 16.7 && longitude >= 80.3 && longitude <= 80.8) {
-      city = 'Vijayawada'
-      state = 'Andhra Pradesh'
-    } else if (latitude >= 16.1 && latitude <= 16.5 && longitude >= 80.1 && longitude <= 80.6) {
-      city = 'Guntur'
-      state = 'Andhra Pradesh'
-    } else if (latitude >= 17.8 && latitude <= 18.2 && longitude >= 79.4 && longitude <= 79.8) {
-      city = 'Warangal'
-      state = 'Telangana'
-    } else if (latitude >= 18.5 && latitude <= 18.9 && longitude >= 77.9 && longitude <= 78.3) {
-      city = 'Nizamabad'
-      state = 'Telangana'
-    } else if (latitude >= 28.4 && latitude <= 28.8 && longitude >= 76.9 && longitude <= 77.4) {
-      city = 'Delhi'
-      state = 'Delhi'
-    } else if (latitude >= 19.0 && latitude <= 19.3 && longitude >= 72.7 && longitude <= 73.1) {
-      city = 'Mumbai'
-      state = 'Maharashtra'
-    } else if (latitude >= 12.8 && latitude <= 13.2 && longitude >= 77.4 && longitude <= 77.8) {
-      city = 'Bangalore'
-      state = 'Karnataka'
-    } else {
-      // Default to nearest major city based on rough distance
-      const distances = [
-        { city: 'Hyderabad', state: 'Telangana', lat: 17.3850, lng: 78.4867 },
-        { city: 'Vijayawada', state: 'Andhra Pradesh', lat: 16.5062, lng: 80.6480 },
-        { city: 'Delhi', state: 'Delhi', lat: 28.6139, lng: 77.2090 },
-        { city: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777 },
-        { city: 'Bangalore', state: 'Karnataka', lat: 12.9716, lng: 77.5946 }
-      ].map(location => ({
-        ...location,
-        distance: Math.sqrt(
-          Math.pow(latitude - location.lat, 2) +
-          Math.pow(longitude - location.lng, 2)
-        )
-      }))
-
-      const nearest = distances.reduce((min, curr) =>
-        curr.distance < min.distance ? curr : min
-      )
-
-      city = nearest.city
-      state = nearest.state
-    }
-
-    const locationInfo = {
-      city,
-      state,
-      country,
-      latitude,
-      longitude
-    }
-
-    console.log(`📍 Location detected: ${city}, ${state} (${latitude}, ${longitude})`)
-    res.json(locationInfo)
-  } catch (error) {
-    console.error('Location detection error:', error)
-    res.status(500).json({ error: 'Failed to detect location' })
-  }
-})
-
 app.put('/api/user/location', authenticateToken, async (req, res) => {
   try {
     const { city, state, country, latitude, longitude } = req.body
@@ -808,56 +727,45 @@ app.get('/api/plant-diagnosis/history', authenticateToken, async (req, res) => {
 const geoip = require('geoip-lite');
 const requestIp = require('request-ip');
 
-// ... existing imports ...
-
 // Use request-ip middleware
 app.use(requestIp.mw());
-
-// ... existing code ...
 
 // ==================== LOCATION & MARKET API ====================
 app.get('/api/market/nearby', async (req, res) => {
   try {
     let { lat, lng } = req.query;
     let locationSource = 'query';
-    let city = 'Unknown';
-    let state = 'Unknown';
+    let city = null;
+    let state = null;
 
     // 1. Try to get location from query params (Forwarded GPS)
-    if (!lat || !lng) {
-      // 2. Fallback to IP Geolocation
-      const clientIp = req.clientIp;
-      // Handle localhost/private IPs for development
-      const ipToLookup = (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.startsWith('192.168.')) ? '103.208.68.0' : clientIp; // Default to a Hyderabad IP for dev
-
-      const geo = geoip.lookup(ipToLookup);
-
-      if (geo) {
-        lat = geo.ll[0];
-        lng = geo.ll[1];
-        city = geo.city;
-        state = geo.region; // geoip-lite returns region code usually
-        locationSource = 'ip';
-        console.log(`📍 IP Location detected: ${city}, ${state} (${lat}, ${lng}) from IP ${ipToLookup}`);
-      } else {
-        return res.status(400).json({
-          error: 'Location could not be determined',
-          code: 'LOCATION_REQUIRED',
-          message: 'Please enable location services or try again.'
-        });
-      }
-    } else {
-      // If lat/lng provided, try to reverse geocode (optional, or just use coords)
-      // For now, we'll just use the coords and maybe find the nearest known city in our DB for display
+    if (lat && lng) {
       lat = parseFloat(lat);
       lng = parseFloat(lng);
       console.log(`📍 GPS Location received: ${lat}, ${lng}`);
+    } else {
+      // 2. Fallback to IP Geolocation
+      const clientIp = req.clientIp;
+      const geo = geoip.lookup(clientIp);
+
+      if (geo && geo.ll) {
+        lat = geo.ll[0];
+        lng = geo.ll[1];
+        city = geo.city;
+        state = geo.region;
+        locationSource = 'ip';
+        console.log(`📍 IP Location detected: ${city}, ${state} (${lat}, ${lng}) from IP ${clientIp}`);
+      } else {
+        // STRICT FAILURE: No defaults, no guessing.
+        console.warn(`❌ Location detection failed for IP: ${clientIp}`);
+        return res.status(400).json({
+          error: 'CURRENT_LOCATION_UNAVAILABLE',
+          message: 'Unable to determine your current location. Market data cannot be displayed.'
+        });
+      }
     }
 
     // 3. Find nearest markets using Haversine formula
-    // We'll fetch all markets and filter/sort in JS for simplicity (unless dataset is huge)
-    // In production with millions of rows, use PostGIS or MySQL ST_Distance_Sphere
-
     let prices = [];
     if (useLocalStorage) {
       prices = localData.marketPrices;
@@ -887,24 +795,25 @@ app.get('/api/market/nearby', async (req, res) => {
       };
     });
 
-    // Filter markets within 100km (or just return top 20 nearest)
+    // STRICT 100km Radius
     const nearbyMarkets = marketsWithDistance
-      .filter(m => m.distanceKm <= 500) // Wide radius for demo purposes
+      .filter(m => m.distanceKm <= 100)
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
-    // If we have nearby markets, use the nearest one's city/state as the "User's Location" label if IP didn't give one
-    if (city === 'Unknown' && nearbyMarkets.length > 0) {
-      city = nearbyMarkets[0].market; // Use market name as proxy for city
-      state = nearbyMarkets[0].state;
+    // Metadata for display only
+    if (!city && nearbyMarkets.length > 0) {
+      // Just a hint for display, not logic
+      city = nearbyMarkets[0].district || 'Unknown';
     }
 
     res.json({
-      userLocation: {
-        latitude: lat,
-        longitude: lng,
-        city: city || 'Unknown',
-        state: state || 'Unknown',
-        source: locationSource
+      resolvedLocation: {
+        lat: lat,
+        lng: lng,
+        city: city || 'Unknown', // Metadata only
+        state: state || 'Unknown', // Metadata only
+        source: locationSource,
+        accuracy: locationSource === 'ip' ? 20 : 5 // Rough estimate
       },
       markets: nearbyMarkets
     });

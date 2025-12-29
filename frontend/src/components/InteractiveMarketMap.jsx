@@ -79,10 +79,10 @@ const InteractiveMarketMap = () => {
     if (selectedMarket) {
       return [selectedMarket.lat, selectedMarket.lng]
     }
-    if (userLocation?.latitude) {
-      return [userLocation.latitude, userLocation.longitude]
+    if (userLocation?.lat) {
+      return [userLocation.lat, userLocation.lng]
     }
-    return [17.3850, 78.4867] // Default fallback if no location yet
+    return [20.5937, 78.9629] // India Center Fallback
   }, [selectedMarket, userLocation])
 
   const zoomLevel = selectedMarket ? 11 : 8
@@ -140,8 +140,8 @@ const InteractiveMarketMap = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {userLocation?.latitude && (
-            <Marker position={[userLocation.latitude, userLocation.longitude]} icon={userIcon}>
+          {userLocation?.lat && (
+            <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
               <Popup>
                 <div className="font-bold text-blue-600">📍 Your Location</div>
               </Popup>

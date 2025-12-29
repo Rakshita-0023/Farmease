@@ -17,11 +17,11 @@ const EnhancedDashboard = () => {
   })
 
   const { data: weather, isLoading: weatherLoading } = useQuery({
-    queryKey: ['weather', globalLocation?.latitude, globalLocation?.longitude],
+    queryKey: ['weather', globalLocation?.lat, globalLocation?.lng],
     queryFn: async () => {
       if (!globalLocation) return null;
 
-      const { latitude: lat, longitude: lon } = globalLocation;
+      const { lat, lng: lon } = globalLocation;
 
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`

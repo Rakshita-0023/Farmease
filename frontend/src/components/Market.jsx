@@ -147,10 +147,10 @@ const Market = () => {
       </div>
 
       {/* Map Section */}
-      {filteredData.length > 0 && userLocation?.latitude && (
+      {filteredData.length > 0 && userLocation?.lat && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-64 z-0">
           <MapContainer
-            center={[userLocation.latitude, userLocation.longitude]}
+            center={[userLocation.lat, userLocation.lng]}
             zoom={9}
             style={{ height: '100%', width: '100%' }}
           >
@@ -159,7 +159,7 @@ const Market = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {/* User Location Marker */}
-            <Marker position={[userLocation.latitude, userLocation.longitude]}>
+            <Marker position={[userLocation.lat, userLocation.lng]}>
               <Popup>You are here</Popup>
             </Marker>
 
@@ -236,8 +236,8 @@ const Market = () => {
                         {item.market}
                       </span>
                       <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${item.trend === 'up' ? 'bg-green-500/80' :
-                          item.trend === 'down' ? 'bg-red-500/80' :
-                            'bg-gray-500/80'
+                        item.trend === 'down' ? 'bg-red-500/80' :
+                          'bg-gray-500/80'
                         } backdrop-blur-sm`}>
                         {item.trend === 'up' ? <TrendingUp size={12} /> :
                           item.trend === 'down' ? <TrendingDown size={12} /> : '📊'}
@@ -305,8 +305,8 @@ const Market = () => {
                         <td className="px-6 py-4 font-bold text-gray-900">₹{item.modal_price?.toLocaleString()}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 ${item.trend === 'up' ? 'text-green-600' :
-                              item.trend === 'down' ? 'text-red-600' :
-                                'text-gray-600'
+                            item.trend === 'down' ? 'text-red-600' :
+                              'text-gray-600'
                             }`}>
                             {item.trend === 'up' ? <TrendingUp size={16} /> :
                               item.trend === 'down' ? <TrendingDown size={16} /> : '📊'}
