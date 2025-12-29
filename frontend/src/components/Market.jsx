@@ -75,10 +75,8 @@ const Market = () => {
   // Debug logging
   console.log('Market component state:', {
     userLocation,
-    currentCity,
     marketDataLength: marketData?.length,
     isLoading,
-    isError,
     error: error?.message
   })
 
@@ -93,11 +91,11 @@ const Market = () => {
             We need your location to show nearby market prices. Please allow location access or wait for detection to complete.
           </p>
           <button
-            onClick={handleUseLocation}
-            disabled={isLocating}
-            className="px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition-colors"
+            onClick={refetch}
+            disabled={isLoading}
+            className="px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
           >
-            {isLocating ? 'Detecting Location...' : 'Enable Location'}
+            {isLoading ? 'Detecting Location...' : 'Enable Location'}
           </button>
         </div>
       </div>
@@ -146,9 +144,9 @@ const Market = () => {
               <span className="text-sm font-medium text-green-800">
                 {userLocation?.city || 'Unknown Location'}, {userLocation?.state || ''}
               </span>
-              {userLocation?.source === 'ip' && (
+              {userLocation?.source === 'gps' && (
                 <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full ml-2">
-                  IP Detected
+                  GPS Detected
                 </span>
               )}
             </div>
@@ -179,10 +177,10 @@ const Market = () => {
       </div>
 
       {/* Map Section */}
-      {filteredData.length > 0 && userLocation?.lat && (
+      {filteredData.length > 0 && userLocation?.latitude && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-64 z-0">
           <MapContainer
-            center={[userLocation.lat, userLocation.lng]}
+            center={[userLocation.latitude, userLocation.longitude]}
             zoom={9}
             style={{ height: '100%', width: '100%' }}
           >
@@ -191,7 +189,7 @@ const Market = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {/* User Location Marker */}
-            <Marker position={[userLocation.lat, userLocation.lng]}>
+            <Marker position={[userLocation.latitude, userLocation.longitude]}>
               <Popup>You are here</Popup>
             </Marker>
 

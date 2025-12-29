@@ -13,6 +13,7 @@ export const useLocation = () => {
 
 export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
+    const [markets, setMarkets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -76,6 +77,16 @@ export const LocationProvider = ({ children, user }) => {
             console.log('📍 Backend response:', locationInfo);
 
             await updateLocation(locationInfo);
+
+            // Fetch nearby markets after location is detected
+            console.log('📍 Fetching nearby markets...');
+            const marketResponse = await apiClient.get(`/market/nearby?lat=${latitude}&lng=${longitude}`);
+            console.log('📊 Market response:', marketResponse);
+            
+            if (marketResponse.markets) {
+                setMarkets(marketResponse.markets);
+            }
+
             console.log('✅ Location detection completed successfully');
         } catch (err) {
             console.error('❌ Location detection failed:', err);
@@ -92,6 +103,16 @@ export const LocationProvider = ({ children, user }) => {
                     longitude: 78.4867
                 };
                 await updateLocation(defaultLocation, false);
+                
+                // Fetch markets for fallback location
+                try {
+                    const fallbackMarkets = await apiClient.get(`/market/nearby?lat=17.3850&lng=78.4867`);
+                    if (fallbackMarkets.markets) {
+                        setMarkets(fallbackMarkets.markets);
+                    }
+                } catch (marketErr) {
+                    console.error('❌ Failed to fetch fallback markets:', marketErr);
+                }
             }
         } finally {
             setLoading(false);
@@ -113,6 +134,17 @@ export const LocationProvider = ({ children, user }) => {
                     longitude: user.longitude || 78.4867
                 };
                 setLocation(userLoc);
+                
+                // Fetch markets for user location
+                try {
+                    const marketResponse = await apiClient.get(`/market/nearby?lat=${userLoc.latitude}&lng=${userLoc.longitude}`);
+                    if (marketResponse.markets) {
+                        setMarkets(marketResponse.markets);
+                    }
+                } catch (marketErr) {
+                    console.error('❌ Failed to fetch user location markets:', marketErr);
+                }
+                
                 setLoading(false);
                 return;
             }
@@ -124,6 +156,17 @@ export const LocationProvider = ({ children, user }) => {
                     const parsed = JSON.parse(stored);
                     console.log('📍 Using stored location:', parsed);
                     setLocation(parsed);
+                    
+                    // Fetch markets for stored location
+                    try {
+                        const marketResponse = await apiClient.get(`/market/nearby?lat=${parsed.latitude}&lng=${parsed.longitude}`);
+                        if (marketResponse.markets) {
+                            setMarkets(marketResponse.markets);
+                        }
+                    } catch (marketErr) {
+                        console.error('❌ Failed to fetch stored location markets:', marketErr);
+                    }
+                    
                     setLoading(false);
                     return;
                 } catch (e) {
@@ -141,7 +184,7 @@ export const LocationProvider = ({ children, user }) => {
     }, [user]);
 
     return (
-        <LocationContext.Provider value={{ location, loading, error, updateLocation, detectLocation }}>
+        <LocationContext.Provider value={{ location, markets, loading, error, updateLocation, detectLocation }}>
             {children}
         </LocationContext.Provider>
     );

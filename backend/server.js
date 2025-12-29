@@ -354,8 +354,15 @@ const createFarm = async (userId, farmData) => {
   return result
 }
 
-// Middleware - Debug CORS (allows all origins temporarily)
-app.use(cors())
+// Middleware - CORS configuration for production
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://farmeaseai.vercel.app",
+    "https://farmease-frontend.vercel.app"
+  ],
+  credentials: true
+}))
 app.use(express.json({ limit: '10mb' }))
 
 // Rate limiting middleware
@@ -1033,10 +1040,25 @@ app.get('/api/market/compare', async (req, res) => {
 
 
 
-// Error handling middleware
+// Global error handling middleware - MUST return JSON
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error)
-  res.status(500).json({ error: 'Internal server error' })
+  
+  // Always return JSON, never HTML
+  res.status(500).json({ 
+    success: false,
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  })
+})
+
+// 404 handler - return JSON for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'API endpoint not found',
+    path: req.originalUrl
+  })
 })
 
 // Initialize database and start server
