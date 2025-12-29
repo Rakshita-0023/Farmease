@@ -81,8 +81,8 @@ const Login = ({ onLogin }) => {
 
     try {
       console.log('🚀 Sending token to backend...')
-      console.log('🌐 API URL:', import.meta.env.VITE_API_URL || 'https://farmease-tqgy.onrender.com')
-      console.log('🔗 Full URL:', `${import.meta.env.VITE_API_URL || 'https://farmease-tqgy.onrender.com'}/api/auth/google`)
+      console.log('🌐 API URL:', import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com')
+      console.log('🔗 Full URL:', `${import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com'}/api/auth/google`)
 
       // Send the credential (JWT) to the backend
       const res = await apiClient.post('/auth/google', {
