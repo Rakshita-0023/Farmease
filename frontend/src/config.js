@@ -1,7 +1,5 @@
 // API Configuration
-// In development, use '/api' to trigger Vite proxy to localhost:5001
-// In production, use the Render backend URL with /api prefix
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : 'https://farmease-tqgy.onrender.com/api')
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // Weather API Configuration (move to backend in production)
 export const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
@@ -32,6 +30,7 @@ export const apiClient = {
         ...getAuthHeaders(),
         ...options.headers
       },
+      credentials: 'include', // Include credentials for CORS
       ...options
     }
 
