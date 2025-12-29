@@ -724,105 +724,86 @@ app.get('/api/plant-diagnosis/history', authenticateToken, async (req, res) => {
 })
 
 // ==================== LOCATION API ====================
-const geoip = require('geoip-lite');
-const requestIp = require('request-ip');
-
-// Use request-ip middleware
-app.use(requestIp.mw());
-
-// ==================== LOCATION & MARKET API ====================
 app.get('/api/market/nearby', async (req, res) => {
   try {
-    let { lat, lng } = req.query;
-    let locationSource = 'query';
-    let city = null;
-    let state = null;
-
-    // 1. Try to get location from query params (Forwarded GPS)
-    if (lat && lng) {
-      lat = parseFloat(lat);
-      lng = parseFloat(lng);
-      console.log(`📍 GPS Location received: ${lat}, ${lng}`);
-    } else {
-      // 2. Fallback to IP Geolocation
-      const clientIp = req.clientIp;
-      const geo = geoip.lookup(clientIp);
-
-      if (geo && geo.ll) {
-        lat = geo.ll[0];
-        lng = geo.ll[1];
-        city = geo.city;
-        state = geo.region;
-        locationSource = 'ip';
-        console.log(`📍 IP Location detected: ${city}, ${state} (${lat}, ${lng}) from IP ${clientIp}`);
-      } else {
-        // STRICT FAILURE: No defaults, no guessing.
-        console.warn(`❌ Location detection failed for IP: ${clientIp}`);
-        return res.status(400).json({
-          error: 'CURRENT_LOCATION_UNAVAILABLE',
-          message: 'Unable to determine your current location. Market data cannot be displayed.'
-        });
+    let { lat, lng } = req.query
+    
+    // If no coordinates provided, use default location
+    if (!lat || !lng) {
+      lat = 17.4847
+      lng = 78.4138
+    }
+    
+    lat = parseFloat(lat)
+    lng = parseFloat(lng)
+    
+    // Get location name using reverse geocoding
+    let city = 'Unknown'
+    let state = 'Unknown'
+    
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'}`
+      )
+      
+      if (response.ok) {
+        const locationData = await response.json()
+        if (locationData.length > 0) {
+          city = locationData[0].name || 'Unknown'
+          state = locationData[0].state || 'Unknown'
+        }
       }
+    } catch (geoError) {
+      console.log('Geocoding failed, using default names')
     }
-
-    // 3. Find nearest markets using Haversine formula
-    let prices = [];
-    if (useLocalStorage) {
-      prices = localData.marketPrices;
-    } else {
-      const [rows] = await db.execute('SELECT * FROM market_prices');
-      prices = rows;
-    }
-
+    
+    // Get nearby markets from database
+    const [prices] = await db.execute('SELECT * FROM market_prices')
+    
     const marketsWithDistance = prices.map(market => {
-      const marketLat = parseFloat(market.latitude || market.lat);
-      const marketLng = parseFloat(market.longitude || market.lng);
-
-      // Haversine Formula
-      const R = 6371; // Radius of the earth in km
-      const dLat = (marketLat - lat) * (Math.PI / 180);
-      const dLng = (marketLng - lng) * (Math.PI / 180);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      const marketLat = parseFloat(market.latitude)
+      const marketLng = parseFloat(market.longitude)
+      
+      // Calculate distance using Haversine formula
+      const R = 6371 // Earth's radius in km
+      const dLat = (marketLat - lat) * (Math.PI / 180)
+      const dLng = (marketLng - lng) * (Math.PI / 180)
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat * (Math.PI / 180)) * Math.cos(marketLat * (Math.PI / 180)) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const d = R * c; // Distance in km
-
+        Math.sin(dLng / 2) * Math.sin(dLng / 2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      const distance = R * c
+      
       return {
         ...market,
-        distanceKm: parseFloat(d.toFixed(1))
-      };
-    });
-
-    // STRICT 100km Radius
+        distanceKm: parseFloat(distance.toFixed(1))
+      }
+    })
+    
+    // Filter markets within 100km and sort by distance
     const nearbyMarkets = marketsWithDistance
       .filter(m => m.distanceKm <= 100)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
-
-    // Metadata for display only
-    if (!city && nearbyMarkets.length > 0) {
-      // Just a hint for display, not logic
-      city = nearbyMarkets[0].district || 'Unknown';
-    }
-
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 20) // Limit to 20 nearest markets
+    
     res.json({
       resolvedLocation: {
-        lat: lat,
-        lng: lng,
-        city: city || 'Unknown', // Metadata only
-        state: state || 'Unknown', // Metadata only
-        source: locationSource,
-        accuracy: locationSource === 'ip' ? 20 : 5 // Rough estimate
+        lat,
+        lng,
+        city,
+        state,
+        source: req.query.lat ? 'gps' : 'default'
       },
       markets: nearbyMarkets
-    });
-
+    })
+    
   } catch (error) {
-    console.error('Nearby market error:', error);
-    res.status(500).json({ error: 'Failed to fetch nearby markets' });
+    console.error('Nearby markets error:', error)
+    res.status(500).json({ error: 'Failed to fetch nearby markets' })
   }
-});
+})
+
+
 
 // ==================== MARKET PRICES API ====================
 app.get('/api/market-prices', async (req, res) => {
