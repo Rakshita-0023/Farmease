@@ -38,8 +38,8 @@ const LocationDetector = () => {
         </button>
       </div>
       {error && (
-        <p className="text-[10px] text-yellow-400 px-1 font-medium italic">
-          📍 Manual Selection Mode (Access Denied)
+        <p className="text-[10px] text-red-400 px-1 font-medium">
+          {error}
         </p>
       )}
     </div>

@@ -1,13 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './WeatherEnhancements.css'
-import { useMarketComparison } from '../hooks/useMandiData'
 import { MapPin, BarChart3, ChevronDown, RefreshCw, TrendingUp, TrendingDown, Navigation } from 'lucide-react'
 import { useLocation } from '../LocationContext'
-
-// Fix for default markers in React Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png'
 import iconShadow from 'leaflet/dist/images/marker-shadow.png'
 
@@ -19,7 +16,6 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom icons
 const userIcon = new L.Icon({
   iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMTYgNDhMMjYuNjYgMjBDMjguODcgMTYuNSAzMCAxMi41IDMwIDhDMzAgMy41OCAyNi40MiAwIDIyIDBIMTBDNS41OCAwIDIgMy41OCAyIDhDMiAxMi41IDMuMTMgMTYuNSA1LjM0IDIwTDE2IDQ4WiIgZmlsbD0iIzAwN0JGRiIvPgogIDx0ZXh0IHg9IjE2IiB5PSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSJib2xkIj7wn5OMPC90ZXh0Pgo8L3N2Zz4K',
   iconSize: [32, 48],
@@ -35,15 +31,10 @@ const marketIcon = new L.Icon({
 })
 
 const InteractiveMarketMap = () => {
-  const { location: userLocation } = useLocation()
-  const [selectedCity, setSelectedCity] = useState('')
+  const { location: userLocation, markets: marketData, loading: isLoading, detectLocation: refetch } = useLocation()
   const [selectedCrop, setSelectedCrop] = useState('')
   const [selectedMarket, setSelectedMarket] = useState(null)
 
-  // Fetch real comparison data from backend
-  const { data: marketData = [], isLoading, refetch } = useMarketComparison(selectedCrop, selectedCity)
-
-  const cities = ['Hyderabad', 'Vijayawada', 'Guntur', 'Warangal', 'Nizamabad', 'Kurnool']
   const crops = [
     'Wheat', 'Rice', 'Maize', 'Jowar', 'Bajra', 'Paddy', 'Ragi',
     'Tomato', 'Onion', 'Potato', 'Cabbage', 'Cauliflower',
@@ -52,33 +43,23 @@ const InteractiveMarketMap = () => {
     'Arhar Dal', 'Chana Dal', 'Moong Dal', 'Mustard', 'Coffee', 'Tea', 'Rubber'
   ]
 
-  // Calculate straight-line distance to user
-  const getDistance = useCallback((lat, lng) => {
-    if (!userLocation) return null
-    const R = 6371
-    const dLat = (lat - userLocation.latitude) * Math.PI / 180
-    const dLng = (lng - userLocation.longitude) * Math.PI / 180
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(userLocation.latitude * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return (R * c).toFixed(1)
-  }, [userLocation])
-
   const groupedMarkets = useMemo(() => {
     if (!Array.isArray(marketData)) return []
 
     const groups = {}
     marketData.forEach(item => {
+      // Filter by crop if selected
+      if (selectedCrop && item.commodity !== selectedCrop) return
+
       const key = item.market
       if (!groups[key]) {
         groups[key] = {
           name: item.market,
-          lat: item.lat,
-          lng: item.lng,
+          lat: item.lat || item.latitude,
+          lng: item.lng || item.longitude,
           district: item.district,
           state: item.state,
-          distance: getDistance(item.lat, item.lng),
+          distance: item.distanceKm,
           crops: []
         }
       }
@@ -86,7 +67,7 @@ const InteractiveMarketMap = () => {
     })
 
     return Object.values(groups).sort((a, b) => (a.distance || 0) - (b.distance || 0))
-  }, [marketData, getDistance])
+  }, [marketData, selectedCrop])
 
   const openGoogleMaps = (market) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${market.lat},${market.lng}`
@@ -95,13 +76,16 @@ const InteractiveMarketMap = () => {
 
   // Auto-center logic
   const centerPos = useMemo(() => {
-    if (selectedCity && groupedMarkets.length > 0) {
-      return [groupedMarkets[0].lat, groupedMarkets[0].lng]
+    if (selectedMarket) {
+      return [selectedMarket.lat, selectedMarket.lng]
     }
-    return userLocation ? [userLocation.latitude, userLocation.longitude] : [17.3850, 78.4867]
-  }, [selectedCity, groupedMarkets, userLocation])
+    if (userLocation?.latitude) {
+      return [userLocation.latitude, userLocation.longitude]
+    }
+    return [17.3850, 78.4867] // Default fallback if no location yet
+  }, [selectedMarket, userLocation])
 
-  const zoomLevel = selectedCity ? 11 : 8
+  const zoomLevel = selectedMarket ? 11 : 8
 
   return (
     <div className="interactive-market-map space-y-6">
@@ -122,27 +106,8 @@ const InteractiveMarketMap = () => {
         </button>
       </div>
 
-      {/* Comparison Filters Integrated into Map View */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-        <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Filter by City</label>
-          <div className="relative">
-            <select
-              value={selectedCity}
-              onChange={(e) => {
-                setSelectedCity(e.target.value)
-                setSelectedCrop('')
-              }}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
-            >
-              <option value="">All Locations</option>
-              {cities.map(city => <option key={city} value={city}>{city}</option>)}
-            </select>
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-          </div>
-        </div>
-
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Filter by Crop</label>
           <div className="relative">
@@ -150,7 +115,7 @@ const InteractiveMarketMap = () => {
               value={selectedCrop}
               onChange={(e) => {
                 setSelectedCrop(e.target.value)
-                setSelectedCity('')
+                setSelectedMarket(null)
               }}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 text-sm font-medium"
             >
@@ -175,7 +140,7 @@ const InteractiveMarketMap = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {userLocation && (
+          {userLocation?.latitude && (
             <Marker position={[userLocation.latitude, userLocation.longitude]} icon={userIcon}>
               <Popup>
                 <div className="font-bold text-blue-600">📍 Your Location</div>

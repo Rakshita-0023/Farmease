@@ -8,27 +8,56 @@ require('dotenv').config()
 const app = express()
 const PORT = process.env.PORT || 5001
 
+// Local storage fallback
+let useLocalStorage = false
+const localData = {
+  users: [],
+  farms: [],
+  activities: [],
+  diagnoses: [],
+  posts: [],
+  marketPrices: []
+}
+
 // Initialize database connection
 async function initDB() {
-  try {
-    // Test database connection
-    await db.query('SELECT 1')
-    console.log('✅ Railway MySQL connected successfully')
-    
-    // Create tables and seed data
-    await createTables()
-    await seedMarketData()
-    
-    // Startup check for Google Config
-    const googleId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
-    if (googleId) {
-      console.log('✅ Google Auth: Client ID loaded (Starts with ' + googleId.substring(0, 10) + '...)');
-    } else {
-      console.error('❌ Google Auth: Client ID NOT FOUND in environment variables!');
-    }
-  } catch (error) {
-    console.error('❌ Database connection failed:', error.message)
-    process.exit(1) // Fail loudly instead of silent fallback
+  // Force local storage for development/testing
+  console.log('⚠️ Using in-memory storage (Local Fallback) for development')
+  useLocalStorage = true
+
+  // Seed local market data
+  if (localData.marketPrices.length === 0) {
+    const marketPrices = [
+      // Hyderabad Markets
+      { id: 1, commodity: 'Wheat', variety: 'HD-2967', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 2400, max_price: 2650, modal_price: 2520, trend: 'up', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 2, commodity: 'Jowar', variety: 'CSH-16', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 2100, max_price: 2350, modal_price: 2220, trend: 'up', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 3, commodity: 'Rice', variety: 'Basmati-1121', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 3500, max_price: 4200, modal_price: 3800, trend: 'stable', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 4, commodity: 'Maize', variety: 'Hybrid', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 1750, max_price: 1950, modal_price: 1850, trend: 'down', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 5, commodity: 'Bajra', variety: 'HHB-67', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 1900, max_price: 2100, modal_price: 2000, trend: 'stable', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 6, commodity: 'Onion', variety: 'Nashik Red', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 2500, max_price: 3500, modal_price: 3000, trend: 'up', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 7, commodity: 'Tomato', variety: 'Hybrid', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 1800, max_price: 2400, modal_price: 2100, trend: 'down', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 8, commodity: 'Potato', variety: 'Kufri Jyoti', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 1200, max_price: 1600, modal_price: 1400, trend: 'stable', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 9, commodity: 'Cotton', variety: 'Bt Cotton', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 5800, max_price: 6200, modal_price: 6000, trend: 'up', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+      { id: 10, commodity: 'Groundnut', variety: 'TMV-2', market: 'Hyderabad', state: 'Telangana', district: 'Hyderabad', min_price: 5200, max_price: 5800, modal_price: 5500, trend: 'stable', lat: 17.385, lng: 78.4867, date: '2025-12-27' },
+
+      // Vijayawada Markets
+      { id: 11, commodity: 'Wheat', variety: 'PBW-343', market: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2350, max_price: 2600, modal_price: 2475, trend: 'up', lat: 16.5062, lng: 80.6480, date: '2025-12-27' },
+      { id: 12, commodity: 'Jowar', variety: 'SPV-86', market: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2050, max_price: 2300, modal_price: 2175, trend: 'stable', lat: 16.5062, lng: 80.6480, date: '2025-12-27' },
+      { id: 13, commodity: 'Rice', variety: 'PR-126', market: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2000, max_price: 2400, modal_price: 2200, trend: 'down', lat: 16.5062, lng: 80.6480, date: '2025-12-27' },
+      { id: 14, commodity: 'Maize', variety: 'Hybrid', market: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna', min_price: 1800, max_price: 2100, modal_price: 1950, trend: 'up', lat: 16.5062, lng: 80.6480, date: '2025-12-27' },
+      { id: 15, commodity: 'Tomato', variety: 'Hybrid', market: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna', min_price: 2800, max_price: 4500, modal_price: 3650, trend: 'stable', lat: 16.5062, lng: 80.6480, date: '2025-12-27' }
+    ]
+
+    localData.marketPrices = marketPrices
+    console.log('✅ Seeded local market data with', marketPrices.length, 'records')
+  }
+
+  // Startup check for Google Config
+  const googleId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+  if (googleId) {
+    console.log('✅ Google Auth: Client ID loaded (Starts with ' + googleId.substring(0, 10) + '...)');
+  } else {
+    console.log('ℹ️ Google Auth: Client ID not configured');
   }
 }
 
@@ -333,9 +362,9 @@ app.post('/api/auth/register', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { 
-        id: result.insertId, 
-        name, 
+      user: {
+        id: result.insertId,
+        name,
         email,
         city: null,
         state: null,
@@ -380,9 +409,9 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { 
-        id: user.id, 
-        name: user.name, 
+      user: {
+        id: user.id,
+        name: user.name,
         email: user.email,
         city: user.city,
         state: user.state,
@@ -524,11 +553,11 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
       'SELECT id, name, email, city, state, country, latitude, longitude FROM users WHERE id = ?',
       [req.user.userId]
     )
-    
+
     if (users.length === 0) {
       return res.status(404).json({ error: 'User not found' })
     }
-    
+
     res.json(users[0])
   } catch (error) {
     console.error('Get profile error:', error)
@@ -536,34 +565,81 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
   }
 })
 
-app.get('/api/location/detect', authenticateToken, async (req, res) => {
+app.get('/api/location/detect', async (req, res) => {
   try {
     const { lat, lng } = req.query
-    
+
     if (!lat || !lng) {
       return res.status(400).json({ error: 'Latitude and longitude are required' })
     }
-    
-    // Use OpenWeatherMap reverse geocoding
-    const response = await fetch(
-      `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'}`
-    )
-    
-    const locationData = await response.json()
-    
-    if (locationData.length === 0) {
-      return res.status(404).json({ error: 'Location not found' })
+
+    // Simple reverse geocoding based on coordinates
+    const latitude = parseFloat(lat)
+    const longitude = parseFloat(lng)
+
+    let city = 'Unknown'
+    let state = 'Unknown'
+    let country = 'India'
+
+    // Simple coordinate-based city detection for Indian cities
+    if (latitude >= 17.2 && latitude <= 17.6 && longitude >= 78.2 && longitude <= 78.7) {
+      city = 'Hyderabad'
+      state = 'Telangana'
+    } else if (latitude >= 16.3 && latitude <= 16.7 && longitude >= 80.3 && longitude <= 80.8) {
+      city = 'Vijayawada'
+      state = 'Andhra Pradesh'
+    } else if (latitude >= 16.1 && latitude <= 16.5 && longitude >= 80.1 && longitude <= 80.6) {
+      city = 'Guntur'
+      state = 'Andhra Pradesh'
+    } else if (latitude >= 17.8 && latitude <= 18.2 && longitude >= 79.4 && longitude <= 79.8) {
+      city = 'Warangal'
+      state = 'Telangana'
+    } else if (latitude >= 18.5 && latitude <= 18.9 && longitude >= 77.9 && longitude <= 78.3) {
+      city = 'Nizamabad'
+      state = 'Telangana'
+    } else if (latitude >= 28.4 && latitude <= 28.8 && longitude >= 76.9 && longitude <= 77.4) {
+      city = 'Delhi'
+      state = 'Delhi'
+    } else if (latitude >= 19.0 && latitude <= 19.3 && longitude >= 72.7 && longitude <= 73.1) {
+      city = 'Mumbai'
+      state = 'Maharashtra'
+    } else if (latitude >= 12.8 && latitude <= 13.2 && longitude >= 77.4 && longitude <= 77.8) {
+      city = 'Bangalore'
+      state = 'Karnataka'
+    } else {
+      // Default to nearest major city based on rough distance
+      const distances = [
+        { city: 'Hyderabad', state: 'Telangana', lat: 17.3850, lng: 78.4867 },
+        { city: 'Vijayawada', state: 'Andhra Pradesh', lat: 16.5062, lng: 80.6480 },
+        { city: 'Delhi', state: 'Delhi', lat: 28.6139, lng: 77.2090 },
+        { city: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lng: 72.8777 },
+        { city: 'Bangalore', state: 'Karnataka', lat: 12.9716, lng: 77.5946 }
+      ].map(location => ({
+        ...location,
+        distance: Math.sqrt(
+          Math.pow(latitude - location.lat, 2) +
+          Math.pow(longitude - location.lng, 2)
+        )
+      }))
+
+      const nearest = distances.reduce((min, curr) =>
+        curr.distance < min.distance ? curr : min
+      )
+
+      city = nearest.city
+      state = nearest.state
     }
-    
-    const location = {
-      city: locationData[0].name,
-      state: locationData[0].state,
-      country: locationData[0].country,
-      latitude: parseFloat(lat),
-      longitude: parseFloat(lng)
+
+    const locationInfo = {
+      city,
+      state,
+      country,
+      latitude,
+      longitude
     }
-    
-    res.json(location)
+
+    console.log(`📍 Location detected: ${city}, ${state} (${latitude}, ${longitude})`)
+    res.json(locationInfo)
   } catch (error) {
     console.error('Location detection error:', error)
     res.status(500).json({ error: 'Failed to detect location' })
@@ -573,12 +649,12 @@ app.get('/api/location/detect', authenticateToken, async (req, res) => {
 app.put('/api/user/location', authenticateToken, async (req, res) => {
   try {
     const { city, state, country, latitude, longitude } = req.body
-    
+
     await db.execute(
       'UPDATE users SET city = ?, state = ?, country = ?, latitude = ?, longitude = ? WHERE id = ?',
       [city, state, country || 'India', latitude, longitude, req.user.userId]
     )
-    
+
     res.json({ success: true, message: 'Location updated successfully' })
   } catch (error) {
     console.error('Update location error:', error)
@@ -728,32 +804,157 @@ app.get('/api/plant-diagnosis/history', authenticateToken, async (req, res) => {
   }
 })
 
+// ==================== LOCATION API ====================
+const geoip = require('geoip-lite');
+const requestIp = require('request-ip');
+
+// ... existing imports ...
+
+// Use request-ip middleware
+app.use(requestIp.mw());
+
+// ... existing code ...
+
+// ==================== LOCATION & MARKET API ====================
+app.get('/api/market/nearby', async (req, res) => {
+  try {
+    let { lat, lng } = req.query;
+    let locationSource = 'query';
+    let city = 'Unknown';
+    let state = 'Unknown';
+
+    // 1. Try to get location from query params (Forwarded GPS)
+    if (!lat || !lng) {
+      // 2. Fallback to IP Geolocation
+      const clientIp = req.clientIp;
+      // Handle localhost/private IPs for development
+      const ipToLookup = (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.startsWith('192.168.')) ? '103.208.68.0' : clientIp; // Default to a Hyderabad IP for dev
+
+      const geo = geoip.lookup(ipToLookup);
+
+      if (geo) {
+        lat = geo.ll[0];
+        lng = geo.ll[1];
+        city = geo.city;
+        state = geo.region; // geoip-lite returns region code usually
+        locationSource = 'ip';
+        console.log(`📍 IP Location detected: ${city}, ${state} (${lat}, ${lng}) from IP ${ipToLookup}`);
+      } else {
+        return res.status(400).json({
+          error: 'Location could not be determined',
+          code: 'LOCATION_REQUIRED',
+          message: 'Please enable location services or try again.'
+        });
+      }
+    } else {
+      // If lat/lng provided, try to reverse geocode (optional, or just use coords)
+      // For now, we'll just use the coords and maybe find the nearest known city in our DB for display
+      lat = parseFloat(lat);
+      lng = parseFloat(lng);
+      console.log(`📍 GPS Location received: ${lat}, ${lng}`);
+    }
+
+    // 3. Find nearest markets using Haversine formula
+    // We'll fetch all markets and filter/sort in JS for simplicity (unless dataset is huge)
+    // In production with millions of rows, use PostGIS or MySQL ST_Distance_Sphere
+
+    let prices = [];
+    if (useLocalStorage) {
+      prices = localData.marketPrices;
+    } else {
+      const [rows] = await db.execute('SELECT * FROM market_prices');
+      prices = rows;
+    }
+
+    const marketsWithDistance = prices.map(market => {
+      const marketLat = parseFloat(market.latitude || market.lat);
+      const marketLng = parseFloat(market.longitude || market.lng);
+
+      // Haversine Formula
+      const R = 6371; // Radius of the earth in km
+      const dLat = (marketLat - lat) * (Math.PI / 180);
+      const dLng = (marketLng - lng) * (Math.PI / 180);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat * (Math.PI / 180)) * Math.cos(marketLat * (Math.PI / 180)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const d = R * c; // Distance in km
+
+      return {
+        ...market,
+        distanceKm: parseFloat(d.toFixed(1))
+      };
+    });
+
+    // Filter markets within 100km (or just return top 20 nearest)
+    const nearbyMarkets = marketsWithDistance
+      .filter(m => m.distanceKm <= 500) // Wide radius for demo purposes
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    // If we have nearby markets, use the nearest one's city/state as the "User's Location" label if IP didn't give one
+    if (city === 'Unknown' && nearbyMarkets.length > 0) {
+      city = nearbyMarkets[0].market; // Use market name as proxy for city
+      state = nearbyMarkets[0].state;
+    }
+
+    res.json({
+      userLocation: {
+        latitude: lat,
+        longitude: lng,
+        city: city || 'Unknown',
+        state: state || 'Unknown',
+        source: locationSource
+      },
+      markets: nearbyMarkets
+    });
+
+  } catch (error) {
+    console.error('Nearby market error:', error);
+    res.status(500).json({ error: 'Failed to fetch nearby markets' });
+  }
+});
+
 // ==================== MARKET PRICES API ====================
 app.get('/api/market-prices', async (req, res) => {
   try {
     const { state, district, market } = req.query
 
-    let query = 'SELECT * FROM market_prices WHERE 1=1'
-    const params = []
+    let prices = []
 
-    if (state) {
-      query += ' AND state = ?'
-      params.push(state)
+    if (useLocalStorage) {
+      // Use local storage data
+      prices = localData.marketPrices.filter(item => {
+        if (state && item.state !== state) return false
+        if (district && item.district !== district) return false
+        if (market && item.market !== market) return false
+        return true
+      })
+    } else {
+      // Use database
+      let query = 'SELECT * FROM market_prices WHERE 1=1'
+      const params = []
+
+      if (state) {
+        query += ' AND state = ?'
+        params.push(state)
+      }
+
+      if (district) {
+        query += ' AND district = ?'
+        params.push(district)
+      }
+
+      if (market) {
+        query += ' AND market = ?'
+        params.push(market)
+      }
+
+      query += ' ORDER BY date DESC, commodity ASC'
+
+      const [dbPrices] = await db.execute(query, params)
+      prices = dbPrices
     }
-
-    if (district) {
-      query += ' AND district = ?'
-      params.push(district)
-    }
-
-    if (market) {
-      query += ' AND market = ?'
-      params.push(market)
-    }
-
-    query += ' ORDER BY date DESC, commodity ASC'
-
-    const [prices] = await db.execute(query, params)
 
     // Transform data to match frontend format
     const formattedPrices = prices.map(item => ({
@@ -766,8 +967,8 @@ app.get('/api/market-prices', async (req, res) => {
       min_price: parseFloat(item.min_price),
       max_price: parseFloat(item.max_price),
       modal_price: parseFloat(item.modal_price),
-      lat: parseFloat(item.latitude),
-      lng: parseFloat(item.longitude),
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lng),
       trend: item.trend,
       date: item.date || new Date().toISOString().split('T')[0]
     }))
@@ -784,7 +985,7 @@ app.get('/api/market-prices', async (req, res) => {
 app.get('/api/market/compare', async (req, res) => {
   try {
     const { crop, location } = req.query
-    
+
     const [prices] = await db.execute('SELECT * FROM market_prices')
     let result = []
 

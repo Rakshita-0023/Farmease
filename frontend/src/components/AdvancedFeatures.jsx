@@ -13,7 +13,7 @@ const AdvancedFeatures = () => {
 
       <div className="features-content mt-6">
         <div className="feature-section">
-          <InteractiveMarketMap userLocation={globalLocation} />
+          <InteractiveMarketMap />
         </div>
       </div>
     </div>

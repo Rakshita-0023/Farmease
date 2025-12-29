@@ -7,7 +7,6 @@ import LandingPage from './components/LandingPage'
 import FarmManagement from './components/FarmManagement'
 import Weather from './components/Weather'
 import Market from './components/Market'
-import MarketIntelligenceHub from './components/MarketIntelligenceHub'
 import Tips from './components/Tips'
 import PlantDoctor from './components/PlantDoctor'
 import CommunityForum from './components/CommunityForum'
@@ -85,7 +84,7 @@ function App() {
   }
 
   return (
-    <LocationProvider user={user}>
+    <LocationProvider>
       <Routes>
         {/* Public Routes */}
         <Route
@@ -111,7 +110,7 @@ function App() {
           <Route path="/" element={<EnhancedDashboard />} />
           <Route path="/farms" element={<FarmManagement />} />
           <Route path="/weather" element={<Weather />} />
-          <Route path="/market" element={<MarketIntelligenceHub />} />
+          <Route path="/market" element={<Market />} />
           <Route path="/tips" element={<Tips />} />
           <Route path="/advanced" element={<AdvancedFeatures />} />
           <Route path="/doctor" element={<PlantDoctor />} />

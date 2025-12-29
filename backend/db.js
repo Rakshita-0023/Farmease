@@ -7,14 +7,15 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
-(async () => {
-  try {
-    await pool.query("SELECT 1");
-    console.log("✅ Railway MySQL connected successfully");
-  } catch (err) {
-    console.error("❌ Database connection failed:", err.message);
-    process.exit(1);
-  }
-})();
+// Don't auto-connect for development - let the app handle it
+// (async () => {
+//   try {
+//     await pool.query("SELECT 1");
+//     console.log("✅ Railway MySQL connected successfully");
+//   } catch (err) {
+//     console.error("❌ Database connection failed:", err.message);
+//     process.exit(1);
+//   }
+// })();
 
 module.exports = pool;

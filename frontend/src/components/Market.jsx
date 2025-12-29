@@ -1,11 +1,8 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table, RefreshCw, ChevronDown } from 'lucide-react'
+import { Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table, RefreshCw } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useMandiData } from '../hooks/useMandiData'
-
-// Fix for Leaflet default icon issues in React
+import { useLocation } from '../LocationContext'
 import L from 'leaflet'
 import icon from 'leaflet/dist/images/marker-icon.png'
 import iconShadow from 'leaflet/dist/images/marker-shadow.png'
@@ -18,9 +15,8 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// CROP IMAGES MAPPING - 1:1 match between crop names and images
+// CROP IMAGES MAPPING
 const CROP_IMAGES = {
-  // Grains & Cereals
   'Wheat': '/wheat.jpeg',
   'Jowar': '/jowar.webp',
   'Maize': '/corn.jpg',
@@ -29,31 +25,21 @@ const CROP_IMAGES = {
   'Paddy': '/rice.jpg',
   'Bajra': '/bajra.jpg',
   'Ragi': '/ragi.webp',
-
-  // Pulses/Dals
   'Arhar Dal': '/Arhar_Dal.webp',
   'Chana Dal': '/Chana_Dal.webp',
   'Moong Dal': '/Moong_Dal.jpg',
-
-  // Spices
   'Chilli': '/tomato.jpeg',
   'Turmeric': '/Mustard.jpg',
   'Mustard': '/Mustard.jpg',
-
-  // Vegetables
   'Onion': '/onions.avif',
   'Tomato': '/tomato.jpeg',
   'Potato': '/potato.jpg',
   'Cabbage': '/cabbage.jpeg',
   'Cauliflower': '/Cauliflower.jpg',
-
-  // Fruits
   'Banana': '/Bananas.jpg',
   'Mango': '/Mangoes.jpg',
   'Apple': '/Apples.jpeg',
   'Orange': '/Oranges.jpg',
-
-  // Cash Crops
   'Cotton': '/cotton.jpg',
   'Groundnut': '/Groundnut.jpg',
   'Sunflower': '/Sunflower.jpg',
@@ -65,93 +51,19 @@ const CROP_IMAGES = {
 }
 
 const Market = () => {
-  const { userLocation } = useOutletContext()
-  
-  // UI State
+  const { location: userLocation, markets: marketData, loading: isLoading, error, detectLocation: refetch } = useLocation()
+
   const [viewMode, setViewMode] = useState('grid')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCity, setSelectedCity] = useState('Hyderabad')
-  const [isLocating, setIsLocating] = useState(false)
 
-  // City options with proper state/district mapping
-  const cities = [
-    { value: 'Hyderabad', label: 'Hyderabad', state: 'Telangana', district: 'Hyderabad' },
-    { value: 'Vijayawada', label: 'Vijayawada', state: 'Andhra Pradesh', district: 'Krishna' }
-  ]
-
-  // Get current city config
-  const currentCity = cities.find(c => c.value === selectedCity) || cities[0]
-
-  // Use the existing useMandiData hook with proper error handling
-  const { 
-    data: marketData = [], 
-    isLoading, 
-    error, 
-    refetch,
-    isError 
-  } = useMandiData(
-    currentCity.state,
-    currentCity.district,
-    currentCity.value
-  )
-
-  // Get image for commodity with proper fallback
   const getImageForCommodity = useCallback((commodity) => {
     return CROP_IMAGES[commodity] || '/wheat.jpeg'
   }, [])
 
-  // Handle GPS Location
-  const handleUseLocation = useCallback(() => {
-    setIsLocating(true)
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords
-          
-          // Simple distance calculation to find nearest city
-          const distances = cities.map(city => {
-            const cityCoords = {
-              'Hyderabad': { lat: 17.3850, lng: 78.4867 },
-              'Vijayawada': { lat: 16.5062, lng: 80.6480 }
-            }
-            
-            const coords = cityCoords[city.value]
-            if (!coords) return { city: city.value, distance: Infinity }
-            
-            const distance = Math.sqrt(
-              Math.pow(latitude - coords.lat, 2) + 
-              Math.pow(longitude - coords.lng, 2)
-            )
-            
-            return { city: city.value, distance }
-          })
-          
-          const nearest = distances.reduce((min, curr) => 
-            curr.distance < min.distance ? curr : min
-          )
-          
-          setSelectedCity(nearest.city)
-          setIsLocating(false)
-        },
-        (error) => {
-          console.error('Location error:', error)
-          setIsLocating(false)
-          alert('Could not access location. Please select manually.')
-        },
-        { timeout: 10000 }
-      )
-    } else {
-      setIsLocating(false)
-      alert('Geolocation is not supported by this browser.')
-    }
-  }, [cities])
-
-  // Filter Logic - Memoized to prevent unnecessary re-renders
   const filteredData = useMemo(() => {
     if (!Array.isArray(marketData)) return []
     if (!searchTerm) return marketData
-    
+
     const lower = searchTerm.toLowerCase()
     return marketData.filter(item =>
       item.commodity?.toLowerCase().includes(lower) ||
@@ -159,16 +71,6 @@ const Market = () => {
       item.variety?.toLowerCase().includes(lower)
     )
   }, [marketData, searchTerm])
-
-  // Debug logging
-  console.log('Market component state:', {
-    selectedCity,
-    currentCity,
-    marketDataLength: marketData?.length,
-    isLoading,
-    isError,
-    error: error?.message
-  })
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
@@ -178,10 +80,10 @@ const Market = () => {
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             📈 Market Prices
             <span className="text-xs font-normal bg-green-100 text-green-700 px-2 py-1 rounded-full border border-green-200">
-              Live Updates (Dec 2025)
+              Live Updates
             </span>
           </h1>
-          <p className="text-gray-500 text-sm">Real-time Mandi rates from Agmarknet & e-NAM</p>
+          <p className="text-gray-500 text-sm">Real-time Mandi rates based on your location</p>
         </div>
 
         <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
@@ -205,34 +107,23 @@ const Market = () => {
       {/* Smart Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* City Selection */}
+          {/* Location Display */}
           <div className="flex gap-3 flex-1">
-            <div className="relative flex-1">
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-              >
-                {cities.map(city => (
-                  <option key={city.value} value={city.value}>
-                    {city.label} ({city.state})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 flex items-center gap-2 w-full md:w-auto">
+              <MapPin size={18} className="text-green-600" />
+              <span className="text-sm font-medium text-green-800">
+                {userLocation?.city || 'Unknown Location'}, {userLocation?.state || ''}
+              </span>
+              {userLocation?.source === 'ip' && (
+                <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full ml-2">
+                  IP Detected
+                </span>
+              )}
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={handleUseLocation}
-              disabled={isLocating}
-              className="px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
-            >
-              {isLocating ? <RefreshCw size={18} className="animate-spin" /> : <MapPin size={18} />}
-              {isLocating ? 'Locating...' : 'Nearest Mandi'}
-            </button>
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -256,20 +147,31 @@ const Market = () => {
       </div>
 
       {/* Map Section */}
-      {filteredData.length > 0 && (
+      {filteredData.length > 0 && userLocation?.latitude && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-64 z-0">
-          <MapContainer center={[17.0, 79.5]} zoom={7} style={{ height: '100%', width: '100%' }}>
+          <MapContainer
+            center={[userLocation.latitude, userLocation.longitude]}
+            zoom={9}
+            style={{ height: '100%', width: '100%' }}
+          >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {filteredData.map(item => (
-              item.lat && item.lng && (
-                <Marker key={item.id} position={[item.lat, item.lng]}>
+            {/* User Location Marker */}
+            <Marker position={[userLocation.latitude, userLocation.longitude]}>
+              <Popup>You are here</Popup>
+            </Marker>
+
+            {filteredData.map((item, idx) => (
+              (item.lat || item.latitude) && (item.lng || item.longitude) && (
+                <Marker key={`${item.id}-${idx}`} position={[item.lat || item.latitude, item.lng || item.longitude]}>
                   <Popup>
                     <div className="text-sm font-sans">
                       <strong className="block text-green-700">{item.market}</strong>
                       {item.commodity}: ₹{item.modal_price}
+                      <br />
+                      <span className="text-xs text-gray-500">{item.distanceKm} km away</span>
                     </div>
                   </Popup>
                 </Marker>
@@ -280,10 +182,10 @@ const Market = () => {
       )}
 
       {/* Error State */}
-      {isError && (
+      {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
           <p className="font-medium">Error loading market data</p>
-          <p className="text-sm">{error?.message || 'Unknown error occurred'}</p>
+          <p className="text-sm">{error}</p>
           <button
             onClick={() => refetch()}
             className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
@@ -312,8 +214,8 @@ const Market = () => {
           {/* Grid View */}
           {viewMode === 'grid' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredData.map((item) => (
-                <div key={item.id} className="relative h-64 rounded-2xl shadow-md overflow-hidden group hover:shadow-xl transition-all duration-300">
+              {filteredData.map((item, idx) => (
+                <div key={`${item.id}-${idx}`} className="relative h-64 rounded-2xl shadow-md overflow-hidden group hover:shadow-xl transition-all duration-300">
                   {/* Full Background Image */}
                   <img
                     src={getImageForCommodity(item.commodity)}
@@ -333,15 +235,14 @@ const Market = () => {
                       <span className="bg-black/30 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full text-xs font-medium">
                         {item.market}
                       </span>
-                      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
-                        item.trend === 'up' ? 'bg-green-500/80' : 
-                        item.trend === 'down' ? 'bg-red-500/80' : 
-                        'bg-gray-500/80'
-                      } backdrop-blur-sm`}>
-                        {item.trend === 'up' ? <TrendingUp size={12} /> : 
-                         item.trend === 'down' ? <TrendingDown size={12} /> : '📊'}
-                        {item.trend === 'up' ? 'Rising' : 
-                         item.trend === 'down' ? 'Falling' : 'Stable'}
+                      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${item.trend === 'up' ? 'bg-green-500/80' :
+                          item.trend === 'down' ? 'bg-red-500/80' :
+                            'bg-gray-500/80'
+                        } backdrop-blur-sm`}>
+                        {item.trend === 'up' ? <TrendingUp size={12} /> :
+                          item.trend === 'down' ? <TrendingDown size={12} /> : '📊'}
+                        {item.trend === 'up' ? 'Rising' :
+                          item.trend === 'down' ? 'Falling' : 'Stable'}
                       </span>
                     </div>
 
@@ -355,8 +256,8 @@ const Market = () => {
                           <p className="text-xl font-bold">₹{item.modal_price?.toLocaleString()}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-400">Range</p>
-                          <p className="text-sm font-medium">₹{item.min_price} - {item.max_price}</p>
+                          <p className="text-xs text-gray-400">Distance</p>
+                          <p className="text-sm font-medium">{item.distanceKm} km</p>
                         </div>
                       </div>
                     </div>
@@ -375,19 +276,19 @@ const Market = () => {
                     <tr>
                       <th className="px-6 py-4 font-semibold text-gray-700">Commodity</th>
                       <th className="px-6 py-4 font-semibold text-gray-700">Market</th>
-                      <th className="px-6 py-4 font-semibold text-gray-700">Min/Max</th>
+                      <th className="px-6 py-4 font-semibold text-gray-700">Distance</th>
                       <th className="px-6 py-4 font-semibold text-gray-700">Modal Price</th>
                       <th className="px-6 py-4 font-semibold text-gray-700">Trend</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredData.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50/50">
+                    {filteredData.map((item, idx) => (
+                      <tr key={`${item.id}-${idx}`} className="hover:bg-gray-50/50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={getImageForCommodity(item.commodity)} 
-                              alt="" 
+                            <img
+                              src={getImageForCommodity(item.commodity)}
+                              alt=""
                               className="w-8 h-8 rounded-full object-cover"
                               onError={(e) => {
                                 e.target.src = '/wheat.jpeg'
@@ -400,16 +301,15 @@ const Market = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-600">{item.market}</td>
-                        <td className="px-6 py-4 text-gray-600">₹{item.min_price?.toLocaleString()} - ₹{item.max_price?.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-gray-600">{item.distanceKm} km</td>
                         <td className="px-6 py-4 font-bold text-gray-900">₹{item.modal_price?.toLocaleString()}</td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 ${
-                            item.trend === 'up' ? 'text-green-600' : 
-                            item.trend === 'down' ? 'text-red-600' : 
-                            'text-gray-600'
-                          }`}>
-                            {item.trend === 'up' ? <TrendingUp size={16} /> : 
-                             item.trend === 'down' ? <TrendingDown size={16} /> : '📊'}
+                          <span className={`inline-flex items-center gap-1 ${item.trend === 'up' ? 'text-green-600' :
+                              item.trend === 'down' ? 'text-red-600' :
+                                'text-gray-600'
+                            }`}>
+                            {item.trend === 'up' ? <TrendingUp size={16} /> :
+                              item.trend === 'down' ? <TrendingDown size={16} /> : '📊'}
                           </span>
                         </td>
                       </tr>
@@ -421,12 +321,12 @@ const Market = () => {
           )}
 
           {/* No Data State */}
-          {!isLoading && !isError && filteredData.length === 0 && (
+          {!isLoading && !error && filteredData.length === 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
               <div className="text-6xl mb-4">📊</div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2">No market data found</h3>
               <p className="text-gray-500 mb-4">
-                {searchTerm ? `No results for "${searchTerm}"` : `No data available for ${selectedCity}`}
+                {searchTerm ? `No results for "${searchTerm}"` : `No markets found near your location.`}
               </p>
               <button
                 onClick={() => refetch()}

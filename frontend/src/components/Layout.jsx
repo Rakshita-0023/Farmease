@@ -23,7 +23,7 @@ import {
     ShieldCheck
 } from 'lucide-react'
 
-export default function Layout({ user, onLogout, userLocation, setUserLocation }) {
+export default function Layout({ user, onLogout }) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const { t, i18n } = useTranslation()
@@ -198,7 +198,7 @@ export default function Layout({ user, onLogout, userLocation, setUserLocation }
                             transition={{ duration: 0.3, ease: "easeOut" }}
                             className="h-full"
                         >
-                            <Outlet context={{ user, userLocation }} />
+                            <Outlet context={{ user }} />
                         </motion.div>
                     </AnimatePresence>
                 </main>
