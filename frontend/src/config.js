@@ -1,5 +1,13 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+// API Configuration
+export const API_BASE_URL = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com/api')
+  : '/api'
+
+// Debug logs for production verification
+console.log("PROD:", import.meta.env.PROD);
+console.log("BASE:", import.meta.env.VITE_API_BASE_URL);
+console.log("RESOLVED API_BASE_URL:", API_BASE_URL);
 
 // Weather API Configuration (move to backend in production)
 export const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
