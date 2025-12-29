@@ -34,8 +34,13 @@ export const apiClient = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api${url}`, config)
-      console.log('🔗 API Request:', `${API_BASE_URL}/api${url}`, 'Status:', response.status)
+      const fullUrl = `${API_BASE_URL}/api${url}`
+      console.log('🔗 API Request URL:', fullUrl)
+      console.log('🌐 API_BASE_URL:', API_BASE_URL)
+      console.log('🔍 Environment VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
+      
+      const response = await fetch(fullUrl, config)
+      console.log('📊 Response Status:', response.status)
 
       if (response.status === 401) {
         // Token expired or invalid
