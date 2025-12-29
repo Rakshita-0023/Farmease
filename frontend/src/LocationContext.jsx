@@ -17,14 +17,19 @@ export const LocationProvider = ({ children, user }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Fetch all available cities from backend (NO HARDCODED DATA)
-    const fetchCities = async () => {
+    // Search for cities based on user input (worldwide)
+    const searchCities = async (query) => {
+        if (!query || query.length < 2) {
+            setAllCities([]);
+            return;
+        }
+
         try {
-            const response = await apiClient.get('/locations/cities');
+            const response = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}`);
             setAllCities(response.cities || []);
         } catch (err) {
-            console.error('Failed to fetch cities list:', err);
-            setError('Failed to load cities list');
+            console.error('Failed to search cities:', err);
+            setError('Failed to search cities');
         }
     };
 
@@ -89,19 +94,15 @@ export const LocationProvider = ({ children, user }) => {
             const response = await apiClient.get(`/location/resolve?lat=${latitude}&lng=${longitude}`);
 
             if (response.locationRequired) {
-                setError('Could not determine your city. Please select manually.');
+                setError('Could not determine your city. Please search and select manually.');
                 setLoading(false);
-                // Fetch cities for manual selection
-                await fetchCities();
             } else {
                 await updateLocation({ ...response, source: 'gps' });
             }
         } catch (err) {
             console.error('❌ Location detection failed:', err);
-            setError('Location access denied. Please select your city manually.');
+            setError('Location access denied. Please search and select your city manually.');
             setLoading(false);
-            // Fetch cities for manual selection
-            await fetchCities();
         }
     };
 
@@ -144,7 +145,7 @@ export const LocationProvider = ({ children, user }) => {
             error,
             updateLocation,
             detectLocation,
-            fetchCities
+            searchCities
         }}>
             {children}
         </LocationContext.Provider>
