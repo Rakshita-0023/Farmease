@@ -1,10 +1,9 @@
 import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com'
+import { API_BASE_URL } from '../config'
 
 // Create axios instance with default config
 const apiInstance = axios.create({
-    baseURL: `${API_BASE_URL}/api`,
+    baseURL: API_BASE_URL,
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json'
