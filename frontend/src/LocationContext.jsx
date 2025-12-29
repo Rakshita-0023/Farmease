@@ -13,52 +13,45 @@ export const useLocation = () => {
 
 export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
-    const [markets, setMarkets] = useState([]);
     const [allCities, setAllCities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Fetch all available cities for manual selection
-    useEffect(() => {
-        const fetchCities = async () => {
-            try {
-                const cities = await apiClient.get('/market/all-cities');
-                setAllCities(cities || []);
-            } catch (err) {
-                console.error('Failed to fetch cities list:', err);
-            }
-        };
-        fetchCities();
-    }, []);
+    // Fetch all available cities from backend (NO HARDCODED DATA)
+    const fetchCities = async () => {
+        try {
+            const response = await apiClient.get('/locations/cities');
+            setAllCities(response.cities || []);
+        } catch (err) {
+            console.error('Failed to fetch cities list:', err);
+            setError('Failed to load cities list');
+        }
+    };
 
+    // Update location and persist to backend
     const updateLocation = async (newLocation, persist = true) => {
         setLoading(true);
+        setError(null);
+
         try {
             const locationData = {
-                city: newLocation.city || newLocation.name || 'Unknown',
-                state: newLocation.state || 'Unknown',
+                city: newLocation.city || newLocation.name,
+                state: newLocation.state,
                 country: newLocation.country || 'India',
                 latitude: parseFloat(newLocation.latitude || newLocation.lat),
-                longitude: parseFloat(newLocation.longitude || newLocation.lng),
-                lat: parseFloat(newLocation.latitude || newLocation.lat),
-                lng: parseFloat(newLocation.longitude || newLocation.lng),
-                source: newLocation.source || 'manual'
+                longitude: parseFloat(newLocation.longitude || newLocation.lng)
             };
 
             setLocation(locationData);
-            localStorage.setItem('userLocation', JSON.stringify(locationData));
 
-            // Fetch markets for this specific location
-            const marketResponse = await apiClient.get(`/market/nearby?lat=${locationData.latitude}&lng=${locationData.longitude}`);
-            if (marketResponse.markets) {
-                setMarkets(marketResponse.markets);
-            }
-
+            // Persist to backend if user is logged in
             if (persist && user) {
                 try {
                     await apiClient.put('/user/location', locationData);
+                    console.log('✅ Location saved to backend');
                 } catch (err) {
                     console.error('Failed to persist location to backend:', err);
+                    setError('Failed to save location');
                 }
             }
         } catch (err) {
@@ -69,6 +62,7 @@ export const LocationProvider = ({ children, user }) => {
         }
     };
 
+    // Detect location using browser geolocation
     const detectLocation = async () => {
         setLoading(true);
         setError(null);
@@ -83,71 +77,74 @@ export const LocationProvider = ({ children, user }) => {
             const position = await new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
                     enableHighAccuracy: true,
-                    timeout: 5000,
+                    timeout: 10000,
                     maximumAge: 0
                 });
             });
 
             const { latitude, longitude } = position.coords;
+            console.log('📍 Got coordinates:', latitude, longitude);
+
+            // Resolve coordinates to city using backend
             const response = await apiClient.get(`/location/resolve?lat=${latitude}&lng=${longitude}`);
 
             if (response.locationRequired) {
-                setLocation(null);
-                setError('Please select your city to view market data');
+                setError('Could not determine your city. Please select manually.');
+                setLoading(false);
+                // Fetch cities for manual selection
+                await fetchCities();
             } else {
                 await updateLocation({ ...response, source: 'gps' });
             }
         } catch (err) {
             console.error('❌ Location detection failed:', err);
-            setLocation(null);
-            setError('Location access denied or unavailable. Please select your city manually.');
-        } finally {
+            setError('Location access denied. Please select your city manually.');
             setLoading(false);
+            // Fetch cities for manual selection
+            await fetchCities();
         }
     };
 
+    // Initialize location on mount
     useEffect(() => {
         const initializeLocation = async () => {
-            // 1. Check if user has a saved location in profile
-            if (user?.city) {
-                await updateLocation({
-                    city: user.city,
-                    state: user.state,
-                    latitude: user.latitude,
-                    longitude: user.longitude,
-                    source: 'profile'
-                }, false);
+            if (!user) {
+                setLoading(false);
                 return;
             }
 
-            // 2. Check localStorage
-            const stored = localStorage.getItem('userLocation');
-            if (stored) {
-                try {
-                    const parsed = JSON.parse(stored);
-                    await updateLocation(parsed, false);
-                    return;
-                } catch (e) {
-                    localStorage.removeItem('userLocation');
-                }
-            }
+            try {
+                // 1. Try to get saved location from backend
+                const savedLocation = await apiClient.get('/user/location');
 
-            // 3. Detect automatically
-            await detectLocation();
+                if (savedLocation) {
+                    console.log('✅ Loaded location from backend:', savedLocation);
+                    setLocation(savedLocation);
+                    setLoading(false);
+                } else {
+                    // 2. No saved location - try to detect
+                    console.log('📍 No saved location, attempting detection...');
+                    await detectLocation();
+                }
+            } catch (err) {
+                console.error('Failed to initialize location:', err);
+                // Fallback: try to detect location
+                await detectLocation();
+            }
         };
 
         initializeLocation();
-    }, [user?.id]); // Only re-run if user ID changes
+    }, [user?.id]); // Re-run when user changes
 
     return (
         <LocationContext.Provider value={{
             location,
-            markets,
             allCities,
             loading,
             error,
             updateLocation,
-            detectLocation
+            detectLocation,
+            fetchCities
         }}>
             {children}
         </LocationContext.Provider>

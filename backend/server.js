@@ -418,6 +418,75 @@ app.put('/api/user/location', authenticateToken, async (req, res) => {
   }
 })
 
+// GET user's saved location
+app.get('/api/user/location', authenticateToken, async (req, res) => {
+  try {
+    if (useLocalStorage) {
+      const user = localData.users.find(u => u.id === req.user.userId)
+      if (!user) return res.status(404).json({ error: 'User not found' })
+
+      // Return location data or null if not set
+      if (user.city && user.latitude && user.longitude) {
+        return res.json({
+          city: user.city,
+          state: user.state,
+          country: user.country || 'India',
+          latitude: user.latitude,
+          longitude: user.longitude
+        })
+      } else {
+        return res.json(null)
+      }
+    }
+
+    const [users] = await db.execute(
+      'SELECT city, state, country, latitude, longitude FROM users WHERE id = ?',
+      [req.user.userId]
+    )
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const user = users[0]
+    // Return location data or null if not set
+    if (user.city && user.latitude && user.longitude) {
+      res.json({
+        city: user.city,
+        state: user.state,
+        country: user.country || 'India',
+        latitude: user.latitude,
+        longitude: user.longitude
+      })
+    } else {
+      res.json(null)
+    }
+  } catch (error) {
+    console.error('Get location error:', error)
+    res.status(500).json({ error: 'Failed to get user location' })
+  }
+})
+
+// GET list of supported cities (from market providers)
+app.get('/api/locations/cities', async (req, res) => {
+  try {
+    const provider = getProvider('India')
+    const cities = await provider.getSupportedCities()
+
+    res.json({
+      cities: cities.map(city => ({
+        name: city.name,
+        state: city.state,
+        latitude: city.lat,
+        longitude: city.lng
+      }))
+    })
+  } catch (error) {
+    console.error('Get cities error:', error)
+    res.status(500).json({ error: 'Failed to fetch cities list' })
+  }
+})
+
 app.get('/api/farms', authenticateToken, async (req, res) => {
   try {
     const farms = await getUserFarms(req.user.userId)
