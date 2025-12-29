@@ -262,14 +262,15 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       "http://localhost:5173",
-      "http://localhost:3000", 
+      "http://localhost:3000",
       "https://farmeaseai.vercel.app",
+      "https://farmeaseai-kappa.vercel.app",
       "https://farmease-frontend.vercel.app"
     ];
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -282,6 +283,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 200 // For legacy browser support
 }))
+
+// Handle preflight requests explicitly
+app.options('*', cors())
+
 app.use(express.json({ limit: '10mb' }))
 
 // Inject helper functions into auth routes
