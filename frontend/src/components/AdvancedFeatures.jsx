@@ -64,17 +64,29 @@ const AdvancedFeatures = () => {
   const fetchAnalyticsData = async () => {
     setIsLoading(true)
     try {
-      const trendData = await apiClient.get(`/market/trends?city=${selectedCity}`)
-      setTrends(trendData || [])
-      if (trendData?.length > 0) setSelectedCrop(trendData[0].commodity)
+      // 1. Fetch Market Comparison for the city to identify top crops
+      const marketCompData = await apiClient.get(`/market/compare?location=${selectedCity}`)
+      setComparisonData(marketCompData || [])
 
-      const cityCompData = await apiClient.get('/market/compare')
+      // 2. Determine active crop
+      let activeCrop = selectedCrop
+      if (!activeCrop && marketCompData?.length > 0) {
+        activeCrop = marketCompData[0].commodity
+        setSelectedCrop(activeCrop)
+      }
+
+      // 3. Fetch Trends for the active crop
+      if (activeCrop) {
+        const trendData = await apiClient.get(`/market/trends?city=${selectedCity}&crop=${activeCrop}`)
+        setTrends(trendData || [])
+      }
+
+      // 4. Fetch Regional Benchmark (City Comparison)
+      // We can pass the active crop to compare this crop across cities
+      const cityCompQuery = activeCrop ? `?crop=${activeCrop}` : ''
+      const cityCompData = await apiClient.get(`/market/compare${cityCompQuery}`)
       setCityComparison(cityCompData || [])
 
-      if (selectedMarkets.length > 0) {
-        const marketCompData = await apiClient.get(`/market/compare?location=${selectedCity}`)
-        setComparisonData(marketCompData || [])
-      }
     } catch (err) {
       console.error('Failed to fetch analytics data:', err)
     } finally {
@@ -97,6 +109,21 @@ const AdvancedFeatures = () => {
         return [...prev, market]
       }
     })
+  }
+
+  const handleCropSelect = async (crop) => {
+    setSelectedCrop(crop)
+    try {
+      // Fetch trends for the selected crop
+      const trendData = await apiClient.get(`/market/trends?city=${selectedCity}&crop=${crop}`)
+      setTrends(trendData || [])
+
+      // Update Regional Benchmark for the selected crop
+      const cityCompData = await apiClient.get(`/market/compare?crop=${crop}`)
+      setCityComparison(cityCompData || [])
+    } catch (err) {
+      console.error('Failed to update crop data:', err)
+    }
   }
 
   const proceedToAnalytics = () => {
@@ -318,8 +345,8 @@ const AdvancedFeatures = () => {
                       transition={{ delay: idx * 0.03 }}
                       onClick={() => handleMarketToggle(market)}
                       className={`p-6 rounded-[2rem] border-2 transition-all duration-500 cursor-pointer relative overflow-hidden ${isSelected
-                          ? 'border-green-500 bg-green-50/50 shadow-xl shadow-green-900/5'
-                          : 'border-white bg-white hover:border-green-200 shadow-sm'
+                        ? 'border-green-500 bg-green-50/50 shadow-xl shadow-green-900/5'
+                        : 'border-white bg-white hover:border-green-200 shadow-sm'
                         }`}
                     >
                       {isSelected && (
@@ -339,8 +366,8 @@ const AdvancedFeatures = () => {
                           <p className="text-2xl font-black text-slate-900">₹{market.modal_price?.toLocaleString()}</p>
                         </div>
                         <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${market.trend === 'up' ? 'bg-green-100 text-green-700' :
-                            market.trend === 'down' ? 'bg-red-100 text-red-700' :
-                              'bg-slate-100 text-slate-600'
+                          market.trend === 'down' ? 'bg-red-100 text-red-700' :
+                            'bg-slate-100 text-slate-600'
                           }`}>
                           {market.trend === 'up' ? '↗ Rising' :
                             market.trend === 'down' ? '↘ Falling' :
@@ -378,10 +405,10 @@ const AdvancedFeatures = () => {
                     <h2 className="text-2xl font-black text-slate-900">Price Dynamics</h2>
                   </div>
                   <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto scrollbar-hide">
-                    {trends.map(t => (
+                    {comparisonData.map(t => (
                       <button
                         key={t.commodity}
-                        onClick={() => setSelectedCrop(t.commodity)}
+                        onClick={() => handleCropSelect(t.commodity)}
                         className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${selectedCrop === t.commodity
                           ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20'
                           : 'bg-slate-50 text-slate-400 hover:bg-slate-100'

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLanguage } from '../App'
+import { useLocation } from '../LocationContext'
 import { useMandiData } from '../hooks/useMandiData'
 import { TrendingUp, TrendingDown, RefreshCw, MapPin, Loader2 } from 'lucide-react'
 
@@ -14,13 +15,19 @@ const getSeasonalCrops = (temperature) => {
 }
 
 const Dashboard = () => {
+  const { location, loading: locationLoading } = useLocation()
   const [weather, setWeather] = useState(null)
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const [recentActivity, setRecentActivity] = useState([])
   const { t } = useLanguage()
 
   // Fetch real market data for the dashboard (trending crops)
-  const { data: marketPrices = [], isLoading: pricesLoading, refetch: refreshPrices } = useMandiData('', '', '')
+  // Use location data if available to get relevant market prices
+  const { data: marketPrices = [], isLoading: pricesLoading, refetch: refreshPrices } = useMandiData(
+    location?.state || '',
+    location?.city || '',
+    ''
+  )
 
   // Get top 6 trending crops for dashboard
   const trendingCrops = useMemo(() => {
@@ -61,44 +68,28 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchLocationWeather = async () => {
-      try {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(async (position) => {
-            const { latitude, longitude } = position.coords
-            const API_KEY = '895284fb2d2c50a520ea537456963d9c'
-            const response = await fetch(
-              `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
-            )
-            const data = await response.json()
+      if (!location?.latitude || !location?.longitude) return
 
-            if (response.ok) {
-              setWeather({
-                location: data.name,
-                temperature: Math.round(data.main.temp),
-                condition: data.weather[0].main,
-                humidity: data.main.humidity,
-                windSpeed: Math.round(data.wind.speed * 3.6)
-              })
-            }
-          }, () => {
-            setWeather({
-              location: 'Default Location',
-              temperature: 28,
-              condition: 'Clear',
-              humidity: 65,
-              windSpeed: 12
-            })
+      try {
+        const { latitude, longitude } = location
+        const API_KEY = '895284fb2d2c50a520ea537456963d9c'
+        const response = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
+        )
+        const data = await response.json()
+
+        if (response.ok) {
+          setWeather({
+            location: data.name,
+            temperature: Math.round(data.main.temp),
+            condition: data.weather[0].main,
+            humidity: data.main.humidity,
+            windSpeed: Math.round(data.wind.speed * 3.6)
           })
         }
       } catch (error) {
         console.error('Weather fetch error:', error)
-        setWeather({
-          location: 'Your Location',
-          temperature: 28,
-          condition: 'Clear',
-          humidity: 65,
-          windSpeed: 12
-        })
+        // Fallback or error state could be set here
       }
     }
 
@@ -111,7 +102,7 @@ const Dashboard = () => {
 
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
+  }, [location]) // Re-run when location changes
 
   return (
     <div className="dashboard">

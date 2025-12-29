@@ -15,36 +15,39 @@ export const useMandiData = (state = '', district = '', mandi = '') => {
         queryKey: ['market-prices', state, district, mandi],
         queryFn: async () => {
             try {
-                console.log('🔄 Fetching market data from backend...', { state, district, mandi })
+                console.log('🔄 Fetching market data...', { state, district, mandi })
 
-                // Build query parameters
-                const params = new URLSearchParams()
-                if (state) params.append('state', state)
-                if (district) params.append('district', district)
-                if (mandi) params.append('market', mandi)
+                let url = '/market/compare' // Default to top crops/comparison
 
-                const queryString = params.toString()
-                const url = `/market-prices${queryString ? `?${queryString}` : ''}`
+                if (mandi) {
+                    url = `/market/city/${encodeURIComponent(mandi)}`
+                } else if (district) {
+                    url = `/market/compare?location=${encodeURIComponent(district)}`
+                } else if (state) {
+                    url = `/market/compare?location=${encodeURIComponent(state)}`
+                }
 
-                // Fetch from backend API
                 const data = await apiClient.get(url)
 
-                console.log(`✅ Received ${data?.length || 0} market price records from backend`)
+                // Handle different response structures
+                // /market/city/:city returns { markets: [...] }
+                if (data.markets) {
+                    return data.markets
+                }
 
-                return data || []
+                // /market/compare returns [...]
+                return Array.isArray(data) ? data : []
             } catch (error) {
                 console.error('❌ Failed to fetch market data:', error)
-
-                // If backend fails, throw error (React Query will handle retry)
-                throw new Error(`Failed to fetch market data: ${error.message}`)
+                return [] // Return empty array on error to prevent UI crash
             }
         },
-        staleTime: 5 * 60 * 1000, // Data is fresh for 5 minutes
-        gcTime: 10 * 60 * 1000, // Cache for 10 minutes (updated from cacheTime)
-        retry: 1, // Retry failed requests once (reduced from 2)
-        refetchOnWindowFocus: false, // Don't refetch on window focus
-        refetchOnMount: true, // Refetch when component mounts
-        enabled: true // Always enabled
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
+        retry: 1,
+        refetchOnWindowFocus: false,
+        refetchOnMount: true,
+        enabled: true
     })
 }
 
