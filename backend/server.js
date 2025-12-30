@@ -40,7 +40,7 @@ async function initDB() {
     // Try to connect to database
     await db.query('SELECT 1')
     console.log('✅ Database connected successfully')
-    useLocalStorage = false
+    await createTables()
   } catch (err) {
     console.warn('⚠️ Database connection failed, falling back to in-memory storage for User/Farm data')
     console.warn('⚠️ Market data will still be fetched dynamically from providers')
@@ -282,14 +282,20 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
 
+  console.log('🔐 Auth middleware - Headers:', req.headers.authorization ? 'Present' : 'Missing')
+  console.log('🔐 Auth middleware - Token:', token ? 'Present' : 'Missing')
+
   if (!token) {
+    console.log('❌ Auth middleware - No token provided')
     return res.status(401).json({ error: 'Access token required' })
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('❌ Auth middleware - Token verification failed:', err.message)
       return res.status(403).json({ error: 'Invalid token' })
     }
+    console.log('✅ Auth middleware - Token verified for user:', user.userId)
     req.user = user
     next()
   })

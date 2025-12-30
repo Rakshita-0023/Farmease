@@ -34,6 +34,50 @@ export const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// Post-Authentication Location Handler
+export const handlePostAuthLocation = async () => {
+  console.log('📍 Starting post-auth location detection...')
+  
+  // 1. Ask permission
+  if (!navigator.geolocation) {
+    console.log('📍 Geolocation not supported')
+    return false
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords
+          console.log('📍 GPS coordinates obtained:', { latitude, longitude })
+
+          // 2. Resolve city from backend using apiClient
+          const resolved = await apiClient.get(`/locations/resolve?lat=${latitude}&lng=${longitude}`)
+          console.log('📍 Location resolved:', resolved)
+
+          // 3. Save location to user using apiClient
+          await apiClient.put('/user/location', resolved)
+          console.log('📍 Location saved successfully')
+          resolve(true)
+        } catch (error) {
+          console.error('📍 Location detection error:', error)
+          resolve(false)
+        }
+      },
+      (error) => {
+        // Permission denied → do nothing
+        console.log('📍 Location permission denied or failed:', error.message)
+        resolve(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    )
+  })
+}
+
 
 // API client with authentication
 export const apiClient = {
@@ -51,12 +95,15 @@ export const apiClient = {
     try {
       const fullUrl = `${API_BASE_URL}${url}`
       console.log('🔗 API Request URL:', fullUrl)
+      console.log('🔗 API Request Headers:', config.headers)
+      console.log('🔗 API Request Credentials:', config.credentials)
 
       const response = await fetch(fullUrl, config)
       console.log('📊 Response Status:', response.status)
       console.log('📋 Content-Type:', response.headers.get('content-type'))
 
       if (response.status === 401) {
+        console.log('❌ 401 Unauthorized - Removing token and reloading')
         removeAuthToken()
         window.location.reload()
         return

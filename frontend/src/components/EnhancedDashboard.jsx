@@ -7,7 +7,7 @@ import './EnhancedDashboard.css'
 import { useLocation } from '../LocationContext'
 
 const EnhancedDashboard = () => {
-  const { location: globalLocation } = useLocation()
+  const { location: globalLocation, status: locStatus, detectLocation } = useLocation()
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const [alertFilter, setAlertFilter] = useState('all')
 
@@ -165,7 +165,7 @@ const EnhancedDashboard = () => {
           <p className="text-gray-500">Here's what's happening on your farms today</p>
         </div>
 
-        {weather && (
+        {weather ? (
           <div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-4 border border-gray-100">
             <div className="bg-blue-50 p-3 rounded-full">
               {weather.icon}
@@ -181,6 +181,22 @@ const EnhancedDashboard = () => {
               </div>
             </div>
           </div>
+        ) : (locStatus === 'loading' || locStatus === 'detecting') ? (
+          <div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-4 border border-gray-100 animate-pulse">
+            <div className="bg-gray-100 w-12 h-12 rounded-full"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-100 w-20 rounded"></div>
+              <div className="h-3 bg-gray-100 w-32 rounded"></div>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={detectLocation}
+            className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center gap-2"
+          >
+            <MapPin size={16} />
+            Set Location
+          </button>
         )}
       </div>
 

@@ -13,65 +13,35 @@ export const useLocation = () => {
 
 export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
-    const [status, setStatus] = useState('loading'); // 'loading' | 'unset' | 'set' | 'error' | 'detecting'
+    const [status, setStatus] = useState('loading'); // 'loading', 'unset', 'set', 'error', 'detecting'
     const [error, setError] = useState(null);
     const [allCities, setAllCities] = useState([]);
 
-    // Search for cities based on user input (worldwide)
-    const searchCities = useCallback(async (query) => {
-        if (!query || query.length < 2) {
-            try {
-                const response = await apiClient.get('/locations/cities');
-                setAllCities(response.cities || []);
-            } catch (err) {
-                console.error('Failed to fetch default cities:', err);
-            }
+    const fetchUserLocation = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setStatus('unset');
             return;
         }
 
+        setStatus('loading');
         try {
-            const response = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
-            setAllCities(response.cities || []);
+            const data = await apiClient.get('/user/location');
+            if (data && data.city) {
+                setLocation(data);
+                setStatus('set');
+            } else {
+                setStatus('unset');
+            }
         } catch (err) {
-            console.error('Failed to search cities:', err);
+            console.error('❌ Failed to fetch user location:', err);
+            setStatus('unset');
         }
     }, []);
 
-    // Update location and persist to backend
-    const updateLocation = useCallback(async (newLocation, persist = true) => {
-        setStatus('loading');
-        setError(null);
-
-        try {
-            const locationData = {
-                city: newLocation.city || newLocation.name,
-                state: newLocation.state || '',
-                country: newLocation.country || 'India',
-                latitude: parseFloat(newLocation.latitude || newLocation.lat),
-                longitude: parseFloat(newLocation.longitude || newLocation.lng)
-            };
-
-            // Persist to backend if user is logged in
-            if (persist && user) {
-                try {
-                    await apiClient.put('/user/location', locationData);
-                    console.log('✅ Location saved to backend');
-                } catch (err) {
-                    console.error('Failed to persist location to backend:', err);
-                }
-            }
-
-            setLocation(locationData);
-            setStatus('set');
-        } catch (err) {
-            console.error('Error updating location:', err);
-            setError('Failed to update location');
-            setStatus('error');
-        }
-    }, [user]);
-
-    // Detect location using browser geolocation
     const detectLocation = useCallback(async () => {
+        if (status === 'detecting') return;
+
         setStatus('detecting');
         setError(null);
 
@@ -83,99 +53,115 @@ export const LocationProvider = ({ children, user }) => {
             }
 
             const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                });
+                const timeoutId = setTimeout(() => {
+                    reject(new Error('Location detection timed out. Please select your city manually.'));
+                }, 12000);
+
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        clearTimeout(timeoutId);
+                        resolve(pos);
+                    },
+                    (err) => {
+                        clearTimeout(timeoutId);
+                        reject(err);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
             });
 
             const { latitude, longitude } = position.coords;
-            console.log('📍 Got coordinates:', latitude, longitude);
+            console.log('📍 GPS Coordinates:', { latitude, longitude });
 
-            // Resolve coordinates to city using backend
-            const response = await apiClient.get(`/locations/resolve?lat=${latitude}&lng=${longitude}`);
+            // Resolve via backend
+            const resolved = await apiClient.get(`/locations/resolve?lat=${latitude}&lng=${longitude}`);
 
-            if (response.locationRequired) {
-                console.log('📍 Location required, setting to unset');
-                setStatus('unset');
+            if (resolved && resolved.city) {
+                setLocation(resolved);
+                setStatus('set');
+                // Save to profile
+                await apiClient.put('/user/location', resolved);
             } else {
-                await updateLocation({ ...response, source: 'gps' }, true);
+                throw new Error('Could not resolve your city. Please select manually.');
             }
+
         } catch (err) {
             console.error('❌ Location detection failed:', err);
-            let msg = 'Location access denied. Please select your city manually.';
-            if (err.code === 1) msg = 'Location permission denied. Please enable it in your browser settings.';
-            if (err.code === 3) msg = 'Location detection timed out. Please try again or select manually.';
+            let msg = 'Failed to detect location';
+            if (err.code === 1) msg = 'Location permission denied. Please enable it or select city manually.';
+            else if (err.code === 3 || err.message.includes('timeout')) msg = 'Location detection timed out. Please try again or select manually.';
+            else if (err.message) msg = err.message;
 
             setError(msg);
-            setStatus('unset'); // Fallback to unset so they can pick
+            setStatus('unset');
         }
-    }, [updateLocation]);
+    }, [status]);
 
-    // Initialize location on mount
+    const updateLocation = useCallback(async (newLoc) => {
+        setStatus('loading');
+        try {
+            // Ensure we have lat/lng if it's a city object from search
+            let locToSave = { ...newLoc };
+            if (!locToSave.latitude && locToSave.lat) locToSave.latitude = locToSave.lat;
+            if (!locToSave.longitude && locToSave.lng) locToSave.longitude = locToSave.lng;
+
+            await apiClient.put('/user/location', locToSave);
+            setLocation(locToSave);
+            setStatus('set');
+            setError(null);
+        } catch (err) {
+            console.error('❌ Failed to update location:', err);
+            setError('Failed to save location choice');
+            setStatus('unset');
+        }
+    }, []);
+
+    const searchCities = useCallback(async (query) => {
+        if (!query || query.length < 2) {
+            // Fetch default cities if query is empty
+            try {
+                const res = await apiClient.get('/locations/cities');
+                setAllCities(res.cities || []);
+            } catch (e) {
+                setAllCities([]);
+            }
+            return;
+        }
+        try {
+            const res = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}`);
+            setAllCities(res.cities || []);
+        } catch (err) {
+            console.error('❌ City search failed:', err);
+        }
+    }, []);
+
+    // Initial load
     useEffect(() => {
-        let isMounted = true;
+        fetchUserLocation();
+    }, [fetchUserLocation, user]); // Re-fetch when user changes (login/logout)
 
-        const initializeLocation = async () => {
-            if (!user) {
-                if (isMounted) setStatus('unset');
-                return;
-            }
+    // Fetch default cities once
+    useEffect(() => {
+        searchCities('');
+    }, [searchCities]);
 
-            try {
-                if (isMounted) setStatus('loading');
-
-                // 1. Try to get saved location from backend
-                const savedLocation = await apiClient.get('/user/location');
-
-                if (!isMounted) return;
-
-                if (savedLocation && savedLocation.city) {
-                    console.log('✅ Loaded location from backend:', savedLocation);
-                    setLocation(savedLocation);
-                    setStatus('set');
-                } else {
-                    // 2. No saved location - try to detect automatically
-                    console.log('📍 No saved location, attempting auto-detection...');
-                    await detectLocation();
-                }
-            } catch (err) {
-                console.error('Failed to initialize location:', err);
-                if (isMounted) {
-                    setStatus('unset');
-                }
-            }
-        };
-
-        initializeLocation();
-
-        // Also fetch initial cities list
-        const fetchInitialCities = async () => {
-            try {
-                const response = await apiClient.get('/locations/cities');
-                if (isMounted) setAllCities(response.cities || []);
-            } catch (err) {
-                console.error('Failed to fetch initial cities:', err);
-            }
-        };
-        fetchInitialCities();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [user?.id, detectLocation]);
+    const value = {
+        location,
+        status,
+        error,
+        allCities,
+        detectLocation,
+        updateLocation,
+        searchCities,
+        refreshLocation: fetchUserLocation
+    };
 
     return (
-        <LocationContext.Provider value={{
-            location,
-            status,
-            error,
-            allCities,
-            updateLocation,
-            detectLocation,
-            searchCities
-        }}>
+        <LocationContext.Provider value={value}>
             {children}
         </LocationContext.Provider>
     );

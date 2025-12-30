@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { WEATHER_API_KEY } from '../config'
 import './WeatherEnhancements.css'
 import { useLocation } from '../LocationContext'
@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Cloud, Sun, CloudRain, Wind, Droplets, Thermometer,
   MapPin, RefreshCw, AlertTriangle, CheckCircle2,
-  Navigation, Zap, Sprout, Waves, Sunrise, Sunset
+  Navigation, Zap, Sprout, Waves, Sunrise, Sunset,
+  Search, CloudLightning, CloudSnow, Mist
 } from 'lucide-react'
 
 const getCropRecommendations = (weather) => {
@@ -52,42 +53,69 @@ const getWeatherAlert = (weather) => {
   return '✅ Weather conditions favorable for farming'
 }
 
+const getWeatherIcon = (condition) => {
+  const cond = condition.toLowerCase()
+  if (cond.includes('clear')) return <Sun className="text-yellow-400" size={48} />
+  if (cond.includes('cloud')) return <Cloud className="text-gray-300" size={48} />
+  if (cond.includes('rain')) return <CloudRain className="text-blue-400" size={48} />
+  if (cond.includes('storm')) return <CloudLightning className="text-purple-400" size={48} />
+  if (cond.includes('snow')) return <CloudSnow className="text-blue-100" size={48} />
+  if (cond.includes('mist') || cond.includes('fog')) return <Mist className="text-gray-400" size={48} />
+  return <Sun className="text-yellow-400" size={48} />
+}
+
 const Weather = () => {
-  const { location: globalLocation, status: locStatus, detectLocation } = useLocation()
+  const { location: globalLocation, status: locStatus } = useLocation()
   const [weather, setWeather] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  const fetchWeather = async (city) => {
-    if (!city) return
+  const fetchWeather = useCallback(async (params) => {
     setLoading(true)
+    setError(null)
     try {
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
-      )
+      let url = `https://api.openweathermap.org/data/2.5/weather?appid=${WEATHER_API_KEY}&units=metric`
+      if (params.lat && params.lon) {
+        url += `&lat=${params.lat}&lon=${params.lon}`
+      } else if (params.city) {
+        url += `&q=${encodeURIComponent(params.city)}`
+      } else {
+        throw new Error('No location provided')
+      }
 
-      if (!response.ok) throw new Error(`Weather API error: ${response.status}`)
+      const response = await fetch(url)
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || 'Weather API error')
+      }
 
       const data = await response.json()
 
-      const forecastResponse = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
-      )
+      // Fetch forecast
+      let forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?appid=${WEATHER_API_KEY}&units=metric`
+      if (params.lat && params.lon) {
+        forecastUrl += `&lat=${params.lat}&lon=${params.lon}`
+      } else {
+        forecastUrl += `&q=${encodeURIComponent(data.name)}`
+      }
 
+      const forecastResponse = await fetch(forecastUrl)
       const forecastData = forecastResponse.ok ? await forecastResponse.json() : null
 
       setWeather({
         location: data.name,
+        country: data.sys.country,
         temperature: Math.round(data.main.temp),
         condition: data.weather[0].main,
+        description: data.weather[0].description,
         humidity: data.main.humidity,
         windSpeed: Math.round(data.wind.speed * 3.6),
         dewPoint: Math.round(data.main.temp - ((100 - data.main.humidity) / 5)),
         pressure: data.main.pressure,
         visibility: data.visibility ? Math.round(data.visibility / 1000) : null,
-        uvIndex: Math.round(Math.random() * 10),
-        soilTemp: Math.round(data.main.temp - 2),
         sunrise: new Date(data.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         sunset: new Date(data.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        soilTemp: Math.round(data.main.temp - 2), // Approximation
         forecast: forecastData ? forecastData.list.filter((_, i) => i % 8 === 0).slice(1, 4).map((item) => ({
           day: new Date(item.dt * 1000).toLocaleDateString([], { weekday: 'short' }),
           temp: Math.round(item.main.temp),
@@ -95,18 +123,23 @@ const Weather = () => {
           precipProb: Math.round((item.pop || 0) * 100)
         })) : []
       })
-    } catch (error) {
-      console.error('Weather fetch error:', error)
+    } catch (err) {
+      console.error('Weather fetch error:', err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    if (globalLocation?.city) {
-      fetchWeather(globalLocation.city)
+    if (globalLocation) {
+      if (globalLocation.latitude && globalLocation.longitude) {
+        fetchWeather({ lat: globalLocation.latitude, lon: globalLocation.longitude })
+      } else if (globalLocation.city) {
+        fetchWeather({ city: globalLocation.city })
+      }
     }
-  }, [globalLocation])
+  }, [globalLocation, fetchWeather])
 
   if (locStatus === 'loading' || locStatus === 'detecting') {
     return (
@@ -166,15 +199,34 @@ const Weather = () => {
             Precision monitoring for <span className="text-gray-900 font-bold">{globalLocation.city}</span>
           </p>
         </div>
-        <button
-          onClick={() => fetchWeather(globalLocation.city)}
-          disabled={loading}
-          className="flex items-center gap-3 px-6 py-3 bg-white border border-gray-100 rounded-2xl font-black uppercase tracking-widest text-[10px] text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh Data
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => fetchWeather(globalLocation.latitude ? { lat: globalLocation.latitude, lon: globalLocation.longitude } : { city: globalLocation.city })}
+            disabled={loading}
+            className="flex items-center gap-3 px-6 py-3 bg-white border border-gray-100 rounded-2xl font-black uppercase tracking-widest text-[10px] text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh Data
+          </button>
+          <button
+            onClick={() => window.location.hash = '#/market'}
+            className="flex items-center gap-3 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-800 transition-all shadow-lg"
+          >
+            <Search size={14} />
+            Change City
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-100 p-6 rounded-[2rem] flex items-center gap-4 text-red-700">
+          <AlertTriangle size={24} />
+          <div>
+            <p className="font-black uppercase tracking-widest text-xs">API Error</p>
+            <p className="font-medium">{error}</p>
+          </div>
+        </div>
+      )}
 
       {weather && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -185,8 +237,13 @@ const Weather = () => {
 
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                 <div className="space-y-2">
-                  <h2 className="text-6xl font-black tracking-tighter">{weather.temperature}°C</h2>
-                  <p className="text-2xl font-bold opacity-90">{weather.condition}</p>
+                  <div className="flex items-center gap-4 mb-4">
+                    {getWeatherIcon(weather.condition)}
+                    <div>
+                      <h2 className="text-6xl font-black tracking-tighter">{weather.temperature}°C</h2>
+                      <p className="text-xl font-bold opacity-90 capitalize">{weather.description}</p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-4 pt-4">
                     <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
                       <Sunrise size={16} className="text-yellow-400" />
@@ -235,7 +292,7 @@ const Weather = () => {
                   <div key={index} className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col items-center text-center group hover:bg-blue-50 hover:border-blue-100 transition-all duration-500">
                     <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 group-hover:text-blue-600">{day.day}</p>
                     <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:shadow-md transition-all">
-                      {day.condition.includes('Rain') ? <CloudRain className="text-blue-500" /> : <Sun className="text-yellow-500" />}
+                      {getWeatherIcon(day.condition)}
                     </div>
                     <p className="text-2xl font-black text-gray-900 mb-1">{day.temp}°C</p>
                     <p className="text-xs font-bold text-gray-500 mb-4">{day.condition}</p>
@@ -288,7 +345,7 @@ const Weather = () => {
                   <CheckCircle2 size={14} className="text-green-400" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Data Verified</span>
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">v3.0 Engine</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">v3.1 Engine</span>
               </div>
             </div>
           </div>
