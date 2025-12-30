@@ -84,7 +84,7 @@ function App() {
   }
 
   return (
-    <LocationProvider>
+    <LocationProvider user={user}>
       <Routes>
         {/* Public Routes */}
         <Route

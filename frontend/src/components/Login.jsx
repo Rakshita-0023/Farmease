@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { apiClient, API_BASE_URL, handlePostAuthLocation } from '../config'
+import { apiClient, API_BASE_URL } from '../config'
 import { Eye, EyeOff, Loader2, AlertCircle, X, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
@@ -84,17 +84,8 @@ const Login = ({ onLogin }) => {
       if (response.success) {
         localStorage.setItem('token', response.token)
         localStorage.setItem('user', JSON.stringify(response.user))
-        
-        // Call post-auth location detection
-        console.log('🎯 Authentication successful, starting location detection...')
-        const locationDetected = await handlePostAuthLocation()
-        
-        if (locationDetected) {
-          console.log('✅ Location detected and saved successfully')
-        } else {
-          console.log('⚠️ Location detection failed or was skipped')
-        }
-        
+
+
         onLogin(response.user)
       }
     } catch (error) {
@@ -146,17 +137,8 @@ const Login = ({ onLogin }) => {
         console.log('✅ Authentication successful!')
         localStorage.setItem('token', res.token)
         localStorage.setItem('user', JSON.stringify(res.user))
-        
-        // Call post-auth location detection
-        console.log('🎯 Google authentication successful, starting location detection...')
-        const locationDetected = await handlePostAuthLocation()
-        
-        if (locationDetected) {
-          console.log('✅ Location detected and saved successfully')
-        } else {
-          console.log('⚠️ Location detection failed or was skipped')
-        }
-        
+
+
         onLogin(res.user)
       } else {
         // Backend returned success: false
