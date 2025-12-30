@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken')
 const db = require('./db')
 // Import auth routes factory
 const createAuthRoutes = require('./routes/authRoutes')
+const locationRoutes = require('./routes/locationRoutes')
+const createUserRoutes = require('./routes/userRoutes')
 require('dotenv').config()
 const { getProvider } = require('./services/marketProviders');
 
@@ -153,68 +155,6 @@ async function createTables() {
 
 // ==================== LOCATION API ====================
 // ==================== LOCATION API ====================
-app.get('/api/location/resolve', async (req, res) => {
-  try {
-    const { lat, lng } = req.query
-
-    if (!lat || !lng) {
-      return res.json({ locationRequired: true, message: 'Please select your city to view market data' })
-    }
-
-    const latitude = parseFloat(lat)
-    const longitude = parseFloat(lng)
-
-    // Use OpenWeatherMap for accurate reverse geocoding
-    let city = 'Detected Location'
-    let state = 'Unknown'
-    let country = 'India'
-    let source = 'gps'
-
-    try {
-      const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
-      const response = await axios.get(
-        `https://api.openweathermap.org/geo/1.0/reverse`, {
-        params: {
-          lat: latitude,
-          lon: longitude,
-          limit: 1,
-          appid: API_KEY
-        },
-        timeout: 5000
-      }
-      )
-
-      if (response.data && response.data.length > 0) {
-        city = response.data[0].name
-        state = response.data[0].state || 'Unknown'
-        country = response.data[0].country === 'IN' ? 'India' : response.data[0].country === 'US' ? 'USA' : 'Global'
-      }
-    } catch (geoError) {
-      console.error('Reverse geocoding failed:', geoError.message)
-      // Fallback: If geocoding fails, we still have valid coordinates!
-      // Don't block the user. Just return the coordinates.
-    }
-
-    res.json({
-      city,
-      state,
-      country,
-      latitude,
-      longitude,
-      source
-    })
-
-  } catch (error) {
-    console.error('Location resolution error:', error)
-    res.status(500).json({ error: 'Internal server error during location resolution' })
-  }
-})
-
-// Keep detect for backward compatibility but redirect to resolve logic
-app.get('/api/location/detect', (req, res) => {
-  res.redirect(`/api/location/resolve?lat=${req.query.lat}&lng=${req.query.lng}`)
-})
-
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
@@ -366,153 +306,11 @@ const validateInput = (schema) => (req, res, next) => {
 // Authentication routes are now handled by /routes/authRoutes.js
 // Mounted at /api/auth
 
+// Mount routers
+app.use('/api/locations', locationRoutes)
+app.use('/api/user', createUserRoutes(db, useLocalStorage, localData, authenticateToken))
+
 // Protected routes
-app.get('/api/user/profile', authenticateToken, async (req, res) => {
-  try {
-    if (useLocalStorage) {
-      const user = localData.users.find(u => u.id === req.user.userId)
-      if (!user) return res.status(404).json({ error: 'User not found' })
-      return res.json(user)
-    }
-    const [users] = await db.execute(
-      'SELECT id, name, email, city, state, country, latitude, longitude FROM users WHERE id = ?',
-      [req.user.userId]
-    )
-
-    if (users.length === 0) {
-      return res.status(404).json({ error: 'User not found' })
-    }
-
-    res.json(users[0])
-  } catch (error) {
-    console.error('Get profile error:', error)
-    res.status(500).json({ error: 'Failed to get user profile' })
-  }
-})
-
-app.put('/api/user/location', authenticateToken, async (req, res) => {
-  try {
-    const { city, state, country, latitude, longitude } = req.body
-
-    if (useLocalStorage) {
-      const user = localData.users.find(u => u.id === req.user.userId)
-      if (user) {
-        user.city = city
-        user.state = state
-        user.country = country || 'India'
-        user.latitude = latitude
-        user.longitude = longitude
-      }
-      return res.json({ success: true, message: 'Location updated successfully' })
-    }
-
-    await db.execute(
-      'UPDATE users SET city = ?, state = ?, country = ?, latitude = ?, longitude = ? WHERE id = ?',
-      [city, state, country || 'India', latitude, longitude, req.user.userId]
-    )
-
-    res.json({ success: true, message: 'Location updated successfully' })
-  } catch (error) {
-    console.error('Update location error:', error)
-    res.status(500).json({ error: 'Failed to update location' })
-  }
-})
-
-// GET user's saved location
-app.get('/api/user/location', authenticateToken, async (req, res) => {
-  try {
-    if (useLocalStorage) {
-      const user = localData.users.find(u => u.id === req.user.userId)
-      if (!user) return res.status(404).json({ error: 'User not found' })
-
-      // Return location data or null if not set
-      if (user.city && user.latitude && user.longitude) {
-        return res.json({
-          city: user.city,
-          state: user.state,
-          country: user.country || 'India',
-          latitude: user.latitude,
-          longitude: user.longitude
-        })
-      } else {
-        return res.json(null)
-      }
-    }
-
-    const [users] = await db.execute(
-      'SELECT city, state, country, latitude, longitude FROM users WHERE id = ?',
-      [req.user.userId]
-    )
-
-    if (users.length === 0) {
-      return res.status(404).json({ error: 'User not found' })
-    }
-
-    const user = users[0]
-    // Return location data or null if not set
-    if (user.city && user.latitude && user.longitude) {
-      res.json({
-        city: user.city,
-        state: user.state,
-        country: user.country || 'India',
-        latitude: user.latitude,
-        longitude: user.longitude
-      })
-    } else {
-      res.json(null)
-    }
-  } catch (error) {
-    console.error('Get location error:', error)
-    res.status(500).json({ error: 'Failed to get user location' })
-  }
-})
-
-// GET city search suggestions (worldwide, dynamic)
-app.get('/api/locations/search', async (req, res) => {
-  try {
-    const { q } = req.query;
-
-    if (!q || q.length < 2) {
-      return res.json({
-        success: true,
-        cities: []
-      });
-    }
-
-    const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
-
-    // Use OpenWeatherMap Geocoding API for worldwide city search
-    const response = await axios.get('https://api.openweathermap.org/geo/1.0/direct', {
-      params: {
-        q: q,
-        limit: 10,
-        appid: API_KEY
-      },
-      timeout: 5000
-    });
-
-    const cities = response.data.map(city => ({
-      name: city.name,
-      state: city.state || '',
-      country: city.country,
-      latitude: city.lat,
-      longitude: city.lon
-    }));
-
-    res.json({
-      success: true,
-      cities: cities
-    });
-  } catch (error) {
-    console.error('City search error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to search cities',
-      cities: []
-    });
-  }
-})
-
 app.get('/api/farms', authenticateToken, async (req, res) => {
   try {
     const farms = await getUserFarms(req.user.userId)
@@ -522,6 +320,12 @@ app.get('/api/farms', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch farms' })
   }
 })
+
+
+
+
+
+
 
 app.post('/api/farms', authenticateToken, async (req, res) => {
   try {
