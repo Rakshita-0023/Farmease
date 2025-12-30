@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Sprout, Check, ArrowRight } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../config'
+import { useLocation } from '../LocationContext'
 
 export default function OnboardingWizard({ onComplete, onSkip }) {
+    const { location: globalLocation } = useLocation()
     const [step, setStep] = useState(1)
-    const [location, setLocation] = useState(null)
     const [farmData, setFarmData] = useState({
         name: '',
         crop: '',
@@ -14,20 +15,6 @@ export default function OnboardingWizard({ onComplete, onSkip }) {
         soilType: 'Loamy'
     })
     const queryClient = useQueryClient()
-
-    const detectLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    })
-                },
-                (error) => alert('Location access denied')
-            )
-        }
-    }
 
     const addFarmMutation = useMutation({
         mutationFn: async (newFarm) => {
@@ -44,6 +31,11 @@ export default function OnboardingWizard({ onComplete, onSkip }) {
     })
 
     const handleSubmit = () => {
+        const location = globalLocation ? {
+            lat: globalLocation.latitude,
+            lng: globalLocation.longitude
+        } : null
+
         addFarmMutation.mutate({
             ...farmData,
             location,
@@ -90,17 +82,18 @@ export default function OnboardingWizard({ onComplete, onSkip }) {
 
                                 <div className="space-y-4">
                                     <button
-                                        onClick={() => { detectLocation(); setStep(2); }}
+                                        onClick={() => setStep(2)}
                                         className="w-full py-3 px-4 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                                        disabled={!globalLocation}
                                     >
                                         <MapPin size={20} />
-                                        Use Current Location
+                                        {globalLocation ? `Use ${globalLocation.city}` : 'Please select city first'}
                                     </button>
                                     <button
                                         onClick={() => setStep(2)}
                                         className="w-full py-3 px-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
                                     >
-                                        Enter Manually Later
+                                        Continue Without Location
                                     </button>
                                 </div>
                             </motion.div>

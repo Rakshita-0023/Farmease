@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table,
-  RefreshCw, ArrowLeft, ChevronRight, Filter, Info, AlertCircle,
-  Zap, Map as MapIcon, BarChart3, Globe
+  RefreshCw, ArrowLeft, ChevronRight, Info, AlertCircle,
+  Map as MapIcon, BarChart3, Globe
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -68,7 +68,6 @@ const Market = () => {
     loading: locationLoading,
     error: locationError,
     updateLocation,
-    refreshLocation,
     searchCities
   } = useLocation()
 
@@ -82,48 +81,6 @@ const Market = () => {
   const [citySearchQuery, setCitySearchQuery] = useState('')
   const [viewMode, setViewMode] = useState('grid')
   const [showCitySelector, setShowCitySelector] = useState(false)
-
-  // Simple detect location function
-  const detectLocation = async () => {
-    if (!navigator.geolocation) {
-      console.error('Geolocation not supported')
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords
-        try {
-          // Reverse geocode to get city name
-          const response = await fetch(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=895284fb2d2c50a520ea537456963d9c`
-          )
-          if (response.ok) {
-            const data = await response.json()
-            if (data.length > 0) {
-              const location = {
-                city: data[0].name,
-                state: data[0].state,
-                country: data[0].country === 'IN' ? 'India' : data[0].country,
-                latitude,
-                longitude
-              }
-              updateLocation(location)
-            }
-          }
-        } catch (err) {
-          console.error('Location detection failed:', err)
-        }
-      },
-      (error) => {
-        console.error('Geolocation error:', error)
-      }
-    )
-  }
-
-  const getImageForCommodity = useCallback((commodity) => {
-    return CROP_IMAGES[commodity] || '/wheat.jpeg'
-  }, [])
 
   const fetchNearbyCities = useCallback(async () => {
     if (!userLocation?.latitude || !userLocation?.longitude) return
@@ -163,6 +120,10 @@ const Market = () => {
     }
   }, [userLocation, fetchNearbyCities, marketViewMode])
 
+  const getImageForCommodity = useCallback((commodity) => {
+    return CROP_IMAGES[commodity] || '/wheat.jpeg'
+  }, [])
+
   const filteredCities = useMemo(() => {
     if (!searchTerm) return nearbyCities
     const lower = searchTerm.toLowerCase()
@@ -183,7 +144,8 @@ const Market = () => {
     )
   }, [cityMarkets, searchTerm])
 
-  if (locationLoading && !userLocation) {
+  // CORRECT LOGIC: Consume location ONLY, never detect
+  if (locationLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-6">
         <div className="relative">
@@ -191,8 +153,8 @@ const Market = () => {
           <MapPin className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-green-600" size={32} />
         </div>
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold text-gray-800">Locating Markets...</h2>
-          <p className="text-gray-500">Finding the best prices in your region</p>
+          <h2 className="text-2xl font-bold text-gray-800">Loading...</h2>
+          <p className="text-gray-500">Getting your saved location</p>
         </div>
       </div>
     )
@@ -207,10 +169,10 @@ const Market = () => {
           </div>
           <div className="space-y-4">
             <h1 className="text-4xl font-black text-gray-900 tracking-tight">
-              Where are you <span className="text-green-600">farming?</span>
+              Please select your <span className="text-green-600">city</span>
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Select your city to view real-time market prices, crop trends, and local mandi data.
+              Choose your location to view real-time market prices, crop trends, and local mandi data.
             </p>
           </div>
 
@@ -246,25 +208,6 @@ const Market = () => {
                 ))}
               </div>
             )}
-
-            <div className="pt-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">or</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={detectLocation}
-              className="w-full py-5 rounded-3xl bg-gray-900 text-white font-bold flex items-center justify-center gap-3 hover:bg-gray-800 transition-all shadow-lg active:scale-95"
-            >
-              <Zap size={20} className="text-yellow-400" />
-              Auto-detect My Location
-            </button>
           </div>
         </div>
       </div>
@@ -394,14 +337,13 @@ const Market = () => {
 
               <button
                 onClick={() => {
-                  detectLocation()
                   setShowCitySelector(false)
                   setCitySearchQuery('')
                 }}
                 className="w-full py-4 rounded-2xl bg-green-50 text-green-700 font-bold hover:bg-green-100 transition-all flex items-center justify-center gap-2"
               >
-                <Zap size={18} className="fill-green-700" />
-                Auto-detect Precise Location
+                <Search size={18} />
+                Browse All Cities
               </button>
             </motion.div>
           )}
@@ -447,50 +389,9 @@ const Market = () => {
     </div>
   </div>
 
-  {/* Main Content Area */ }
+  {/* Main Content Area */}
   <AnimatePresence mode="wait">
-    {!userLocation ? (
-      <motion.div
-        key="no-location"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-16 text-center max-w-3xl mx-auto shadow-2xl"
-      >
-        <div className="w-24 h-24 bg-green-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-green-200 rotate-12">
-          <MapPin size={48} className="text-white" />
-        </div>
-        <h2 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">Where are you?</h2>
-        <p className="text-gray-500 text-lg mb-12 font-medium">
-          We need your location to provide hyper-local market prices, crop trends, and agricultural intelligence.
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {allCities.slice(0, 9).map(city => (
-            <button
-              key={`${city.city}-${city.state}`}
-              onClick={() => {
-                updateLocation({
-                  city: city.city,
-                  state: city.state,
-                  latitude: city.latitude,
-                  longitude: city.longitude,
-                  source: 'manual'
-                })
-              }}
-              className="p-5 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-800 hover:border-green-500 hover:bg-green-50 transition-all duration-300 shadow-sm"
-            >
-              {city.city}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setShowCitySelector(true)}
-          className="mt-12 text-green-600 font-black uppercase tracking-widest text-xs hover:underline flex items-center justify-center gap-2 mx-auto"
-        >
-          Browse all cities <ChevronRight size={18} />
-        </button>
-      </motion.div>
-    ) : marketViewMode === 'NEARBY_CITIES' ? (
+    {marketViewMode === 'NEARBY_CITIES' ? (
       <motion.div
         key="nearby-cities"
         initial={{ opacity: 0, y: 20 }}
@@ -814,10 +715,10 @@ const Market = () => {
             </div>
           </div>
           <button
-            onClick={detectLocation}
+            onClick={() => setShowCitySelector(true)}
             className="px-4 py-2 bg-white text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-colors"
           >
-            Retry
+            Select City
           </button>
         </div>
       </motion.div>

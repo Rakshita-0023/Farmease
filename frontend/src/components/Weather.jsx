@@ -148,16 +148,16 @@ const Weather = () => {
       </div>
 
       <div className="weather-search">
-        {!globalLocation && !location && (
+        {!globalLocation && (
           <div className="location-status">
-            📍 Detecting your location...
+            📍 Please select your city to view weather
           </div>
         )}
         <form onSubmit={handleLocationSubmit}>
           <div className="search-container">
             <input
               type="text"
-              placeholder={globalLocation ? "Enter city name..." : "Detecting your location..."}
+              placeholder={globalLocation ? "Enter city name..." : "Please select your city first"}
               value={location}
               onChange={(e) => handleLocationChange(e.target.value)}
               onFocus={() => location.length > 1 && setShowSuggestions(true)}
@@ -166,7 +166,6 @@ const Weather = () => {
               aria-expanded={showSuggestions}
               aria-haspopup="listbox"
               role="combobox"
-              disabled={!globalLocation && !location && loading}
             />
             {showSuggestions && suggestions.length > 0 && (
               <div className="suggestions-dropdown" role="listbox" aria-label="City suggestions">
@@ -186,7 +185,7 @@ const Weather = () => {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading || (!globalLocation && !location)} aria-label="Get weather information">
+          <button type="submit" disabled={loading} aria-label="Get weather information">
             {loading ? '🔄 Loading...' : '🌤️ Get Weather'}
           </button>
         </form>

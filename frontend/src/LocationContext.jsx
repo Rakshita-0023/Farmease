@@ -14,7 +14,7 @@ export const useLocation = () => {
 export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
     const [allCities, setAllCities] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true); // Start as loading
     const [error, setError] = useState(null);
 
     // Fetch all available cities for manual selection (once on mount)
@@ -30,18 +30,20 @@ export const LocationProvider = ({ children, user }) => {
         fetchCities();
     }, []);
 
-    // Fetch saved user location (ONLY when user is authenticated)
+    // SINGLE SOURCE OF TRUTH: Fetch saved user location from backend ONLY
     useEffect(() => {
         if (!user?.id) {
             setLocation(null);
+            setLoading(false);
             return;
         }
 
-        const fetchUserLocation = async () => {
+        const loadLocation = async () => {
             try {
                 setLoading(true);
-                const response = await apiClient.get('/user/profile');
-                if (response.city) {
+                const response = await apiClient.get('/user/location');
+                
+                if (response && response.city) {
                     setLocation({
                         city: response.city,
                         state: response.state,
@@ -49,20 +51,25 @@ export const LocationProvider = ({ children, user }) => {
                         latitude: response.latitude,
                         longitude: response.longitude
                     });
+                } else {
+                    setLocation(null);
                 }
             } catch (err) {
                 console.error('Failed to fetch user location:', err);
+                setLocation(null);
                 setError('Failed to load location');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchUserLocation();
+        loadLocation();
     }, [user?.id]);
 
-    // Manual location update (for city selector)
+    // Manual location update (for city selector ONLY)
     const updateLocation = async (newLocation) => {
+        if (!user?.id) return;
+
         try {
             setLoading(true);
             const locationData = {
@@ -73,11 +80,7 @@ export const LocationProvider = ({ children, user }) => {
                 longitude: newLocation.longitude
             };
 
-            // Save to backend if user is authenticated
-            if (user?.id) {
-                await apiClient.put('/user/location', locationData);
-            }
-
+            await apiClient.put('/user/location', locationData);
             setLocation(locationData);
         } catch (err) {
             console.error('Failed to update location:', err);
@@ -90,7 +93,6 @@ export const LocationProvider = ({ children, user }) => {
     // Search cities function
     const searchCities = async (query) => {
         if (!query || query.length < 2) {
-            // Reset to default cities
             try {
                 const response = await apiClient.get('/locations/cities');
                 setAllCities(response.cities || []);
@@ -109,30 +111,6 @@ export const LocationProvider = ({ children, user }) => {
         }
     };
 
-    // Refresh location from backend
-    const refreshLocation = async () => {
-        if (!user?.id) return;
-        
-        try {
-            setLoading(true);
-            const response = await apiClient.get('/user/profile');
-            if (response.city) {
-                setLocation({
-                    city: response.city,
-                    state: response.state,
-                    country: response.country || 'India',
-                    latitude: response.latitude,
-                    longitude: response.longitude
-                });
-            }
-        } catch (err) {
-            console.error('Failed to refresh location:', err);
-            setError('Failed to refresh location');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     return (
         <LocationContext.Provider value={{
             location,
@@ -140,7 +118,6 @@ export const LocationProvider = ({ children, user }) => {
             loading,
             error,
             updateLocation,
-            refreshLocation,
             searchCities
         }}>
             {children}
