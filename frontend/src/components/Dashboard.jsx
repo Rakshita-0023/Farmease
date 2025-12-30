@@ -15,7 +15,7 @@ const getSeasonalCrops = (temperature) => {
 }
 
 const Dashboard = () => {
-  const { location, loading: locationLoading } = useLocation()
+  const { location, status: locStatus } = useLocation()
   const [weather, setWeather] = useState(null)
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const [recentActivity, setRecentActivity] = useState([])
@@ -110,6 +110,26 @@ const Dashboard = () => {
         <h1>{t('welcome')}, {user.name || 'Farmer'}! 🌱</h1>
         <p>Here's what's happening on your farm today</p>
       </div>
+
+      {locStatus === 'unset' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600">
+              <MapPin size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-yellow-900">Location not set</h3>
+              <p className="text-yellow-700 text-sm">Set your location to see local weather and market prices.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.hash = '#/market'}
+            className="px-6 py-2 bg-yellow-600 text-white rounded-xl font-bold hover:bg-yellow-700 transition-colors"
+          >
+            Set Location
+          </button>
+        </div>
+      )}
 
       <div className="dashboard-grid">
         {/* Weather Card */}

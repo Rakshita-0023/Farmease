@@ -64,9 +64,8 @@ const CROP_IMAGES = {
 const Market = () => {
   const {
     location: userLocation,
+    status: locStatus,
     allCities,
-    loading: isLocLoading,
-    error: locError,
     updateLocation,
     detectLocation,
     searchCities
@@ -120,10 +119,10 @@ const Market = () => {
   }
 
   useEffect(() => {
-    if (userLocation && marketViewMode === 'NEARBY_CITIES') {
+    if (locStatus === 'set' && userLocation && marketViewMode === 'NEARBY_CITIES') {
       fetchNearbyCities()
     }
-  }, [userLocation, fetchNearbyCities, marketViewMode])
+  }, [userLocation, locStatus, fetchNearbyCities, marketViewMode])
 
   const filteredCities = useMemo(() => {
     if (!searchTerm) return nearbyCities
@@ -145,16 +144,89 @@ const Market = () => {
     )
   }, [cityMarkets, searchTerm])
 
-  if (isLocLoading && !userLocation) {
+  if (locStatus === 'loading' && !userLocation) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-6">
         <div className="relative">
-          <div className="w-20 h-20 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
-          <MapPin className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-green-600" size={32} />
+          <div className="w-24 h-24 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
+          <MapPin className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-green-600" size={32} />
         </div>
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-800">Detecting Precision Location</h2>
-          <p className="text-gray-500">Syncing with satellite data for local market accuracy...</p>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-gray-800">Locating Markets...</h2>
+          <p className="text-gray-500">Finding the best prices in your region</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (locStatus === 'unset') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] p-12 border border-white shadow-2xl text-center space-y-8">
+          <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto">
+            <Globe className="text-green-600" size={48} />
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+              Where are you <span className="text-green-600">farming?</span>
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Select your city to view real-time market prices, crop trends, and local mandi data.
+            </p>
+          </div>
+
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search for your city (e.g. Hyderabad, London...)"
+                value={citySearchQuery}
+                onChange={(e) => {
+                  setCitySearchQuery(e.target.value)
+                  searchCities(e.target.value)
+                }}
+                className="w-full pl-12 pr-4 py-5 rounded-3xl border-2 border-gray-100 focus:border-green-500 focus:outline-none text-lg shadow-sm transition-all"
+              />
+            </div>
+
+            {allCities.length > 0 && (
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+                {allCities.map((city, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => updateLocation(city)}
+                    className="w-full px-6 py-4 text-left hover:bg-green-50 flex items-center justify-between group transition-colors border-b border-gray-50 last:border-0"
+                  >
+                    <div>
+                      <p className="font-bold text-gray-900">{city.name}</p>
+                      <p className="text-sm text-gray-500">{city.state}, {city.country}</p>
+                    </div>
+                    <ChevronRight size={18} className="text-gray-300 group-hover:text-green-500 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white text-gray-500">or</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={detectLocation}
+              className="w-full py-5 rounded-3xl bg-gray-900 text-white font-bold flex items-center justify-center gap-3 hover:bg-gray-800 transition-all shadow-lg active:scale-95"
+            >
+              <Zap size={20} className="text-yellow-400" />
+              Auto-detect My Location
+            </button>
+          </div>
         </div>
       </div>
     )

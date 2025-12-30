@@ -35,7 +35,7 @@ ChartJS.register(
 )
 
 const AdvancedFeatures = () => {
-  const { location: userLocation, allCities, updateLocation } = useLocation()
+  const { location: userLocation, status: locStatus, allCities, updateLocation } = useLocation()
 
   const [viewMode, setViewMode] = useState('CITY_SELECTION') // 'CITY_SELECTION' | 'MARKET_SELECTION' | 'ANALYTICS'
   const [selectedCity, setSelectedCity] = useState(null)
@@ -212,6 +212,26 @@ const AdvancedFeatures = () => {
           <Activity size={400} />
         </div>
       </div>
+
+      {locStatus === 'unset' && (
+        <div className="bg-blue-600 rounded-3xl p-6 text-white flex items-center justify-between shadow-xl shadow-blue-600/20">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <Info size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Preview Mode Active</h3>
+              <p className="text-blue-100 text-sm">You are viewing global regional hubs. Set your location for personalized local analytics.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.hash = '#/market'}
+            className="px-6 py-3 bg-white text-blue-600 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-50 transition-all active:scale-95"
+          >
+            Set My Location
+          </button>
+        </div>
+      )}
 
       {/* Navigation Breadcrumbs */}
       <AnimatePresence>
