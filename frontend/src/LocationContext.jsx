@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from './config';
 
 const LocationContext = createContext();
@@ -13,150 +13,134 @@ export const useLocation = () => {
 
 export const LocationProvider = ({ children, user }) => {
     const [location, setLocation] = useState(null);
-    const [status, setStatus] = useState('loading'); // 'loading' | 'unset' | 'set' | 'error'
-    const [error, setError] = useState(null);
     const [allCities, setAllCities] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Search for cities based on user input (worldwide)
-    const searchCities = useCallback(async (query) => {
+    // Fetch all available cities for manual selection (once on mount)
+    useEffect(() => {
+        const fetchCities = async () => {
+            try {
+                const response = await apiClient.get('/locations/cities');
+                setAllCities(response.cities || []);
+            } catch (err) {
+                console.error('Failed to fetch cities list:', err);
+            }
+        };
+        fetchCities();
+    }, []);
+
+    // Fetch saved user location (ONLY when user is authenticated)
+    useEffect(() => {
+        if (!user?.id) {
+            setLocation(null);
+            return;
+        }
+
+        const fetchUserLocation = async () => {
+            try {
+                setLoading(true);
+                const response = await apiClient.get('/user/profile');
+                if (response.city) {
+                    setLocation({
+                        city: response.city,
+                        state: response.state,
+                        country: response.country || 'India',
+                        latitude: response.latitude,
+                        longitude: response.longitude
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch user location:', err);
+                setError('Failed to load location');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUserLocation();
+    }, [user?.id]);
+
+    // Manual location update (for city selector)
+    const updateLocation = async (newLocation) => {
+        try {
+            setLoading(true);
+            const locationData = {
+                city: newLocation.city,
+                state: newLocation.state,
+                country: newLocation.country || 'India',
+                latitude: newLocation.latitude,
+                longitude: newLocation.longitude
+            };
+
+            // Save to backend if user is authenticated
+            if (user?.id) {
+                await apiClient.put('/user/location', locationData);
+            }
+
+            setLocation(locationData);
+        } catch (err) {
+            console.error('Failed to update location:', err);
+            setError('Failed to update location');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Search cities function
+    const searchCities = async (query) => {
         if (!query || query.length < 2) {
-            setAllCities([]);
+            // Reset to default cities
+            try {
+                const response = await apiClient.get('/locations/cities');
+                setAllCities(response.cities || []);
+            } catch (err) {
+                console.error('Failed to fetch default cities:', err);
+            }
             return;
         }
 
         try {
-            const response = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
+            const response = await apiClient.get(`/locations/search?q=${encodeURIComponent(query)}`);
             setAllCities(response.cities || []);
         } catch (err) {
             console.error('Failed to search cities:', err);
-            // We don't set global error here to avoid breaking the whole UI
+            setAllCities([]);
         }
-    }, []);
+    };
 
-    // Update location and persist to backend
-    const updateLocation = useCallback(async (newLocation, persist = true) => {
-        setStatus('loading');
-        setError(null);
-
+    // Refresh location from backend
+    const refreshLocation = async () => {
+        if (!user?.id) return;
+        
         try {
-            const locationData = {
-                city: newLocation.city || newLocation.name,
-                state: newLocation.state || '',
-                country: newLocation.country || 'India',
-                latitude: parseFloat(newLocation.latitude || newLocation.lat),
-                longitude: parseFloat(newLocation.longitude || newLocation.lng)
-            };
-
-            // Persist to backend if user is logged in
-            if (persist && user) {
-                try {
-                    await apiClient.put('/user/location', locationData);
-                    console.log('✅ Location saved to backend');
-                } catch (err) {
-                    console.error('Failed to persist location to backend:', err);
-                    // We still set the local state even if persistence fails
-                }
-            }
-
-            setLocation(locationData);
-            setStatus('set');
-        } catch (err) {
-            console.error('Error updating location:', err);
-            setError('Failed to update location');
-            setStatus('error');
-        }
-    }, [user]);
-
-    // Detect location using browser geolocation
-    const detectLocation = useCallback(async () => {
-        setStatus('loading');
-        setError(null);
-
-        try {
-            console.log('📍 Starting location detection...');
-
-            if (!navigator.geolocation) {
-                throw new Error('Geolocation not supported');
-            }
-
-            const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
+            setLoading(true);
+            const response = await apiClient.get('/user/profile');
+            if (response.city) {
+                setLocation({
+                    city: response.city,
+                    state: response.state,
+                    country: response.country || 'India',
+                    latitude: response.latitude,
+                    longitude: response.longitude
                 });
-            });
-
-            const { latitude, longitude } = position.coords;
-            console.log('📍 Got coordinates:', latitude, longitude);
-
-            // Resolve coordinates to city using backend
-            const response = await apiClient.get(`/locations/resolve?lat=${latitude}&lng=${longitude}`);
-
-            if (response.locationRequired) {
-                console.log('📍 Location required, setting to unset');
-                setStatus('unset');
-            } else {
-                await updateLocation({ ...response, source: 'gps' }, true);
             }
         } catch (err) {
-            console.error('❌ Location detection failed:', err);
-            // If detection fails, we just go to unset state so user can pick manually
-            setStatus('unset');
+            console.error('Failed to refresh location:', err);
+            setError('Failed to refresh location');
+        } finally {
+            setLoading(false);
         }
-    }, [updateLocation]);
-
-    // Initialize location on mount
-    useEffect(() => {
-        let isMounted = true;
-
-        const initializeLocation = async () => {
-            if (!user) {
-                if (isMounted) setStatus('unset');
-                return;
-            }
-
-            try {
-                if (isMounted) setStatus('loading');
-
-                // 1. Try to get saved location from backend
-                const savedLocation = await apiClient.get('/user/location');
-
-                if (!isMounted) return;
-
-                if (savedLocation && savedLocation.city) {
-                    console.log('✅ Loaded location from backend:', savedLocation);
-                    setLocation(savedLocation);
-                    setStatus('set');
-                } else {
-                    // 2. No saved location - try to detect
-                    console.log('📍 No saved location, attempting detection...');
-                    await detectLocation();
-                }
-            } catch (err) {
-                console.error('Failed to initialize location:', err);
-                if (isMounted) {
-                    // Fallback: try to detect location
-                    await detectLocation();
-                }
-            }
-        };
-
-        initializeLocation();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [user?.id, detectLocation]);
+    };
 
     return (
         <LocationContext.Provider value={{
             location,
-            status,
-            error,
             allCities,
+            loading,
+            error,
             updateLocation,
-            detectLocation,
+            refreshLocation,
             searchCities
         }}>
             {children}

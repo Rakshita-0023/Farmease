@@ -1,11 +1,11 @@
 // API Configuration
 export const API_BASE_URL = import.meta.env.PROD
-  ? import.meta.env.VITE_API_BASE_URL
-  : "/api";
+  ? (import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com/api')
+  : '/api'
 
-if (import.meta.env.PROD && !API_BASE_URL) {
-  throw new Error("VITE_API_BASE_URL is missing in production");
-}
+console.log('🔗 API_BASE_URL:', API_BASE_URL)
+console.log('🔗 PROD:', import.meta.env.PROD)
+console.log('🔗 VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
 
 export default API_BASE_URL;
 
@@ -32,6 +32,78 @@ export const removeAuthToken = () => {
 export const getAuthHeaders = () => {
   const token = getAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// Post-Authentication Location Handler
+export const handlePostAuthLocation = async () => {
+  console.log('📍 Starting post-auth location detection...')
+  
+  // 1. Ask permission
+  if (!navigator.geolocation) {
+    console.log('📍 Geolocation not supported')
+    return
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords
+          console.log('📍 GPS coordinates obtained:', { latitude, longitude })
+
+          // 2. Resolve city from backend
+          const resolveRes = await fetch(
+            `${API_BASE_URL}/locations/resolve?lat=${latitude}&lng=${longitude}`,
+            { 
+              credentials: 'include',
+              headers: getAuthHeaders()
+            }
+          )
+
+          if (!resolveRes.ok) {
+            console.log('📍 Location resolution failed')
+            resolve(false)
+            return
+          }
+
+          const resolved = await resolveRes.json()
+          console.log('📍 Location resolved:', resolved)
+
+          // 3. Save location to user
+          const saveRes = await fetch(`${API_BASE_URL}/user/location`, {
+            method: 'PUT',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...getAuthHeaders()
+            },
+            credentials: 'include',
+            body: JSON.stringify(resolved)
+          })
+
+          if (saveRes.ok) {
+            console.log('📍 Location saved successfully')
+            resolve(true)
+          } else {
+            console.log('📍 Failed to save location')
+            resolve(false)
+          }
+        } catch (error) {
+          console.error('📍 Location detection error:', error)
+          resolve(false)
+        }
+      },
+      (error) => {
+        // Permission denied → do nothing
+        console.log('📍 Location permission denied or failed:', error.message)
+        resolve(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    )
+  })
 }
 
 // API client with authentication

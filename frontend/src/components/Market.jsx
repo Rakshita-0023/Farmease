@@ -64,10 +64,11 @@ const CROP_IMAGES = {
 const Market = () => {
   const {
     location: userLocation,
-    status: locStatus,
     allCities,
+    loading: locationLoading,
+    error: locationError,
     updateLocation,
-    detectLocation,
+    refreshLocation,
     searchCities
   } = useLocation()
 
@@ -81,6 +82,44 @@ const Market = () => {
   const [citySearchQuery, setCitySearchQuery] = useState('')
   const [viewMode, setViewMode] = useState('grid')
   const [showCitySelector, setShowCitySelector] = useState(false)
+
+  // Simple detect location function
+  const detectLocation = async () => {
+    if (!navigator.geolocation) {
+      console.error('Geolocation not supported')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        try {
+          // Reverse geocode to get city name
+          const response = await fetch(
+            `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=895284fb2d2c50a520ea537456963d9c`
+          )
+          if (response.ok) {
+            const data = await response.json()
+            if (data.length > 0) {
+              const location = {
+                city: data[0].name,
+                state: data[0].state,
+                country: data[0].country === 'IN' ? 'India' : data[0].country,
+                latitude,
+                longitude
+              }
+              updateLocation(location)
+            }
+          }
+        } catch (err) {
+          console.error('Location detection failed:', err)
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+      }
+    )
+  }
 
   const getImageForCommodity = useCallback((commodity) => {
     return CROP_IMAGES[commodity] || '/wheat.jpeg'
@@ -119,10 +158,10 @@ const Market = () => {
   }
 
   useEffect(() => {
-    if (locStatus === 'set' && userLocation && marketViewMode === 'NEARBY_CITIES') {
+    if (userLocation && marketViewMode === 'NEARBY_CITIES') {
       fetchNearbyCities()
     }
-  }, [userLocation, locStatus, fetchNearbyCities, marketViewMode])
+  }, [userLocation, fetchNearbyCities, marketViewMode])
 
   const filteredCities = useMemo(() => {
     if (!searchTerm) return nearbyCities
@@ -144,7 +183,7 @@ const Market = () => {
     )
   }, [cityMarkets, searchTerm])
 
-  if (locStatus === 'loading' && !userLocation) {
+  if (locationLoading && !userLocation) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-6">
         <div className="relative">
@@ -159,7 +198,7 @@ const Market = () => {
     )
   }
 
-  if (locStatus === 'unset') {
+  if (!userLocation) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] p-12 border border-white shadow-2xl text-center space-y-8">
@@ -359,12 +398,11 @@ const Market = () => {
                   setShowCitySelector(false)
                   setCitySearchQuery('')
                 }}
-                }}
-              className="w-full py-4 rounded-2xl bg-green-50 text-green-700 font-bold hover:bg-green-100 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-2xl bg-green-50 text-green-700 font-bold hover:bg-green-100 transition-all flex items-center justify-center gap-2"
               >
-              <Zap size={18} className="fill-green-700" />
-              Auto-detect Precise Location
-            </button>
+                <Zap size={18} className="fill-green-700" />
+                Auto-detect Precise Location
+              </button>
             </motion.div>
           )}
       </AnimatePresence>
@@ -758,7 +796,7 @@ const Market = () => {
 
   {/* Error State Overlay */ }
   <AnimatePresence>
-    {locError && (
+    {locationError && (
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
@@ -772,7 +810,7 @@ const Market = () => {
             </div>
             <div>
               <p className="font-black text-sm uppercase tracking-widest">Location Error</p>
-              <p className="text-xs opacity-90">{locError}</p>
+              <p className="text-xs opacity-90">{locationError}</p>
             </div>
           </div>
           <button

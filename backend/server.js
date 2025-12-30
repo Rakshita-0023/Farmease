@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const axios = require('axios')
 const db = require('./db')
 // Import auth routes factory
 const createAuthRoutes = require('./routes/authRoutes')
