@@ -15,7 +15,6 @@ import Schemes from './components/Schemes'
 import AboutUs from './components/AboutUs'
 import Contact from './components/Contact'
 import TermsOfService from './components/TermsOfService'
-import AdvancedFeatures from './components/AdvancedFeatures'
 import MarketComparison from './components/MarketComparison'
 import { getAuthToken, removeAuthToken } from './config'
 
@@ -116,7 +115,6 @@ function App() {
           <Route path="/market/:marketId" element={<MarketDetails />} />
           <Route path="/market/comparison" element={<MarketComparison />} />
           <Route path="/tips" element={<Tips />} />
-          <Route path="/advanced" element={<AdvancedFeatures />} />
           <Route path="/doctor" element={<PlantDoctor />} />
           <Route path="/community" element={<CommunityForum />} />
           <Route path="/schemes" element={<Schemes />} />
