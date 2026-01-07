@@ -16,7 +16,7 @@ const Market = () => {
   // Fetch data based on user's actual location
   const fetchMarketData = async () => {
     if (!userLocation?.latitude || !userLocation?.longitude) {
-      console.log('❌ No user location available')
+      console.log('❌ No user location available:', userLocation)
       return
     }
 
@@ -24,6 +24,7 @@ const Market = () => {
     
     try {
       console.log(`🔄 Fetching data for user location: ${userLocation.latitude}, ${userLocation.longitude}`)
+      console.log('🔄 Full user location object:', userLocation)
       
       // Fetch nearby markets for user's location
       const marketsResponse = await apiClient.get('/market/nearby', {
@@ -31,6 +32,8 @@ const Market = () => {
         lng: userLocation.longitude,
         radius: 50 // 50km radius
       })
+
+      console.log('📊 Markets API Response:', marketsResponse)
 
       setMarketData({
         prices: [], // Remove aggregated prices - we'll show market-specific prices
@@ -43,6 +46,11 @@ const Market = () => {
       
     } catch (error) {
       console.error('❌ Failed to fetch market data:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      })
       setMarketData(prev => ({ 
         ...prev, 
         loading: false, 
@@ -55,6 +63,32 @@ const Market = () => {
   useEffect(() => {
     if (userLocation?.latitude && userLocation?.longitude) {
       fetchMarketData()
+    } else {
+      // TEMPORARY: Test with hardcoded Mumbai coordinates
+      console.log('🧪 Testing with hardcoded coordinates')
+      const testLocation = { latitude: 19.0760, longitude: 72.8777, city: 'Mumbai', state: 'Maharashtra' }
+      
+      const testFetch = async () => {
+        try {
+          const response = await apiClient.get('/market/nearby', {
+            lat: testLocation.latitude,
+            lng: testLocation.longitude,
+            radius: 50
+          })
+          console.log('🧪 Test API response:', response)
+          
+          setMarketData({
+            prices: [],
+            markets: response?.success ? response.markets : [],
+            loading: false,
+            error: null
+          })
+        } catch (error) {
+          console.error('🧪 Test API failed:', error)
+        }
+      }
+      
+      testFetch()
     }
   }, [userLocation])
 
