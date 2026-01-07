@@ -43,7 +43,11 @@ const NotificationSystem = ({ userLocation, farms }) => {
 
     try {
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${userLocation.latitude}&lon=${userLocation.longitude}&appid=895284fb2d2c50a520ea537456963d9c&units=metric`
+        `${import.meta.env.VITE_API_BASE_URL || '/api'}/weather/current?lat=${userLocation.latitude}&lon=${userLocation.longitude}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
       )
       const data = await response.json()
 

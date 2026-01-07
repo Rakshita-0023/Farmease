@@ -7,6 +7,7 @@ import { MapPin, BarChart3, ChevronDown, RefreshCw, TrendingUp, TrendingDown, Na
 import { useLocation } from '../LocationContext'
 import icon from 'leaflet/dist/images/marker-icon.png'
 import iconShadow from 'leaflet/dist/images/marker-shadow.png'
+import { useMandiData } from '../hooks/useMandiData'
 
 let DefaultIcon = L.icon({
   iconUrl: icon,
@@ -30,8 +31,14 @@ const marketIcon = new L.Icon({
   popupAnchor: [0, -48]
 })
 
+
 const InteractiveMarketMap = () => {
-  const { location: userLocation, markets: marketData, loading: isLoading, detectLocation: refetch } = useLocation()
+  const { location: userLocation } = useLocation()
+  const { data: marketData = [], isLoading, refetch } = useMandiData(
+    '',
+    userLocation?.city || '',
+    ''
+  )
   const [selectedCrop, setSelectedCrop] = useState('')
   const [selectedMarket, setSelectedMarket] = useState(null)
 
@@ -218,7 +225,19 @@ const InteractiveMarketMap = () => {
           </h3>
         </div>
 
-        {isLoading ? (
+        {!userLocation ? (
+          <div className="flex flex-col items-center justify-center h-[500px] bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+            <MapPin className="text-gray-300 mb-4" size={48} />
+            <h3 className="text-lg font-bold text-gray-800">Location Required</h3>
+            <p className="text-gray-500 text-sm max-w-xs text-center mt-2">Please set your location to view nearby market hubs and price intelligence.</p>
+            <button
+              onClick={() => window.location.hash = '#/market'}
+              className="mt-6 px-6 py-2 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-all"
+            >
+              Set Location
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-20">
             <RefreshCw className="animate-spin text-slate-200" size={48} />
           </div>

@@ -20,6 +20,7 @@ router.get('/resolve', async (req, res) => {
         let source = 'gps';
 
         try {
+            // Try OpenWeatherMap first
             const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
             const response = await axios.get(
                 `https://api.openweathermap.org/geo/1.0/reverse`, {
@@ -37,9 +38,23 @@ router.get('/resolve', async (req, res) => {
                 city = response.data[0].name;
                 state = response.data[0].state || 'Unknown';
                 country = response.data[0].country === 'IN' ? 'India' : response.data[0].country === 'US' ? 'USA' : 'Global';
+            } else {
+                throw new Error('No results from OWM');
             }
         } catch (geoError) {
-            console.error('Reverse geocoding failed:', geoError.message);
+            console.warn('⚠️ OWM Reverse geocoding failed, falling back to BigDataCloud:', geoError.message);
+            try {
+                const response = await axios.get(
+                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                );
+                if (response.data) {
+                    city = response.data.city || response.data.locality || response.data.principalSubdivision || 'Detected Location';
+                    state = response.data.principalSubdivision || 'Unknown';
+                    country = response.data.countryName || 'India';
+                }
+            } catch (fallbackError) {
+                console.error('❌ BigDataCloud fallback geocoding failed:', fallbackError.message);
+            }
         }
 
         res.json({
@@ -57,6 +72,80 @@ router.get('/resolve', async (req, res) => {
     }
 });
 
+// POST resolve coordinates to city (for frontend location detection)
+router.post('/resolve', async (req, res) => {
+    try {
+        const { latitude, longitude } = req.body;
+
+        if (!latitude || !longitude) {
+            return res.status(400).json({
+                success: false,
+                error: 'Latitude and longitude are required'
+            });
+        }
+
+        const lat = parseFloat(latitude);
+        const lng = parseFloat(longitude);
+
+        let city = 'Detected Location';
+        let state = 'Unknown';
+        let country = 'India';
+
+        try {
+            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+            const response = await axios.get(
+                `https://api.openweathermap.org/geo/1.0/reverse`, {
+                params: {
+                    lat: lat,
+                    lon: lng,
+                    limit: 1,
+                    appid: API_KEY
+                },
+                timeout: 5000
+            }
+            );
+
+            if (response.data && response.data.length > 0) {
+                city = response.data[0].name;
+                state = response.data[0].state || 'Unknown';
+                country = response.data[0].country === 'IN' ? 'India' : response.data[0].country === 'US' ? 'USA' : 'Global';
+            } else {
+                throw new Error('No results from OWM');
+            }
+        } catch (geoError) {
+            console.warn('⚠️ OWM Reverse geocoding failed, falling back to BigDataCloud:', geoError.message);
+            try {
+                const response = await axios.get(
+                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+                );
+                if (response.data) {
+                    city = response.data.city || response.data.locality || response.data.principalSubdivision || 'Detected Location';
+                    state = response.data.principalSubdivision || 'Unknown';
+                    country = response.data.countryName || 'India';
+                }
+            } catch (fallbackError) {
+                console.error('❌ BigDataCloud fallback geocoding failed:', fallbackError.message);
+            }
+        }
+
+        res.json({
+            success: true,
+            city,
+            state,
+            country,
+            latitude: lat,
+            longitude: lng
+        });
+
+    } catch (error) {
+        console.error('Location resolution error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to resolve location'
+        });
+    }
+});
+
 // GET city search suggestions (worldwide, dynamic)
 router.get('/search', async (req, res) => {
     try {
@@ -69,29 +158,60 @@ router.get('/search', async (req, res) => {
             });
         }
 
-        const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+        try {
+            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+            const response = await axios.get('https://api.openweathermap.org/geo/1.0/direct', {
+                params: {
+                    q: q,
+                    limit: 10,
+                    appid: API_KEY
+                },
+                timeout: 5000
+            });
 
-        const response = await axios.get('https://api.openweathermap.org/geo/1.0/direct', {
-            params: {
-                q: q,
-                limit: 10,
-                appid: API_KEY
-            },
-            timeout: 5000
-        });
+            if (response.data && response.data.length > 0) {
+                const cities = response.data.map(city => ({
+                    name: city.name,
+                    state: city.state || '',
+                    country: city.country,
+                    latitude: city.lat,
+                    longitude: city.lon
+                }));
 
-        const cities = response.data.map(city => ({
-            name: city.name,
-            state: city.state || '',
-            country: city.country,
-            latitude: city.lat,
-            longitude: city.lon
-        }));
+                return res.json({
+                    success: true,
+                    cities: cities
+                });
+            } else {
+                throw new Error('No results from OWM');
+            }
+        } catch (owmError) {
+            console.warn('⚠️ OWM Direct geocoding failed, falling back to Open-Meteo:', owmError.message);
+            try {
+                const geoRes = await axios.get(
+                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`
+                );
+                const cities = (geoRes.data.results || []).map(city => ({
+                    name: city.name,
+                    state: city.admin1 || '',
+                    country: city.country_code?.toUpperCase() || 'IN',
+                    latitude: city.latitude,
+                    longitude: city.longitude
+                }));
 
-        res.json({
-            success: true,
-            cities: cities
-        });
+                return res.json({
+                    success: true,
+                    cities: cities
+                });
+            } catch (fallbackError) {
+                console.error('❌ Open-Meteo fallback search failed:', fallbackError.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to search cities',
+                    cities: []
+                });
+            }
+        }
     } catch (error) {
         console.error('City search error:', error);
         res.status(500).json({

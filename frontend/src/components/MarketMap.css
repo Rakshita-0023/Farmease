@@ -567,3 +567,20 @@
     gap: 8px;
   }
 }
+/* No prices message */
+.no-prices {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  color: #6c757d;
+}
+
+.no-prices p {
+  margin: 4px 0;
+}
+
+.no-prices .text-sm {
+  font-size: 14px;
+  color: #9ca3af;
+}

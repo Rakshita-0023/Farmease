@@ -32,8 +32,10 @@ const createAuthRoutes = (findUser, createUser) => {
         return res.status(400).json({ error: 'User already exists' })
       }
 
+      console.log('🔐 Hashing password...')
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10)
+      console.log('🔐 Password hashed successfully')
 
       // Create user
       const result = await createUser(name, email, passwordHash)
@@ -80,8 +82,10 @@ const createAuthRoutes = (findUser, createUser) => {
         return res.status(401).json({ error: 'Invalid credentials' })
       }
 
+      console.log('🔐 Verifying password...')
       // Verify password
       const validPassword = await bcrypt.compare(password, user.password_hash)
+      console.log('🔐 Password verification result:', validPassword)
       if (!validPassword) {
         return res.status(401).json({ error: 'Invalid credentials' })
       }

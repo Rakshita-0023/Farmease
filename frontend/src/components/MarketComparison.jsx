@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useLocation } from '../LocationContext'
 import { Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table, RefreshCw, ChevronDown, BarChart3, ArrowRightLeft } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -53,7 +53,7 @@ const CROP_IMAGES = {
 }
 
 const MarketComparison = () => {
-    const { userLocation } = useOutletContext()
+    const { location: userLocation } = useLocation()
 
     // Filter State
     const [selectedCity, setSelectedCity] = useState('')
@@ -236,8 +236,8 @@ const MarketComparison = () => {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${item.trend === 'up' ? 'bg-green-100 text-green-700' :
-                                                            item.trend === 'down' ? 'bg-red-100 text-red-700' :
-                                                                'bg-gray-100 text-gray-700'
+                                                        item.trend === 'down' ? 'bg-red-100 text-red-700' :
+                                                            'bg-gray-100 text-gray-700'
                                                         }`}>
                                                         {item.trend === 'up' ? <TrendingUp size={12} /> : item.trend === 'down' ? <TrendingDown size={12} /> : <BarChart3 size={12} />}
                                                         {item.trend === 'up' ? 'Rising' : item.trend === 'down' ? 'Falling' : 'Stable'}

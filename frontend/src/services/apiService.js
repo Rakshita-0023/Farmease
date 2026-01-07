@@ -64,13 +64,10 @@ export const apiService = {
     createForumPost: (postData) => apiInstance.post('/forum/posts', postData),
     likePost: (postId) => apiInstance.post(`/forum/posts/${postId}/like`),
 
-    // Weather (External API)
+    // Weather (Proxied through backend)
     getWeather: async (lat, lon) => {
-        const apiKey = import.meta.env.VITE_WEATHER_API_KEY
-        const response = await axios.get(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
-        )
-        return response.data
+        const response = await apiInstance.get(`/weather/current?lat=${lat}&lon=${lon}`)
+        return response
     },
 
     // Market Data (Custom Hook - see useMandiData.js)

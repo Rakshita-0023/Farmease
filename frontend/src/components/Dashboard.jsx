@@ -15,7 +15,7 @@ const getSeasonalCrops = (temperature) => {
 }
 
 const Dashboard = () => {
-  const { location, status: locStatus } = useLocation()
+  const { location, loading: locationLoading, locationStatus, retryLocationDetection, error: locationError } = useLocation()
   const [weather, setWeather] = useState(null)
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const [recentActivity, setRecentActivity] = useState([])
@@ -72,9 +72,12 @@ const Dashboard = () => {
 
       try {
         const { latitude, longitude } = location
-        const API_KEY = '895284fb2d2c50a520ea537456963d9c'
         const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
+          `${import.meta.env.VITE_API_BASE_URL || '/api'}/weather/current?lat=${latitude}&lon=${longitude}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
         )
         const data = await response.json()
 
@@ -89,7 +92,6 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Weather fetch error:', error)
-        // Fallback or error state could be set here
       }
     }
 
@@ -104,6 +106,52 @@ const Dashboard = () => {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [location]) // Re-run when location changes
 
+  // Location detecting state
+  if (locationStatus === 'detecting' || locationLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <Loader2 className="animate-spin text-green-500 mx-auto" size={48} />
+          <h2 className="text-xl font-bold text-gray-900">Detecting Your Location...</h2>
+          <p className="text-gray-500">Setting up your personalized dashboard</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Location failed state
+  if (locationStatus === 'failed') {
+    return (
+      <div className="dashboard">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+              <MapPin size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-red-900">Location Detection Failed</h3>
+              <p className="text-red-700 text-sm">{locationError || 'Unable to detect your location automatically'}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={retryLocationDetection}
+              className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors text-sm"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.hash = '#/market'}
+              className="px-4 py-2 bg-gray-600 text-white rounded-xl font-bold hover:bg-gray-700 transition-colors text-sm"
+            >
+              Select Manually
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -111,7 +159,7 @@ const Dashboard = () => {
         <p>Here's what's happening on your farm today</p>
       </div>
 
-      {locStatus === 'unset' && (
+      {locationStatus === 'unset' && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600">
@@ -147,9 +195,13 @@ const Dashboard = () => {
                 <MapPin size={12} /> {weather.location}
               </div>
             </div>
-          ) : (
+          ) : locationStatus === 'set' && location ? (
             <div className="flex items-center justify-center h-24">
               <Loader2 className="animate-spin text-green-500" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-24 text-gray-400 text-sm">
+              Location required for weather data
             </div>
           )}
         </div>

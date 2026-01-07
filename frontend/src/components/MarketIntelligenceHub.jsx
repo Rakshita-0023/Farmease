@@ -75,19 +75,22 @@ const customSelectStyles = {
 }
 
 const MarketIntelligenceHub = () => {
-    const { location: globalLocation, loading: locationLoading, updateLocation } = useLocation()
+    const { location: globalLocation, loading: locationLoading, updateLocation, allCities } = useLocation()
     const [selectedLocations, setSelectedLocations] = useState([])
     const [selectedCrops, setSelectedCrops] = useState([])
     const [searchTerm, setSearchTerm] = useState('')
 
-    const locationOptions = [
-        { value: 'Hyderabad', label: 'Hyderabad', lat: 17.3850, lng: 78.4867, state: 'Telangana' },
-        { value: 'Vijayawada', label: 'Vijayawada', lat: 16.5062, lng: 80.6480, state: 'Andhra Pradesh' },
-        { value: 'Guntur', label: 'Guntur', lat: 16.3067, lng: 80.4365, state: 'Andhra Pradesh' },
-        { value: 'Warangal', label: 'Warangal', lat: 17.9689, lng: 79.5941, state: 'Telangana' },
-        { value: 'Nizamabad', label: 'Nizamabad', lat: 18.6725, lng: 78.0941, state: 'Telangana' },
-        { value: 'Kurnool', label: 'Kurnool', lat: 15.8281, lng: 78.0373, state: 'Andhra Pradesh' }
-    ]
+    // Use dynamic cities from LocationContext instead of hardcoded list
+    const locationOptions = useMemo(() => {
+        return allCities.map(city => ({
+            value: city.name || city.city,
+            label: `${city.name || city.city}, ${city.state}`,
+            lat: city.latitude,
+            lng: city.longitude,
+            state: city.state,
+            country: city.country
+        }))
+    }, [allCities])
 
     // Sync dropdown with global location on mount or when globalLocation changes
     useEffect(() => {

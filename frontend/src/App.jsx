@@ -7,6 +7,7 @@ import LandingPage from './components/LandingPage'
 import FarmManagement from './components/FarmManagement'
 import Weather from './components/Weather'
 import Market from './components/Market'
+import MarketDetails from './components/MarketDetails'
 import Tips from './components/Tips'
 import PlantDoctor from './components/PlantDoctor'
 import CommunityForum from './components/CommunityForum'
@@ -15,6 +16,7 @@ import AboutUs from './components/AboutUs'
 import Contact from './components/Contact'
 import TermsOfService from './components/TermsOfService'
 import AdvancedFeatures from './components/AdvancedFeatures'
+import MarketComparison from './components/MarketComparison'
 import { getAuthToken, removeAuthToken } from './config'
 
 import { LocationProvider } from './LocationContext'
@@ -111,6 +113,8 @@ function App() {
           <Route path="/farms" element={<FarmManagement />} />
           <Route path="/weather" element={<Weather />} />
           <Route path="/market" element={<Market />} />
+          <Route path="/market/:marketId" element={<MarketDetails />} />
+          <Route path="/market/comparison" element={<MarketComparison />} />
           <Route path="/tips" element={<Tips />} />
           <Route path="/advanced" element={<AdvancedFeatures />} />
           <Route path="/doctor" element={<PlantDoctor />} />

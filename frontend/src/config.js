@@ -37,7 +37,7 @@ export const getAuthHeaders = () => {
 // Post-Authentication Location Handler
 export const handlePostAuthLocation = async () => {
   console.log('📍 Starting post-auth location detection...')
-  
+
   // 1. Ask permission
   if (!navigator.geolocation) {
     console.log('📍 Geolocation not supported')
@@ -93,7 +93,22 @@ export const apiClient = {
     }
 
     try {
-      const fullUrl = `${API_BASE_URL}${url}`
+      let fullUrl = `${API_BASE_URL}${url}`
+
+      // Append query parameters for GET requests
+      if (options.method === 'GET' && options.params) {
+        const queryParams = new URLSearchParams()
+        Object.entries(options.params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            queryParams.append(key, value)
+          }
+        })
+        const queryString = queryParams.toString()
+        if (queryString) {
+          fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString
+        }
+      }
+
       console.log('🔗 API Request URL:', fullUrl)
       console.log('🔗 API Request Headers:', config.headers)
       console.log('🔗 API Request Credentials:', config.credentials)
@@ -102,8 +117,8 @@ export const apiClient = {
       console.log('📊 Response Status:', response.status)
       console.log('📋 Content-Type:', response.headers.get('content-type'))
 
-      if (response.status === 401) {
-        console.log('❌ 401 Unauthorized - Removing token and reloading')
+      if (response.status === 401 || response.status === 403) {
+        console.log(`❌ ${response.status} - Removing token and reloading`)
         removeAuthToken()
         window.location.reload()
         return
@@ -133,8 +148,8 @@ export const apiClient = {
     }
   },
 
-  get(url, options = {}) {
-    return this.request(url, { method: 'GET', ...options })
+  get(url, params = {}, options = {}) {
+    return this.request(url, { method: 'GET', params, ...options })
   },
 
   post(url, data, options = {}) {

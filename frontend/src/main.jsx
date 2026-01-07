@@ -4,11 +4,11 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { GoogleOAuthProvider } from '@react-oauth/google'
-import { LocationProvider } from './LocationContext'
 import './App.css'
 import './index.css'
 import './i18n'
 import App from './App.jsx'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // Configure React Query with better defaults
 const queryClient = new QueryClient({
@@ -27,15 +27,15 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <QueryClientProvider client={queryClient}>
-        <LocationProvider>
+    <ErrorBoundary>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || "dummy_id_to_prevent_crash"}>
+        <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <App />
           </BrowserRouter>
-        </LocationProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
-    </GoogleOAuthProvider>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </GoogleOAuthProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )

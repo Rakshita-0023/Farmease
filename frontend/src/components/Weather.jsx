@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { WEATHER_API_KEY } from '../config'
+import { apiClient } from '../config'
 import './WeatherEnhancements.css'
 import { useLocation } from '../LocationContext'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -7,7 +7,7 @@ import {
   Cloud, Sun, CloudRain, Wind, Droplets, Thermometer,
   MapPin, RefreshCw, AlertTriangle, CheckCircle2,
   Navigation, Zap, Sprout, Waves, Sunrise, Sunset,
-  Search, CloudLightning, CloudSnow, Mist
+  Search, CloudLightning, CloudSnow, CloudFog, CloudSun
 } from 'lucide-react'
 
 const getCropRecommendations = (weather) => {
@@ -60,12 +60,12 @@ const getWeatherIcon = (condition) => {
   if (cond.includes('rain')) return <CloudRain className="text-blue-400" size={48} />
   if (cond.includes('storm')) return <CloudLightning className="text-purple-400" size={48} />
   if (cond.includes('snow')) return <CloudSnow className="text-blue-100" size={48} />
-  if (cond.includes('mist') || cond.includes('fog')) return <Mist className="text-gray-400" size={48} />
+  if (cond.includes('mist') || cond.includes('fog')) return <CloudFog className="text-gray-400" size={48} />
   return <Sun className="text-yellow-400" size={48} />
 }
 
 const Weather = () => {
-  const { location: globalLocation, status: locStatus } = useLocation()
+  const { location: globalLocation, loading: locationLoading, locationStatus, retryLocationDetection, error: locationError } = useLocation()
   const [weather, setWeather] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -74,33 +74,21 @@ const Weather = () => {
     setLoading(true)
     setError(null)
     try {
-      let url = `https://api.openweathermap.org/data/2.5/weather?appid=${WEATHER_API_KEY}&units=metric`
+      let queryParams = {}
       if (params.lat && params.lon) {
-        url += `&lat=${params.lat}&lon=${params.lon}`
+        queryParams.lat = params.lat
+        queryParams.lon = params.lon
       } else if (params.city) {
-        url += `&q=${encodeURIComponent(params.city)}`
+        queryParams.city = params.city
       } else {
         throw new Error('No location provided')
       }
 
-      const response = await fetch(url)
-      if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || 'Weather API error')
-      }
+      // Use apiClient instead of fetch
+      const data = await apiClient.get('/weather/current', queryParams)
 
-      const data = await response.json()
-
-      // Fetch forecast
-      let forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?appid=${WEATHER_API_KEY}&units=metric`
-      if (params.lat && params.lon) {
-        forecastUrl += `&lat=${params.lat}&lon=${params.lon}`
-      } else {
-        forecastUrl += `&q=${encodeURIComponent(data.name)}`
-      }
-
-      const forecastResponse = await fetch(forecastUrl)
-      const forecastData = forecastResponse.ok ? await forecastResponse.json() : null
+      // Fetch forecast from backend
+      const forecastData = await apiClient.get('/weather/forecast', queryParams)
 
       setWeather({
         location: data.name,
@@ -116,7 +104,7 @@ const Weather = () => {
         sunrise: new Date(data.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         sunset: new Date(data.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         soilTemp: Math.round(data.main.temp - 2), // Approximation
-        forecast: forecastData ? forecastData.list.filter((_, i) => i % 8 === 0).slice(1, 4).map((item) => ({
+        forecast: forecastData.list ? forecastData.list.filter((_, i) => i % 8 === 0).slice(1, 4).map((item) => ({
           day: new Date(item.dt * 1000).toLocaleDateString([], { weekday: 'short' }),
           temp: Math.round(item.main.temp),
           condition: item.weather[0].main,
@@ -141,7 +129,8 @@ const Weather = () => {
     }
   }, [globalLocation, fetchWeather])
 
-  if (locStatus === 'loading' || locStatus === 'detecting') {
+  // Location detecting state
+  if (locationStatus === 'detecting' || locationLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
         <motion.div
@@ -152,14 +141,48 @@ const Weather = () => {
           <Cloud className="text-blue-500 animate-pulse" size={48} />
         </motion.div>
         <div className="text-center">
-          <h2 className="text-2xl font-black text-gray-900">Syncing Satellite Data...</h2>
-          <p className="text-gray-500 font-medium">Fetching real-time atmospheric conditions</p>
+          <h2 className="text-2xl font-black text-gray-900">Detecting Your Location...</h2>
+          <p className="text-gray-500 font-medium">Preparing personalized weather insights</p>
         </div>
       </div>
     )
   }
 
-  if (locStatus === 'unset' || !globalLocation) {
+  // Location failed state
+  if (locationStatus === 'failed') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-white/60 backdrop-blur-xl rounded-[3rem] p-12 border border-white shadow-2xl text-center space-y-8">
+          <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-red-200 rotate-12">
+            <Navigation className="text-white" size={48} />
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-4xl font-black text-gray-900 tracking-tight">Location Detection Failed</h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto font-medium">
+              {locationError || 'Unable to detect your location automatically. Please select your city manually.'}
+            </p>
+          </div>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={retryLocationDetection}
+              className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-200"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.hash = '#/market'}
+              className="px-10 py-5 bg-gray-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-700 transition-all shadow-xl shadow-gray-200"
+            >
+              Select City
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Location unset state
+  if (locationStatus === 'unset' || !globalLocation) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-white/60 backdrop-blur-xl rounded-[3rem] p-12 border border-white shadow-2xl text-center space-y-8">
