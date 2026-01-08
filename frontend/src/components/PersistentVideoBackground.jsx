@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
 /**
- * Video background for Landing/Login pages only
- * Dashboard uses static gradient for performance
+ * Background component:
+ * - Video on Landing/Login pages
+ * - Static image on Dashboard (all authenticated pages)
  */
 const PersistentVideoBackground = ({ show = true }) => {
   const videoRef = useRef(null)
@@ -13,6 +14,7 @@ const PersistentVideoBackground = ({ show = true }) => {
   // Video only on public routes (landing, login)
   const isPublicRoute = ['/landing', '/login'].includes(location.pathname)
   const showVideo = isPublicRoute && show
+  const showStaticBg = !isPublicRoute && show
 
   useEffect(() => {
     const video = videoRef.current
@@ -41,7 +43,6 @@ const PersistentVideoBackground = ({ show = true }) => {
     }
   }, [showVideo])
 
-  // Don't render if not showing
   if (!show) return null
 
   return (
@@ -66,11 +67,19 @@ const PersistentVideoBackground = ({ show = true }) => {
         </video>
       )}
 
-      {/* Overlay - lighter on public pages, heavier on dashboard */}
+      {/* Static image - on dashboard/authenticated pages */}
+      {showStaticBg && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: 'url(/background_img.png)' }}
+        />
+      )}
+
+      {/* Overlay */}
       <div className={`absolute inset-0 ${
         isPublicRoute 
           ? 'bg-gradient-to-br from-black/40 via-black/20 to-emerald-900/30' 
-          : 'bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-emerald-950/95'
+          : 'bg-gradient-to-br from-black/70 via-black/60 to-emerald-950/70'
       }`} />
     </div>
   )
