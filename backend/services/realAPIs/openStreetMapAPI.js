@@ -414,7 +414,8 @@ class OpenStreetMapAPI {
     if (tags.shop === 'wholesale') return 'Wholesale Market';
     if (tags.amenity === 'wholesale_market') return 'Wholesale Market';
     if (tags.landuse === 'commercial') return 'Commercial Market';
-    if (tags.name && tags.name.toLowerCase().includes('mandi')) return 'Agricultural Mandi';
+    // Don't add "Mandi" to type if name already contains it
+    if (tags.name && tags.name.toLowerCase().includes('mandi')) return 'Agricultural Market';
     return 'Market';
   }
 

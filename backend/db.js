@@ -1,21 +1,31 @@
-const mysql = require("mysql2/promise");
+// Use SQLite for local development (no password needed)
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  waitForConnections: true,
-  connectionLimit: 10,
-});
+const dbPath = path.join(__dirname, 'farmease.db');
+console.log('📊 Using SQLite Database:', dbPath);
 
-// Don't auto-connect for development - let the app handle it
-// (async () => {
-//   try {
-//     await pool.query("SELECT 1");
-//     console.log("✅ Railway MySQL connected successfully");
-//   } catch (err) {
-//     console.error("❌ Database connection failed:", err.message);
-//     process.exit(1);
-//   }
-// })();
+const sqliteDb = new sqlite3.Database(dbPath);
+
+// Promisify SQLite for async/await compatibility
+const pool = {
+  query: (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+      sqliteDb.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve([rows]);
+      });
+    });
+  },
+  
+  execute: (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+      sqliteDb.run(sql, params, function(err) {
+        if (err) reject(err);
+        else resolve([{ insertId: this.lastID, affectedRows: this.changes }]);
+      });
+    });
+  }
+};
 
 module.exports = pool;

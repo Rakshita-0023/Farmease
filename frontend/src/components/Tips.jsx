@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
 import { apiClient } from '../config'
 import { Lightbulb, Sprout, CloudSun, Leaf, BookOpen } from 'lucide-react'
 
@@ -15,7 +16,6 @@ const Tips = () => {
     return [...new Set(farms.map(f => f.crop))]
   }, [farms])
 
-  // If no farms, default to general
   useMemo(() => {
     if (userCrops.length === 0 && activeCategory === 'my-crops') {
       setActiveCategory('general')
@@ -53,7 +53,6 @@ const Tips = () => {
     ]
   }
 
-  // Generate dynamic tips based on user crops
   const myCropTips = userCrops.flatMap(crop =>
     cropSpecificTips[crop] || [
       { title: `${crop} Care`, content: `Ensure timely irrigation and weed management for your ${crop} crop.` }
@@ -81,29 +80,38 @@ const Tips = () => {
 
   const categories = [
     { id: 'my-crops', label: 'My Crops', icon: <Sprout size={18} /> },
-    { id: 'general', label: 'General Tips', icon: <BookOpen size={18} /> },
-    { id: 'seasonal', label: 'Seasonal Care', icon: <CloudSun size={18} /> },
-    { id: 'organic', label: 'Organic Farming', icon: <Leaf size={18} /> }
+    { id: 'general', label: 'General', icon: <BookOpen size={18} /> },
+    { id: 'seasonal', label: 'Seasonal', icon: <CloudSun size={18} /> },
+    { id: 'organic', label: 'Organic', icon: <Leaf size={18} /> }
   ]
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">💡 Farming Tips</h1>
-          <p className="text-gray-500">Expert advice to improve your farming practices</p>
+    <div className="p-4 md:p-6 space-y-6 min-h-full">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-emerald-600/80 via-teal-600/80 to-emerald-700/80 backdrop-blur-xl rounded-3xl p-6 border border-white/10"
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+          <span className="text-emerald-200 text-xs font-semibold uppercase tracking-wider">Expert Advice</span>
         </div>
-      </div>
+        <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Farming Tips</h1>
+        <p className="text-white/60">Personalized advice to improve your farming practices</p>
+      </motion.div>
 
-      <div className="flex flex-wrap gap-2 bg-white p-1 rounded-xl border border-gray-200 w-fit">
+      {/* Category Tabs */}
+      <div className="flex flex-wrap gap-2 bg-white/10 backdrop-blur-xl p-1.5 rounded-xl border border-white/10 w-fit">
         {categories.map(cat => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeCategory === cat.id
-                ? 'bg-green-100 text-green-700 shadow-sm'
-                : 'text-gray-600 hover:bg-gray-50'
-              }`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeCategory === cat.id
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
           >
             {cat.icon}
             {cat.label}
@@ -111,30 +119,45 @@ const Tips = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Tips Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tips[activeCategory].map((tip, index) => (
-          <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-            <div className="bg-green-50 w-10 h-10 rounded-full flex items-center justify-center mb-4 text-green-600">
-              <Lightbulb size={20} />
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 hover:-translate-y-1 transition-all cursor-default group"
+          >
+            <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-4 text-emerald-400 group-hover:scale-110 transition-transform">
+              <Lightbulb size={24} />
             </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">{tip.title}</h3>
-            <p className="text-gray-600 text-sm leading-relaxed">{tip.content}</p>
-          </div>
+            <h3 className="text-lg font-bold text-white mb-2">{tip.title}</h3>
+            <p className="text-white/60 text-sm leading-relaxed">{tip.content}</p>
+          </motion.div>
         ))}
       </div>
 
-      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-100 flex items-start gap-4">
-        <div className="bg-yellow-100 p-3 rounded-full text-yellow-600 shrink-0">
-          <Lightbulb size={24} />
+      {/* Tip of the Day */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 backdrop-blur-xl rounded-2xl p-6 border border-emerald-500/20"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 bg-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0">
+            <Lightbulb size={28} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white mb-1">🌟 Tip of the Day</h3>
+            <p className="text-white/70">
+              Monitor your crops daily for early signs of pests or diseases.
+              Early detection can save your entire harvest!
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-bold text-gray-800 mb-1">🌟 Tip of the Day</h3>
-          <p className="text-gray-700">
-            Monitor your crops daily for early signs of pests or diseases.
-            Early detection can save your entire harvest!
-          </p>
-        </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

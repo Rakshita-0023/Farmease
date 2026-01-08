@@ -1,28 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import { apiClient } from '../config'
-import { MessageSquare, Heart, Share2, Send, User, Tag, Clock, ThumbsUp, Loader2 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { MessageSquare, Heart, Share2, Send, Tag, Clock, Loader2, X, Users } from 'lucide-react'
 
 const CommunityForum = () => {
     const [newPost, setNewPost] = useState('')
     const [showPostModal, setShowPostModal] = useState(false)
-    const [activeTab, setActiveTab] = useState('feed') // 'feed', 'my-posts', 'popular'
+    const [activeTab, setActiveTab] = useState('feed')
     const queryClient = useQueryClient()
     const user = JSON.parse(localStorage.getItem('user')) || {}
 
-    // Fetch posts
     const { data: posts = [], isLoading } = useQuery({
         queryKey: ['forum-posts'],
         queryFn: () => apiClient.get('/forum/posts')
     })
 
-    // Create post mutation
     const createPostMutation = useMutation({
         mutationFn: async (content) => {
             return apiClient.post('/forum/posts', {
                 content,
-                tags: ['General'], // Default tag for now
+                tags: ['General'],
                 author_name: user.name || 'Farmer'
             })
         },
@@ -33,30 +31,18 @@ const CommunityForum = () => {
         }
     })
 
-    // Like mutation (Optimistic UI)
     const likeMutation = useMutation({
-        mutationFn: async (postId) => {
-            return apiClient.post(`/forum/posts/${postId}/like`)
-        },
+        mutationFn: async (postId) => apiClient.post(`/forum/posts/${postId}/like`),
         onMutate: async (postId) => {
             await queryClient.cancelQueries(['forum-posts'])
             const previousPosts = queryClient.getQueryData(['forum-posts'])
-
-            queryClient.setQueryData(['forum-posts'], old => {
-                return old.map(post =>
-                    post.id === postId
-                        ? { ...post, likes: (post.likes || 0) + 1, isLiked: true }
-                        : post
-                )
-            })
+            queryClient.setQueryData(['forum-posts'], old =>
+                old.map(post => post.id === postId ? { ...post, likes: (post.likes || 0) + 1, isLiked: true } : post)
+            )
             return { previousPosts }
         },
-        onError: (err, newTodo, context) => {
-            queryClient.setQueryData(['forum-posts'], context.previousPosts)
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries(['forum-posts'])
-        }
+        onError: (err, newTodo, context) => queryClient.setQueryData(['forum-posts'], context.previousPosts),
+        onSettled: () => queryClient.invalidateQueries(['forum-posts'])
     })
 
     const handlePostSubmit = (e) => {
@@ -74,35 +60,43 @@ const CommunityForum = () => {
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-green-100">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        👥 Kisan Charcha
-                    </h1>
-                    <p className="text-gray-500 mt-1">Connect, share, and learn from fellow farmers</p>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-emerald-600/80 via-teal-600/80 to-emerald-700/80 backdrop-blur-xl rounded-3xl p-6 border border-white/10"
+            >
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Users className="text-emerald-300" size={20} />
+                            <span className="text-emerald-200 text-xs font-semibold uppercase tracking-wider">Community</span>
+                        </div>
+                        <h1 className="text-2xl md:text-3xl font-bold text-white">Kisan Charcha</h1>
+                        <p className="text-white/60 mt-1">Connect, share, and learn from fellow farmers</p>
+                    </div>
+                    <button
+                        onClick={() => setShowPostModal(true)}
+                        className="flex items-center gap-2 px-5 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all font-semibold"
+                    >
+                        <Send size={18} />
+                        Start Discussion
+                    </button>
                 </div>
-                <button
-                    onClick={() => setShowPostModal(true)}
-                    className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 shadow-lg shadow-green-200"
-                >
-                    <Send size={20} />
-                    Start Discussion
-                </button>
-            </div>
+            </motion.div>
 
             {/* Tabs */}
-            <div className="flex gap-4 border-b border-gray-200 overflow-x-auto pb-1">
+            <div className="flex gap-2 bg-white/10 backdrop-blur-xl p-1.5 rounded-xl border border-white/10 w-fit">
                 {['feed', 'popular', 'my-posts'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 font-medium capitalize whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-green-600' : 'text-gray-500 hover:text-gray-700'
-                            }`}
+                        className={`px-4 py-2.5 rounded-lg text-sm font-semibold capitalize transition-all ${
+                            activeTab === tab
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                        }`}
                     >
                         {tab.replace('-', ' ')}
-                        {activeTab === tab && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600 rounded-t-full" />
-                        )}
                     </button>
                 ))}
             </div>
@@ -111,40 +105,50 @@ const CommunityForum = () => {
             {isLoading ? (
                 <div className="space-y-4">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-pulse">
+                        <div key={i} className="bg-white/10 backdrop-blur-xl p-6 rounded-2xl border border-white/10 animate-pulse">
                             <div className="flex gap-4">
-                                <div className="w-12 h-12 bg-gray-100 rounded-full" />
+                                <div className="w-12 h-12 bg-white/10 rounded-full" />
                                 <div className="flex-1 space-y-2">
-                                    <div className="h-4 bg-gray-100 rounded w-1/4" />
-                                    <div className="h-4 bg-gray-100 rounded w-1/6" />
+                                    <div className="h-4 bg-white/10 rounded w-1/4" />
+                                    <div className="h-4 bg-white/10 rounded w-1/6" />
                                 </div>
                             </div>
-                            <div className="h-16 bg-gray-100 rounded mt-4" />
+                            <div className="h-16 bg-white/10 rounded mt-4" />
                         </div>
                     ))}
                 </div>
             ) : (
                 <div className="space-y-4">
                     {filteredPosts.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
-                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <MessageSquare className="text-gray-400" size={32} />
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-center py-12 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10"
+                        >
+                            <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <MessageSquare className="text-white/40" size={32} />
                             </div>
-                            <h3 className="text-lg font-medium text-gray-900">No discussions yet</h3>
-                            <p className="text-gray-500 mt-1">Be the first to start a conversation!</p>
-                        </div>
+                            <h3 className="text-lg font-semibold text-white">No discussions yet</h3>
+                            <p className="text-white/50 mt-1">Be the first to start a conversation!</p>
+                        </motion.div>
                     ) : (
-                        filteredPosts.map(post => (
-                            <div key={post.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        filteredPosts.map((post, index) => (
+                            <motion.div
+                                key={post.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="bg-white/10 backdrop-blur-xl p-6 rounded-2xl border border-white/10 hover:bg-white/15 transition-all"
+                            >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex gap-3">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center text-green-700 font-bold">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
                                             {(post.author_name || 'F').charAt(0)}
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-gray-900">{post.author_name || 'Farmer'}</h3>
-                                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                <span className="bg-gray-100 px-2 py-0.5 rounded-full">Farmer</span>
+                                            <h3 className="font-semibold text-white">{post.author_name || 'Farmer'}</h3>
+                                            <div className="flex items-center gap-2 text-xs text-white/40">
+                                                <span className="bg-white/10 px-2 py-0.5 rounded-full">Farmer</span>
                                                 <span>•</span>
                                                 <span className="flex items-center gap-1">
                                                     <Clock size={12} />
@@ -155,75 +159,91 @@ const CommunityForum = () => {
                                     </div>
                                 </div>
 
-                                <p className="text-gray-800 mb-4 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                <p className="text-white/80 mb-4 leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {(post.tags || ['General']).map((tag, i) => (
-                                        <span key={i} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-md flex items-center gap-1">
+                                        <span key={i} className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg flex items-center gap-1">
                                             <Tag size={12} /> {tag}
                                         </span>
                                     ))}
                                 </div>
 
-                                <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
+                                <div className="flex items-center gap-6 pt-4 border-t border-white/10">
                                     <button
                                         onClick={() => likeMutation.mutate(post.id)}
-                                        className={`flex items-center gap-2 text-sm font-medium transition-colors ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+                                        className={`flex items-center gap-2 text-sm font-medium transition-colors ${post.isLiked ? 'text-red-400' : 'text-white/50 hover:text-red-400'}`}
                                     >
                                         <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} />
-                                        {post.likes || 0} Likes
+                                        {post.likes || 0}
                                     </button>
-                                    <button className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
+                                    <button className="flex items-center gap-2 text-sm font-medium text-white/50 hover:text-blue-400 transition-colors">
                                         <MessageSquare size={18} />
-                                        {post.comments_count || 0} Comments
+                                        {post.comments_count || 0}
                                     </button>
-                                    <button className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-green-600 transition-colors ml-auto">
+                                    <button className="flex items-center gap-2 text-sm font-medium text-white/50 hover:text-emerald-400 transition-colors ml-auto">
                                         <Share2 size={18} />
                                         Share
                                     </button>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))
                     )}
                 </div>
             )}
 
             {/* Post Modal */}
-            {showPostModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-bold text-gray-800">Create Post</h3>
-                            <button onClick={() => setShowPostModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
-                        </div>
-                        <div className="p-6">
-                            <textarea
-                                value={newPost}
-                                onChange={(e) => setNewPost(e.target.value)}
-                                placeholder="What's on your mind? Ask a question or share a tip..."
-                                className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none mb-4"
-                                autoFocus
-                            />
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => setShowPostModal(false)}
-                                    className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handlePostSubmit}
-                                    disabled={!newPost.trim() || createPostMutation.isPending}
-                                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                >
-                                    {createPostMutation.isPending && <Loader2 size={16} className="animate-spin" />}
-                                    Post
+            <AnimatePresence>
+                {showPostModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowPostModal(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-slate-900/95 backdrop-blur-xl rounded-2xl w-full max-w-lg border border-white/10 overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="p-5 border-b border-white/10 flex justify-between items-center">
+                                <h3 className="font-bold text-white text-lg">Create Post</h3>
+                                <button onClick={() => setShowPostModal(false)} className="text-white/50 hover:text-white">
+                                    <X size={20} />
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            <div className="p-5">
+                                <textarea
+                                    value={newPost}
+                                    onChange={(e) => setNewPost(e.target.value)}
+                                    placeholder="What's on your mind? Ask a question or share a tip..."
+                                    className="w-full h-32 p-4 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50 resize-none mb-4"
+                                    autoFocus
+                                />
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={() => setShowPostModal(false)}
+                                        className="px-5 py-2.5 text-white/60 font-medium hover:bg-white/10 rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handlePostSubmit}
+                                        disabled={!newPost.trim() || createPostMutation.isPending}
+                                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {createPostMutation.isPending && <Loader2 size={16} className="animate-spin" />}
+                                        Post
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

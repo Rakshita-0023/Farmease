@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { apiClient, API_BASE_URL, handlePostAuthLocation } from '../config'
-import { Eye, EyeOff, Loader2, AlertCircle, X, Zap } from 'lucide-react'
+import { Eye, EyeOff, Loader2, AlertCircle, X, Zap, Leaf } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
 
@@ -45,9 +44,7 @@ const Login = ({ onLogin }) => {
     e.preventDefault()
     setError('')
 
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setLoading(true)
 
@@ -61,18 +58,11 @@ const Login = ({ onLogin }) => {
         ? { email: formData.email, password: formData.password }
         : { name: formData.name, email: formData.email, password: formData.password }
 
-      console.log('🔗 API Base:', API_BASE)
-      console.log('🔗 Full URL:', `${API_BASE}${endpoint}`)
-
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-
-      console.log('📊 Response Status:', res.status)
 
       if (!res.ok) {
         const errorData = await res.json()
@@ -84,13 +74,9 @@ const Login = ({ onLogin }) => {
       if (response.success) {
         localStorage.setItem('token', response.token)
         localStorage.setItem('user', JSON.stringify(response.user))
-
-        // Location detection is handled automatically by LocationProvider when user state changes
-        console.log('🎯 Authentication successful, redirecting...')
         onLogin(response.user)
       }
     } catch (error) {
-      console.error('❌ Auth Error:', error)
       setError(error.message || 'Authentication failed')
     } finally {
       setLoading(false)
@@ -98,33 +84,19 @@ const Login = ({ onLogin }) => {
   }
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    console.log('✅ Google Login Success - Credential received')
-    console.log('📋 Credential preview:', credentialResponse.credential.substring(0, 50) + '...')
-
     setLoading(true)
-    setError('') // Clear any previous errors
+    setError('')
 
     try {
       const API_BASE = import.meta.env.PROD
         ? import.meta.env.VITE_API_BASE_URL
         : '/api'
 
-      console.log('🚀 Sending token to backend...')
-      console.log('🌐 API_BASE:', API_BASE)
-      console.log('🔗 Full URL:', `${API_BASE}/auth/google`)
-
-      // Send the credential (JWT) to the backend
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: credentialResponse.credential
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: credentialResponse.credential })
       })
-
-      console.log('📊 Response Status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -132,165 +104,179 @@ const Login = ({ onLogin }) => {
       }
 
       const res = await response.json()
-      console.log('📥 Backend response:', res)
 
       if (res.success) {
-        console.log('✅ Authentication successful!')
         localStorage.setItem('token', res.token)
         localStorage.setItem('user', JSON.stringify(res.user))
-
-        // Location detection is handled automatically by LocationProvider when user state changes
-        console.log('🎯 Google authentication successful, redirecting...')
         onLogin(res.user)
       } else {
-        // Backend returned success: false
-        console.error('❌ Backend returned failure:', res)
-        const errorMsg = res.details || res.error || 'Authentication failed'
-        setError(`Google sign in failed: ${errorMsg}`)
-        setToast({ message: errorMsg, type: 'error' })
+        setError(`Google sign in failed: ${res.details || res.error || 'Unknown error'}`)
       }
     } catch (err) {
-      console.error('❌ Backend Google Auth Error:', err)
-
-      // Extract detailed error information from our enhanced apiClient error object
-      let errorMessage = 'Google sign in failed. Please try again.'
-
-      if (err.data) {
-        // Server responded with error data
-        console.error('📛 Server error response:', err.data)
-        const errorDetails = err.data.details || err.data.error || ''
-        errorMessage = errorDetails ? `Server error: ${errorDetails}` : `Server error (${err.status})`
-      } else if (err.message) {
-        // Other error (network, etc)
-        console.error('📛 Request error:', err.message)
-        errorMessage = err.message.includes('Failed to fetch')
-          ? 'Cannot connect to server. Please check your internet connection or API URL.'
-          : `Request failed: ${err.message}`
-      }
-
-      setError(errorMessage)
-      setToast({ message: errorMessage, type: 'error' })
+      setError(err.message || 'Google sign in failed')
+      setToast({ message: err.message, type: 'error' })
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogleError = () => {
-    console.error('❌ Google Login Failed or Cancelled')
     setToast({ message: 'Google Login Failed', type: 'error' })
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 p-4 relative overflow-hidden font-sans">
-      {/* Background elements */}
-      <div className="absolute top-20 left-20 text-4xl animate-bounce duration-[3000ms]">🌾</div>
-      <div className="absolute bottom-20 right-20 text-4xl animate-bounce duration-[4000ms]">🚜</div>
-      <div className="absolute top-40 right-40 text-4xl animate-bounce duration-[3500ms]">🌱</div>
-
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden z-10">
-        <div className="p-8 text-center bg-green-600 text-white">
-          <h1 className="text-3xl font-bold mb-2">🌱 FarmEase</h1>
-          <p className="text-green-100">Your farming companion</p>
-        </div>
-
-        <div className="flex border-b border-gray-100">
-          <button
-            className={`flex-1 py-4 font-medium transition-colors ${isLogin ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
-            onClick={() => setIsLogin(true)}
-          >
-            Login
-          </button>
-          <button
-            className={`flex-1 py-4 font-medium transition-colors ${!isLogin ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
-            onClick={() => setIsLogin(false)}
-          >
-            Register
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          {!isLogin && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Full Name</label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                required={!isLogin}
-              />
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Email Address</label>
-            <input
-              type="email"
-              placeholder="farmer@example.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-              required
-            />
+    <div className="min-h-screen flex items-center justify-center p-4">
+      {/* Glassmorphism Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+          {/* Header */}
+          <div className="p-8 text-center">
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+              className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30"
+            >
+              <Leaf className="text-white" size={32} />
+            </motion.div>
+            <h1 className="text-3xl font-black text-white mb-1">FarmEase</h1>
+            <p className="text-white/60">Smart farming starts here</p>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Password</label>
-            <div className="relative">
+          {/* Tab Switcher */}
+          <div className="flex mx-6 bg-white/5 rounded-xl p-1">
+            <button
+              className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                isLogin 
+                  ? 'bg-white text-emerald-600 shadow-lg' 
+                  : 'text-white/70 hover:text-white'
+              }`}
+              onClick={() => setIsLogin(true)}
+            >
+              Login
+            </button>
+            <button
+              className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                !isLogin 
+                  ? 'bg-white text-emerald-600 shadow-lg' 
+                  : 'text-white/70 hover:text-white'
+              }`}
+              onClick={() => setIsLogin(false)}
+            >
+              Register
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <AnimatePresence mode="wait">
+              {!isLogin && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-1"
+                >
+                  <label className="text-sm font-medium text-white/80">Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="John Doe"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-3.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:bg-white/20 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-white/80">Email Address</label>
               <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all pr-10"
+                type="email"
+                placeholder="farmer@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-4 py-3.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:bg-white/20 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all"
                 required
               />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-white/80">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:bg-white/20 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all pr-12"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 bg-red-500/20 border border-red-500/30 text-red-200 text-sm rounded-xl flex items-center gap-2"
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
+                <AlertCircle size={16} />
+                {error}
+              </motion.div>
+            )}
 
-          {error && (
-            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
-              {error}
-            </div>
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold text-lg hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {loading ? (
+                <Loader2 size={24} className="animate-spin" />
+              ) : (
+                isLogin ? 'Sign In' : 'Create Account'
+              )}
+            </button>
 
-          <button
-            type="submit"
-            className="w-full py-3 bg-green-600 text-white rounded-xl font-bold text-lg hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-            disabled={loading}
-          >
-            {loading ? <Loader2 size={24} className="animate-spin" /> : (isLogin ? 'Login' : 'Create Account')}
-          </button>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/20"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-3 bg-transparent text-white/50">or continue with</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
-            </div>
-          </div>
 
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              useOneTap
-              theme="outline"
-              shape="pill"
-              text="continue_with"
-            />
-          </div>
-        </form>
-      </div>
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap
+                theme="filled_black"
+                shape="pill"
+                text="continue_with"
+              />
+            </div>
+          </form>
+        </div>
+
+        {/* Footer text */}
+        <p className="text-center text-white/40 text-sm mt-6">
+          By continuing, you agree to our Terms of Service
+        </p>
+      </motion.div>
 
       {/* Toast Notification */}
       <AnimatePresence>
@@ -299,11 +285,14 @@ const Login = ({ onLogin }) => {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-[#064E3B] text-white'
-              }`}
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 z-50 backdrop-blur-xl ${
+              toast.type === 'error' 
+                ? 'bg-red-500/90 text-white' 
+                : 'bg-emerald-500/90 text-white'
+            }`}
           >
-            {toast.type === 'error' ? <AlertCircle size={20} /> : <Zap size={20} className="text-[#FBBF24] fill-[#FBBF24]" />}
-            <span className="font-bold text-sm tracking-wide">{toast.message}</span>
+            {toast.type === 'error' ? <AlertCircle size={20} /> : <Zap size={20} />}
+            <span className="font-semibold text-sm">{toast.message}</span>
             <button onClick={() => setToast(null)} className="ml-2 hover:opacity-70">
               <X size={16} />
             </button>

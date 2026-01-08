@@ -31,7 +31,9 @@ app.get("/", (req, res) => {
 });
 
 // Local storage fallback (For Users/Farms ONLY - Market data is always dynamic)
-let useLocalStorage = false
+const storageState = {
+  useLocalStorage: false
+}
 const localData = {
   users: [],
   farms: [],
@@ -44,21 +46,15 @@ const localData = {
 // Initialize database connection
 async function initDB() {
   try {
-    // Try to connect to database with a timeout
-    console.log('🔍 Checking database connection...')
-    const connectionPromise = db.query('SELECT 1')
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Database connection timeout')), 5000)
-    )
-
-    await Promise.race([connectionPromise, timeoutPromise])
-    console.log('✅ Database connected successfully')
+    console.log('🔍 Checking SQLite database connection...')
+    await db.query('SELECT 1')
+    console.log('✅ SQLite database connected successfully')
     await createTables()
+    storageState.useLocalStorage = false // Use real database
   } catch (err) {
-    console.warn('⚠️ Database connection failed or timed out:', err.message)
-    console.warn('⚠️ Falling back to in-memory storage for User/Farm data')
-    console.warn('⚠️ Market data will still be fetched dynamically from providers')
-    useLocalStorage = true
+    console.error('❌ SQLite connection failed:', err.message)
+    console.warn('⚠️ Falling back to in-memory storage')
+    storageState.useLocalStorage = true
   }
 
   // Startup check for Google Config
@@ -75,87 +71,82 @@ async function createTables() {
 
   const tables = [
     `CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
-      city VARCHAR(255),
-      state VARCHAR(255),
-      country VARCHAR(255) DEFAULT 'India',
-      latitude DECIMAL(10, 8),
-      longitude DECIMAL(11, 8),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      city TEXT,
+      state TEXT,
+      country TEXT DEFAULT 'India',
+      latitude REAL,
+      longitude REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS farms (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      crop VARCHAR(255) NOT NULL,
-      area DECIMAL(10,2) NOT NULL,
-      soil_type VARCHAR(100),
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      crop TEXT NOT NULL,
+      area REAL NOT NULL,
+      soil_type TEXT,
       planting_date DATE,
-      health_score INT DEFAULT 100,
-      days_to_harvest INT,
-      progress INT DEFAULT 0,
-      latitude DECIMAL(10, 8),
-      longitude DECIMAL(11, 8),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      health_score INTEGER DEFAULT 100,
+      days_to_harvest INTEGER,
+      progress INTEGER DEFAULT 0,
+      latitude REAL,
+      longitude REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`,
     `CREATE TABLE IF NOT EXISTS activities (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      farm_id INT,
-      type VARCHAR(100) NOT NULL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      farm_id INTEGER,
+      type TEXT NOT NULL,
       details TEXT,
-      quantity VARCHAR(100),
+      quantity TEXT,
       date DATE NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (farm_id) REFERENCES farms(id)
     )`,
     `CREATE TABLE IF NOT EXISTS plant_diagnoses (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      disease VARCHAR(255) NOT NULL,
-      confidence INT NOT NULL,
-      symptoms JSON,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      disease TEXT NOT NULL,
+      confidence INTEGER NOT NULL,
+      symptoms TEXT,
       remedy TEXT,
-      type VARCHAR(100),
+      type TEXT,
       image_url TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`,
     `CREATE TABLE IF NOT EXISTS forum_posts (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       content TEXT NOT NULL,
-      tags JSON,
-      likes INT DEFAULT 0,
-      comments_count INT DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      tags TEXT,
+      likes INTEGER DEFAULT 0,
+      comments_count INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`,
     `CREATE TABLE IF NOT EXISTS market_prices (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      commodity VARCHAR(255) NOT NULL,
-      variety VARCHAR(255),
-      market VARCHAR(255) NOT NULL,
-      district VARCHAR(255) NOT NULL,
-      state VARCHAR(255) NOT NULL,
-      min_price DECIMAL(10,2) NOT NULL,
-      max_price DECIMAL(10,2) NOT NULL,
-      modal_price DECIMAL(10,2) NOT NULL,
-      latitude DECIMAL(10, 8),
-      longitude DECIMAL(11, 8),
-      trend VARCHAR(20) DEFAULT 'stable',
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      commodity TEXT NOT NULL,
+      variety TEXT,
+      market TEXT NOT NULL,
+      district TEXT NOT NULL,
+      state TEXT NOT NULL,
+      min_price REAL NOT NULL,
+      max_price REAL NOT NULL,
+      modal_price REAL NOT NULL,
+      latitude REAL,
+      longitude REAL,
+      trend TEXT DEFAULT 'stable',
       date DATE NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_state (state),
-      INDEX idx_district (district),
-      INDEX idx_market (market),
-      INDEX idx_commodity (commodity),
-      INDEX idx_date (date)
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`
   ]
 
@@ -163,7 +154,7 @@ async function createTables() {
     await db.execute(table)
   }
 
-  console.log('✅ Database tables created successfully')
+  console.log('✅ SQLite tables created successfully')
 }
 
 // Seed market data with Dec 2025 prices (only if table is empty)
@@ -181,15 +172,18 @@ app.get('/api/health', async (req, res) => {
 })
 
 const findUser = async (email) => {
-  console.log(`🔍 Finding user: ${email} (Mode: ${useLocalStorage ? 'Local' : 'DB'})`)
-  if (useLocalStorage) {
+  console.log(`🔍 Finding user: ${email} (Mode: ${storageState.useLocalStorage ? 'Local' : 'DB'})`)
+  if (storageState.useLocalStorage) {
     const user = localData.users.find(u => u.email === email)
     console.log(`🔍 Local find result: ${user ? 'Found' : 'Not Found'}`)
     return user
   }
   try {
-    const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email])
+    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email])
     console.log(`🔍 DB find result: ${users.length > 0 ? 'Found' : 'Not Found'}`)
+    if (users.length > 0) {
+      console.log(`🔍 User data:`, JSON.stringify(users[0], null, 2))
+    }
     return users[0]
   } catch (error) {
     console.error('❌ DB findUser error:', error.message)
@@ -198,8 +192,8 @@ const findUser = async (email) => {
 }
 
 const createUser = async (name, email, passwordHash) => {
-  console.log(`📝 Creating user: ${email} (Mode: ${useLocalStorage ? 'Local' : 'DB'})`)
-  if (useLocalStorage) {
+  console.log(`📝 Creating user: ${email} (Mode: ${storageState.useLocalStorage ? 'Local' : 'DB'})`)
+  if (storageState.useLocalStorage) {
     const newUser = {
       id: localData.users.length + 1,
       name,
@@ -250,10 +244,10 @@ const authRoutes = createAuthRoutes(findUser, createUser)
 app.use('/api/auth', authRoutes)
 
 const getUserFarms = async (userId) => {
-  if (useLocalStorage) {
+  if (storageState.useLocalStorage) {
     return localData.farms.filter(f => f.user_id === userId)
   }
-  const [farms] = await db.execute(
+  const [farms] = await db.query(
     'SELECT * FROM farms WHERE user_id = ? ORDER BY created_at DESC',
     [userId]
   )
@@ -261,11 +255,14 @@ const getUserFarms = async (userId) => {
 }
 
 const createFarm = async (userId, farmData) => {
+  console.log('📝 createFarm called with userId:', userId, 'farmData:', farmData)
+  
   const { name, crop, area, soilType, plantingDate, healthScore, daysToHarvest, progress, location } = farmData
   const lat = location ? location.lat : null
   const lng = location ? location.lng : null
 
-  if (useLocalStorage) {
+  if (storageState.useLocalStorage) {
+    console.log('📝 Using local storage for farm creation')
     const newFarm = {
       id: localData.farms.length + 1,
       user_id: userId,
@@ -275,13 +272,16 @@ const createFarm = async (userId, farmData) => {
       created_at: new Date()
     }
     localData.farms.push(newFarm)
+    console.log('✅ Farm created in local storage with ID:', newFarm.id)
     return { insertId: newFarm.id }
   }
 
+  console.log('📝 Using database for farm creation')
   const [result] = await db.execute(
     'INSERT INTO farms (user_id, name, crop, area, soil_type, planting_date, health_score, days_to_harvest, progress, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [userId, name, crop, area, soilType, plantingDate, healthScore, daysToHarvest, progress, lat, lng]
   )
+  console.log('✅ Farm created in database:', result)
   return result
 }
 
@@ -326,6 +326,13 @@ const authenticateToken = (req, res, next) => {
       console.log('❌ Auth middleware - Token verification failed:', err.message)
       return res.status(403).json({ error: 'Invalid token' })
     }
+    
+    // CRITICAL: Check if userId is valid
+    if (!user || !user.userId) {
+      console.log('❌ Auth middleware - Token has no valid userId:', user)
+      return res.status(401).json({ error: 'Invalid token - please log in again' })
+    }
+    
     console.log('✅ Auth middleware - Token verified for user:', user.userId)
     req.user = user
     next()
@@ -346,7 +353,7 @@ const validateInput = (schema) => (req, res, next) => {
 
 // Mount routers
 app.use('/api/locations', locationRoutes)
-app.use('/api/user', createUserRoutes(db, useLocalStorage, localData, authenticateToken))
+app.use('/api/user', createUserRoutes(db, storageState, localData, authenticateToken))
 app.use('/api/weather', createWeatherRoutes(authenticateToken))
 
 // Protected routes
@@ -368,26 +375,34 @@ app.get('/api/farms', authenticateToken, async (req, res) => {
 
 app.post('/api/farms', authenticateToken, async (req, res) => {
   try {
+    console.log('📝 POST /api/farms - Request body:', req.body)
+    console.log('📝 POST /api/farms - User ID:', req.user?.userId)
+    
     const { name, crop, area, soilType, plantingDate, healthScore, daysToHarvest, progress, location } = req.body
 
     if (!name || !crop || !area) {
+      console.log('❌ POST /api/farms - Missing required fields:', { name: !!name, crop: !!crop, area: !!area })
       return res.status(400).json({ error: 'Name, crop, and area are required' })
     }
 
+    console.log('📝 POST /api/farms - Creating farm with:', { name, crop, area, soilType, plantingDate })
+    
     const result = await createFarm(req.user.userId, {
       name, crop, area, soilType, plantingDate, healthScore, daysToHarvest, progress, location
     })
 
+    console.log('✅ POST /api/farms - Farm created:', result)
     res.json({ success: true, farmId: result.insertId })
   } catch (error) {
-    console.error('Create farm error:', error)
-    res.status(500).json({ error: 'Failed to create farm' })
+    console.error('❌ Create farm error:', error)
+    console.error('❌ Error stack:', error.stack)
+    res.status(500).json({ error: 'Failed to create farm', details: error.message })
   }
 })
 
 app.get('/api/activities', authenticateToken, async (req, res) => {
   try {
-    const [activities] = await db.execute(
+    const [activities] = await db.query(
       'SELECT * FROM activities WHERE user_id = ? ORDER BY date DESC',
       [req.user.userId]
     )
@@ -420,7 +435,7 @@ app.post('/api/activities', authenticateToken, async (req, res) => {
 
 app.get('/api/forum/posts', async (req, res) => {
   try {
-    const [posts] = await db.execute(`
+    const [posts] = await db.query(`
       SELECT p.*, u.name as author_name 
       FROM forum_posts p 
       JOIN users u ON p.user_id = u.id 
@@ -487,7 +502,7 @@ app.post('/api/plant-diagnosis', authenticateToken, async (req, res) => {
 
 app.get('/api/plant-diagnosis/history', authenticateToken, async (req, res) => {
   try {
-    const [diagnoses] = await db.execute(
+    const [diagnoses] = await db.query(
       'SELECT * FROM plant_diagnoses WHERE user_id = ? ORDER BY created_at DESC LIMIT 20',
       [req.user.userId]
     )
@@ -689,7 +704,7 @@ app.get('/api/market/search', async (req, res) => {
       LIMIT 50
     `
     const pattern = `%${q}%`
-    const [results] = await db.execute(query, [pattern, pattern, pattern])
+    const [results] = await db.query(query, [pattern, pattern, pattern])
 
     res.json(results)
   } catch (error) {
@@ -811,6 +826,7 @@ app.get('/api/markets/:marketId/prices', async (req, res) => {
   console.log('📊 Market-specific prices endpoint hit:', req.params.marketId)
   try {
     const { marketId } = req.params
+    const { lat, lng } = req.query // User's location for context
     
     if (!marketId || marketId === 'undefined') {
       return res.status(400).json({ 
@@ -819,68 +835,85 @@ app.get('/api/markets/:marketId/prices', async (req, res) => {
       })
     }
 
-    // For now, we'll simulate market-specific prices by using the market ID
-    // In a real system, you'd look up the market details and fetch specific prices
-    
-    // Parse market ID to get some info (format: osm-node-123456)
-    const [source, type, osmId] = marketId.split('-')
-    
-    if (source !== 'osm' || !osmId) {
+    // Get all markets near user to find the specific market
+    if (!lat || !lng) {
       return res.status(400).json({
-        error: 'Invalid market ID format',
-        message: 'Market ID must be in format: osm-node-123456'
+        error: 'User location required',
+        message: 'Please provide user coordinates (lat, lng) to fetch market prices'
       })
     }
 
-    // For demo purposes, we'll create a mock market and fetch regional prices
-    // In production, you'd have market details stored in database
-    const mockMarket = {
-      id: marketId,
-      name: `Agricultural Market ${osmId.slice(-3)}`, // Use last 3 digits for uniqueness
-      address: 'Market Area, Local District',
-      city: 'Local City',
-      state: 'Local State',
-      lat: 19.0760 + (Math.random() - 0.5) * 0.1, // Mock coordinates near user
-      lng: 72.8777 + (Math.random() - 0.5) * 0.1,
-      verification_status: 'osm_verified'
+    const userLat = parseFloat(lat)
+    const userLng = parseFloat(lng)
+
+    // Fetch all markets near user
+    const result = await integratedMarketService.getVerifiedMarketsWithPrices(userLat, userLng, 50)
+    
+    if (!result.success || !result.markets) {
+      throw new Error('Failed to fetch market data')
     }
 
-    // Fetch some regional prices (simulating market-specific data)
+    // Find the specific market by ID
+    const market = result.markets.find(m => m.id === marketId)
+    
+    if (!market) {
+      return res.status(404).json({
+        error: 'Market not found',
+        message: `Market with ID ${marketId} not found near your location`
+      })
+    }
+
+    console.log(`✅ Found market: ${market.name} at ${market.lat}, ${market.lng}`)
+
+    // Fetch prices for this specific market's location
     const provider = getProvider('india')
-    const regionalPrices = await provider.fetchMarketData({
-      city: 'Regional Market',
-      district: 'Local District',
-      state: 'Local State',
-      lat: mockMarket.lat,
-      lng: mockMarket.lng
+    const marketPrices = await provider.fetchMarketData({
+      city: market.name,
+      district: market.district || market.city,
+      state: market.state,
+      lat: market.lat,
+      lng: market.lng
     })
 
-    // Take a subset of prices and attribute them to this specific market
-    const marketSpecificPrices = regionalPrices.slice(0, 5).map(price => ({
+    // Enrich prices with market information
+    const enrichedPrices = marketPrices.map(price => ({
       ...price,
       market_id: marketId,
-      market_name: mockMarket.name,
-      market_address: mockMarket.address,
-      market_lat: mockMarket.lat,
-      market_lng: mockMarket.lng,
-      data_source: 'AGMARKNET Government Data',
+      market_name: market.name,
+      market_address: market.address || `${market.city}, ${market.state}`,
+      market_lat: market.lat,
+      market_lng: market.lng,
+      market_type: market.marketType || 'Agricultural Market',
+      data_source: 'AGMARKNET (Government of India)',
       last_updated: new Date().toISOString(),
       unit: 'Per Quintal (100 kg)',
-      verification_status: 'government_verified'
+      verification_status: market.verification_status || 'verified'
     }))
 
-    console.log(`✅ Returning ${marketSpecificPrices.length} prices for market: ${mockMarket.name}`)
+    console.log(`✅ Returning ${enrichedPrices.length} prices for market: ${market.name}`)
 
     res.json({
       success: true,
-      market: mockMarket,
-      prices: marketSpecificPrices,
+      market: {
+        id: market.id,
+        name: market.name,
+        address: market.address || `${market.city}, ${market.state}`,
+        city: market.city,
+        state: market.state,
+        lat: market.lat,
+        lng: market.lng,
+        distance: market.distance,
+        marketType: market.marketType,
+        verification_status: market.verification_status,
+        has_live_prices: enrichedPrices.length > 0
+      },
+      prices: enrichedPrices,
       metadata: {
-        total_crops: marketSpecificPrices.length,
+        total_crops: enrichedPrices.length,
         data_source: 'AGMARKNET (Government of India)',
         last_updated: new Date().toISOString(),
         unit: 'Prices in ₹ per Quintal (100 kg)',
-        note: marketSpecificPrices.length === 0 ? 'No price data available for this market today' : 'Live government data for this market region'
+        note: enrichedPrices.length === 0 ? 'No price data available for this market today' : 'Live government data for this specific market'
       },
       timestamp: new Date().toISOString()
     })
@@ -947,9 +980,11 @@ app.get('/api/market/compare', async (req, res) => {
         variance: 0
       }))
     } else {
-      // Default: Show top crops from a major hub (e.g., Delhi/Mumbai or random)
-      const defaultData = await provider.fetchMarketData({ city: 'New Delhi', lat: 28.61, lng: 77.20 });
-      result = defaultData.sort((a, b) => b.modal_price - a.modal_price).slice(0, 10);
+      // No location provided - return error instead of defaulting to hardcoded location
+      return res.status(400).json({ 
+        error: 'Location required',
+        message: 'Please provide crop, location, or city parameter to fetch market comparison data'
+      })
     }
 
     res.json(result)

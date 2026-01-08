@@ -1,305 +1,372 @@
 import { useState, useEffect } from 'react'
-import { MapPin, Loader2, AlertCircle, RefreshCw, Navigation, TrendingUp, TrendingDown } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { 
+  MapPin, RefreshCw, Navigation, TrendingUp, TrendingDown, 
+  Store, Clock, ChevronRight, Sparkles, Activity
+} from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useLocation } from '../LocationContext'
 import { apiClient } from '../config'
+import marketCache from '../services/marketCache'
 
 const Market = () => {
-  const { location: userLocation, loading: locationLoading, error: locationError } = useLocation()
+  const navigate = useNavigate()
+  const { location: userLocation, loading: locationLoading, error: locationError, updateLocation, retryLocationDetection } = useLocation()
   
   const [marketData, setMarketData] = useState({
-    prices: [],
     markets: [],
     loading: false,
     error: null
   })
 
-  // Fetch data based on user's actual location
-  const fetchMarketData = async () => {
-    if (!userLocation?.latitude || !userLocation?.longitude) {
-      console.log('❌ No user location available:', userLocation)
-      return
+  const fetchMarketData = async (forceRefresh = false) => {
+    if (!userLocation?.latitude || !userLocation?.longitude) return
+
+    if (!forceRefresh) {
+      const cached = marketCache.get(userLocation.latitude, userLocation.longitude, 50)
+      if (cached) {
+        setMarketData({ markets: cached, loading: false, error: null })
+        return
+      }
     }
 
     setMarketData(prev => ({ ...prev, loading: true, error: null }))
     
     try {
-      console.log(`🔄 Fetching data for user location: ${userLocation.latitude}, ${userLocation.longitude}`)
-      console.log('🔄 Full user location object:', userLocation)
-      
-      // Fetch nearby markets for user's location
-      const marketsResponse = await apiClient.get('/market/nearby', {
+      const response = await apiClient.get('/market/nearby', {
         lat: userLocation.latitude,
         lng: userLocation.longitude,
-        radius: 50 // 50km radius
+        radius: 50
       })
 
-      console.log('📊 Markets API Response:', marketsResponse)
+      const markets = response?.success ? response.markets : []
+      if (markets.length > 0) {
+        marketCache.set(userLocation.latitude, userLocation.longitude, markets, 50)
+      }
 
-      setMarketData({
-        prices: [], // Remove aggregated prices - we'll show market-specific prices
-        markets: marketsResponse?.success ? marketsResponse.markets : [],
-        loading: false,
-        error: null
-      })
-
-      console.log(`✅ Loaded ${marketsResponse?.markets?.length || 0} markets`)
-      
+      setMarketData({ markets, loading: false, error: null })
     } catch (error) {
-      console.error('❌ Failed to fetch market data:', error)
-      console.error('❌ Error details:', {
-        message: error.message,
-        status: error.status,
-        data: error.data
-      })
-      setMarketData(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: 'Failed to load market data. Please try again.' 
-      }))
+      setMarketData(prev => ({ ...prev, loading: false, error: error.message }))
     }
   }
 
-  // Load data when user location is available
   useEffect(() => {
     if (userLocation?.latitude && userLocation?.longitude) {
       fetchMarketData()
-    } else {
-      // TEMPORARY: Test with hardcoded Mumbai coordinates
-      console.log('🧪 Testing with hardcoded coordinates')
-      const testLocation = { latitude: 19.0760, longitude: 72.8777, city: 'Mumbai', state: 'Maharashtra' }
-      
-      const testFetch = async () => {
-        try {
-          const response = await apiClient.get('/market/nearby', {
-            lat: testLocation.latitude,
-            lng: testLocation.longitude,
-            radius: 50
-          })
-          console.log('🧪 Test API response:', response)
-          
-          setMarketData({
-            prices: [],
-            markets: response?.success ? response.markets : [],
-            loading: false,
-            error: null
-          })
-        } catch (error) {
-          console.error('🧪 Test API failed:', error)
-        }
-      }
-      
-      testFetch()
     }
   }, [userLocation])
 
-  // Show loading while getting location
+  // Premium Loading State
   if (locationLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Getting Your Location</h2>
-          <p className="text-gray-600">Please allow location access to find nearby markets</p>
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 animate-pulse mx-auto mb-6" />
+            <div className="absolute inset-0 w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 animate-ping opacity-20 mx-auto" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2">Detecting Location</h2>
+          <p className="text-white/50">Finding markets near you...</p>
         </div>
       </div>
     )
   }
 
-  // Show error if location failed
+  // Location Error State - with manual city selector
   if (locationError || !userLocation) {
+    const cities = [
+      { name: 'Mumbai', state: 'Maharashtra', latitude: 19.0760, longitude: 72.8777 },
+      { name: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.2090 },
+      { name: 'Bangalore', state: 'Karnataka', latitude: 12.9716, longitude: 77.5946 },
+      { name: 'Hyderabad', state: 'Telangana', latitude: 17.3850, longitude: 78.4867 },
+      { name: 'Chennai', state: 'Tamil Nadu', latitude: 13.0827, longitude: 80.2707 },
+      { name: 'Kolkata', state: 'West Bengal', latitude: 22.5726, longitude: 88.3639 },
+      { name: 'Pune', state: 'Maharashtra', latitude: 18.5204, longitude: 73.8567 },
+      { name: 'Jaipur', state: 'Rajasthan', latitude: 26.9124, longitude: 75.7873 },
+      { name: 'Lucknow', state: 'Uttar Pradesh', latitude: 26.8467, longitude: 80.9462 }
+    ]
+    
+    const handleCitySelect = (city) => {
+      console.log('📍 Manual city selection for Market:', city.name)
+      if (updateLocation) {
+        updateLocation(city)
+      }
+    }
+    
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Location Required</h2>
-          <p className="text-gray-600 mb-6">
-            We need your location to show nearby markets and crop prices in your area.
-          </p>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-white/10 backdrop-blur-xl rounded-3xl p-8 text-center border border-white/10">
+          <div className="w-20 h-20 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <MapPin className="text-emerald-400" size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-3">Location Required</h2>
+          <p className="text-white/50 mb-6">Enable location access to discover agricultural markets and live prices near you.</p>
+          
           <button
-            onClick={() => window.location.reload()}
-            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            onClick={retryLocationDetection}
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl hover:opacity-90 transition-all mb-4"
           >
-            Enable Location & Retry
+            Enable Location
           </button>
+          
+          <p className="text-white/40 text-sm mb-4">Or select your city manually:</p>
+          
+          <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+            {cities.map((city) => (
+              <button
+                key={city.name}
+                onClick={() => handleCitySelect(city)}
+                className="p-2 bg-white/5 hover:bg-emerald-500/20 rounded-xl transition-all text-left border border-transparent hover:border-emerald-500/30"
+              >
+                <span className="text-white font-medium text-xs block">{city.name}</span>
+                <span className="text-white/40 text-[10px]">{city.state}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header with user's actual location */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Agricultural Markets</h1>
-              <div className="flex items-center gap-2 mt-2 text-gray-600">
-                <MapPin size={16} />
-                <span>Your Location: {userLocation.city}, {userLocation.state}</span>
-                <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                  {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
-                </span>
+    <div className="min-h-screen p-4 md:p-6">
+      {/* Premium Hero Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-emerald-600/80 via-teal-600/80 to-cyan-600/80 backdrop-blur-xl rounded-3xl p-6 md:p-8 mb-6 border border-white/10 relative overflow-hidden"
+      >
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }} />
+        </div>
+        
+        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-white/90 text-sm font-medium">Live Data</span>
               </div>
             </div>
-            <button
-              onClick={fetchMarketData}
-              disabled={marketData.loading}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw size={18} className={marketData.loading ? 'animate-spin' : ''} />
-              Refresh Data
-            </button>
+            <h1 className="text-3xl md:text-4xl font-black text-white mb-2">Mandi Prices</h1>
+            <div className="flex items-center gap-2 text-white/80">
+              <MapPin size={16} />
+              <span className="font-medium">{userLocation.city}, {userLocation.state}</span>
+            </div>
           </div>
+          
+          <button
+            onClick={() => {
+              marketCache.clear()
+              fetchMarketData(true)
+            }}
+            disabled={marketData.loading}
+            className="flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all font-semibold"
+          >
+            <RefreshCw size={18} className={marketData.loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
         </div>
+      </motion.div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0 }}
+          className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/10"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+              <Store className="text-emerald-400" size={20} />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">{marketData.markets.length}</div>
+          <div className="text-sm text-white/50">Markets Found</div>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/10"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+              <Activity className="text-emerald-400" size={20} />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">{marketData.markets.filter(m => m.has_live_prices).length}</div>
+          <div className="text-sm text-white/50">With Live Prices</div>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/10"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+              <Navigation className="text-emerald-400" size={20} />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">50km</div>
+          <div className="text-sm text-white/50">Search Radius</div>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/10"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+              <Clock className="text-emerald-400" size={20} />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">Today</div>
+          <div className="text-sm text-white/50">Last Updated</div>
+        </motion.div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {marketData.loading ? (
-          <div className="text-center py-16">
-            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading Market Data</h3>
-            <p className="text-gray-600">Finding crop prices and markets near you...</p>
-          </div>
-        ) : marketData.error ? (
-          <div className="text-center py-16">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Data</h3>
-            <p className="text-gray-600 mb-6">{marketData.error}</p>
-            <button
-              onClick={fetchMarketData}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        ) : (
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* Agricultural Markets Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <Navigation className="text-green-600" size={24} />
-                  Agricultural Markets Near You
-                </h2>
-                <p className="text-gray-600 mt-1">
-                  {marketData.markets.length} verified agricultural markets within 50km
-                </p>
-                <div className="mt-3 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg inline-block">
-                  📊 Data source: AGMARKNET (Government of India) • Updated daily
-                </div>
+      {/* Loading Skeleton */}
+      {marketData.loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 animate-pulse">
+              <div className="flex justify-between mb-4">
+                <div className="h-6 bg-white/10 rounded-lg w-32" />
+                <div className="h-6 bg-white/10 rounded-full w-16" />
               </div>
-              
-              <div className="p-6">
-                {marketData.markets.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {marketData.markets.map((market) => (
-                      <div key={market.id} className="bg-gray-50 rounded-lg p-5 hover:bg-gray-100 transition-colors cursor-pointer"
-                           onClick={() => window.location.href = `/market/${market.id}`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 mb-1">
-                              {market.name === 'Unknown' ? 'Unverified Market' : market.name}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {market.address || `${market.city}, ${market.state}`}
-                            </p>
-                          </div>
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-medium">
-                            {market.distance}km
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <MapPin size={14} className="mr-2" />
-                            <span>{market.marketType || 'Agricultural Market'}</span>
-                          </div>
-                          {market.has_live_prices ? (
-                            <div className="flex items-center text-sm text-green-600">
-                              <TrendingUp size={14} className="mr-2" />
-                              <span>Live prices available</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center text-sm text-gray-500">
-                              <AlertCircle size={14} className="mr-2" />
-                              <span>Contact for current rates</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const url = `https://www.google.com/maps/dir/${userLocation.latitude},${userLocation.longitude}/${market.lat},${market.lng}`
-                              window.open(url, '_blank')
-                            }}
-                            className="flex-1 bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-1"
-                          >
-                            <Navigation size={12} />
-                            Directions
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.location.href = `/market/${market.id}`
-                            }}
-                            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition-colors"
-                          >
-                            View Prices
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+              <div className="h-4 bg-white/10 rounded w-48 mb-4" />
+              <div className="flex gap-2">
+                <div className="h-10 bg-white/10 rounded-xl flex-1" />
+                <div className="h-10 bg-white/10 rounded-xl flex-1" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error State */}
+      {marketData.error && !marketData.loading && (
+        <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <TrendingDown className="text-red-400" size={32} />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Failed to Load Markets</h3>
+          <p className="text-white/50 mb-6">{marketData.error}</p>
+          <button
+            onClick={() => fetchMarketData(true)}
+            className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Markets Grid */}
+      {!marketData.loading && !marketData.error && marketData.markets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {marketData.markets.map((market, index) => (
+            <motion.div 
+              key={market.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              onClick={() => navigate(`/market/${market.id}?lat=${userLocation.latitude}&lng=${userLocation.longitude}`)}
+              className="group bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 hover:border-emerald-500/30 transition-all duration-300 cursor-pointer hover:-translate-y-1"
+            >
+              {/* Market Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors mb-1">
+                    {market.name === 'Unknown' ? 'Agricultural Market' : market.name}
+                  </h3>
+                  <p className="text-sm text-white/50">
+                    {market.address || `${market.city || ''}, ${market.state || ''}`}
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-bold">
+                  {market.distance}km
+                </span>
+              </div>
+
+              {/* Market Info */}
+              <div className="flex items-center gap-4 mb-5">
+                <div className="flex items-center gap-1.5 text-sm text-white/60">
+                  <Store size={14} />
+                  <span>{market.marketType || 'Market'}</span>
+                </div>
+                {market.has_live_prices ? (
+                  <div className="flex items-center gap-1.5 text-sm text-emerald-400">
+                    <TrendingUp size={14} />
+                    <span>Live Prices</span>
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-6" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Agricultural Markets Found</h3>
-                    <p className="text-gray-600 mb-6">
-                      No verified agricultural markets found within 50km of your location.
-                    </p>
-                    <button
-                      onClick={fetchMarketData}
-                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                      Search Again
-                    </button>
+                  <div className="flex items-center gap-1.5 text-sm text-white/40">
+                    <Clock size={14} />
+                    <span>Contact for rates</span>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Summary Stats */}
-            {marketData.markets.length > 0 && (
-              <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Summary</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{marketData.markets.length}</div>
-                    <div className="text-sm text-gray-600">Agricultural Markets</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {marketData.markets.filter(m => m.has_live_prices).length}
-                    </div>
-                    <div className="text-sm text-gray-600">With Live Prices</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {marketData.markets.length > 0 ? 
-                        `${Math.round(marketData.markets.reduce((sum, m) => sum + m.distance, 0) / marketData.markets.length)}km` : 
-                        '0km'
-                      }
-                    </div>
-                    <div className="text-sm text-gray-600">Average Distance</div>
-                  </div>
-                </div>
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    window.open(`https://www.google.com/maps/dir/${userLocation.latitude},${userLocation.longitude}/${market.lat},${market.lng}`, '_blank')
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-all"
+                >
+                  <Navigation size={16} />
+                  Directions
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/market/${market.id}?lat=${userLocation.latitude}&lng=${userLocation.longitude}`)
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:opacity-90 transition-all"
+                >
+                  View Prices
+                  <ChevronRight size={16} />
+                </button>
               </div>
-            )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!marketData.loading && !marketData.error && marketData.markets.length === 0 && (
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-12 text-center border border-white/10">
+          <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Store className="text-white/40" size={40} />
           </div>
-        )}
+          <h3 className="text-2xl font-bold text-white mb-3">No Markets Found</h3>
+          <p className="text-white/50 mb-8 max-w-md mx-auto">
+            No agricultural markets found within 50km of your location. Try expanding your search or check back later.
+          </p>
+          <button
+            onClick={() => fetchMarketData(true)}
+            className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold hover:opacity-90 transition-all"
+          >
+            Search Again
+          </button>
+        </div>
+      )}
+
+      {/* Data Source Footer */}
+      <div className="mt-8 flex items-center justify-center gap-2 text-sm text-white/30">
+        <Sparkles size={14} className="text-emerald-500" />
+        <span>Data source: AGMARKNET (Government of India) • Updated daily</span>
       </div>
     </div>
   )

@@ -1,205 +1,350 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiClient } from '../config'
-import './WeatherEnhancements.css'
 import { useLocation } from '../LocationContext'
-import { motion, AnimatePresence } from 'framer-motion'
+import weatherCache from '../services/weatherCache'
 import {
   Cloud, Sun, CloudRain, Wind, Droplets, Thermometer,
-  MapPin, RefreshCw, AlertTriangle, CheckCircle2,
-  Navigation, Zap, Sprout, Waves, Sunrise, Sunset,
-  Search, CloudLightning, CloudSnow, CloudFog, CloudSun
+  MapPin, RefreshCw, AlertTriangle, Sunrise, Sunset,
+  CloudLightning, CloudSnow, CloudFog, Gauge, Eye, Navigation
 } from 'lucide-react'
 
-const getCropRecommendations = (weather) => {
-  const temp = weather.temperature
-  const condition = weather.condition.toLowerCase()
-
-  if (temp >= 25 && temp <= 35) {
-    if (condition.includes('rain')) return 'Rice, Sugarcane - Excellent for monsoon'
-    return 'Corn, Cotton, Tomatoes - Ideal warm weather crops'
-  } else if (temp >= 15 && temp < 25) {
-    return 'Wheat, Barley, Peas - Perfect cool season crops'
-  } else if (temp < 15) {
-    return 'Cabbage, Carrots, Spinach - Cold hardy vegetables'
-  } else {
-    return 'Heat-resistant varieties recommended'
+// Weather icon component with animations
+const WeatherIcon = ({ condition, size = 64 }) => {
+  const cond = (condition || '').toLowerCase()
+  const iconClass = "transition-all duration-500"
+  
+  if (cond.includes('clear') || cond.includes('sunny')) {
+    return (
+      <div className="relative">
+        <Sun size={size} className={`${iconClass} text-amber-400 animate-pulse`} />
+        <div className="absolute inset-0 bg-amber-400/20 rounded-full blur-xl animate-pulse" />
+      </div>
+    )
   }
+  if (cond.includes('cloud') && cond.includes('sun')) {
+    return <Cloud size={size} className={`${iconClass} text-slate-300`} />
+  }
+  if (cond.includes('cloud')) {
+    return <Cloud size={size} className={`${iconClass} text-slate-400`} />
+  }
+  if (cond.includes('rain') || cond.includes('drizzle')) {
+    return (
+      <div className="relative">
+        <CloudRain size={size} className={`${iconClass} text-blue-400`} />
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="w-0.5 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+  if (cond.includes('thunder') || cond.includes('storm')) {
+    return <CloudLightning size={size} className={`${iconClass} text-purple-400 animate-pulse`} />
+  }
+  if (cond.includes('snow')) {
+    return <CloudSnow size={size} className={`${iconClass} text-blue-200`} />
+  }
+  if (cond.includes('mist') || cond.includes('fog') || cond.includes('haze')) {
+    return <CloudFog size={size} className={`${iconClass} text-slate-400`} />
+  }
+  return <Sun size={size} className={`${iconClass} text-amber-400`} />
 }
 
-const getIrrigationAdvice = (weather) => {
+// Get background gradient based on weather - simplified to emerald theme
+const getWeatherGradient = (condition) => {
+  const cond = (condition || '').toLowerCase()
+  // Use emerald-based gradients for consistency
+  if (cond.includes('clear') || cond.includes('sunny')) return 'from-emerald-600 via-teal-600 to-emerald-700'
+  if (cond.includes('cloud')) return 'from-slate-600 via-slate-700 to-emerald-900'
+  if (cond.includes('rain')) return 'from-slate-700 via-emerald-800 to-slate-800'
+  if (cond.includes('thunder')) return 'from-slate-800 via-emerald-900 to-slate-900'
+  if (cond.includes('snow')) return 'from-slate-500 via-slate-600 to-emerald-800'
+  if (cond.includes('mist') || cond.includes('fog')) return 'from-slate-600 via-slate-700 to-emerald-800'
+  return 'from-emerald-600 via-teal-600 to-emerald-700'
+}
+
+// Farming advice based on weather
+const getFarmingAdvice = (weather) => {
+  if (!weather) return { crop: '', irrigation: '', alert: '' }
+  
+  const temp = weather.temperature
   const humidity = weather.humidity
-  const condition = weather.condition.toLowerCase()
-
-  if (condition.includes('rain')) {
-    return 'Reduce watering - Natural rainfall sufficient'
-  } else if (humidity > 70) {
-    return 'Light watering needed - High humidity present'
-  } else if (humidity < 40) {
-    return 'Increase watering frequency - Low humidity detected'
+  const cond = (weather.condition || '').toLowerCase()
+  
+  let crop = '', irrigation = '', alert = ''
+  
+  // Crop advice
+  if (temp >= 25 && temp <= 35) {
+    crop = cond.includes('rain') ? 'Rice, Sugarcane - Excellent monsoon conditions' : 'Cotton, Maize, Tomatoes - Ideal warm weather'
+  } else if (temp >= 15 && temp < 25) {
+    crop = 'Wheat, Barley, Peas - Perfect cool season crops'
+  } else if (temp < 15) {
+    crop = 'Cabbage, Carrots, Spinach - Cold hardy vegetables'
   } else {
-    return 'Normal watering schedule recommended'
+    crop = 'Heat-resistant varieties recommended'
   }
-}
-
-const getWeatherAlert = (weather) => {
-  const temp = weather.temperature
-  const wind = weather.windSpeed
-  const condition = weather.condition.toLowerCase()
-
-  if (temp > 40) return '⚠️ Extreme heat - Provide shade for crops'
-  if (temp < 5) return '❄️ Frost warning - Protect sensitive plants'
-  if (wind > 25) return '💨 High winds - Secure tall crops'
-  if (condition.includes('storm')) return '⛈️ Storm alert - Take protective measures'
-  return '✅ Weather conditions favorable for farming'
-}
-
-const getWeatherIcon = (condition) => {
-  const cond = condition.toLowerCase()
-  if (cond.includes('clear')) return <Sun className="text-yellow-400" size={48} />
-  if (cond.includes('cloud')) return <Cloud className="text-gray-300" size={48} />
-  if (cond.includes('rain')) return <CloudRain className="text-blue-400" size={48} />
-  if (cond.includes('storm')) return <CloudLightning className="text-purple-400" size={48} />
-  if (cond.includes('snow')) return <CloudSnow className="text-blue-100" size={48} />
-  if (cond.includes('mist') || cond.includes('fog')) return <CloudFog className="text-gray-400" size={48} />
-  return <Sun className="text-yellow-400" size={48} />
+  
+  // Irrigation advice
+  if (cond.includes('rain')) {
+    irrigation = 'Skip watering - Natural rainfall sufficient'
+  } else if (humidity > 70) {
+    irrigation = 'Light watering - High humidity present'
+  } else if (humidity < 40) {
+    irrigation = 'Increase watering - Low humidity detected'
+  } else {
+    irrigation = 'Normal watering schedule'
+  }
+  
+  // Alerts
+  if (temp > 40) alert = '🔥 Extreme heat - Provide shade for crops'
+  else if (temp < 5) alert = '❄️ Frost warning - Protect sensitive plants'
+  else if (weather.windSpeed > 25) alert = '💨 High winds - Secure tall crops'
+  else if (cond.includes('storm') || cond.includes('thunder')) alert = '⛈️ Storm alert - Take protective measures'
+  else alert = '✅ Favorable conditions for farming'
+  
+  return { crop, irrigation, alert }
 }
 
 const Weather = () => {
-  const { location: globalLocation, loading: locationLoading, locationStatus, retryLocationDetection, error: locationError } = useLocation()
+  const { location: globalLocation, loading: locationLoading, locationStatus, retryLocationDetection, updateLocation, error: locationError } = useLocation()
   const [weather, setWeather] = useState(null)
+  const [forecast, setForecast] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
-  const fetchWeather = useCallback(async (params) => {
+  const fetchWeather = useCallback(async (lat, lon, forceRefresh = false) => {
+    if (!lat || !lon) return
+    
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = weatherCache.get(lat, lon)
+      if (cached?.current) {
+        console.log('✅ Using cached weather data')
+        setWeather(cached.current)
+        setForecast(cached.forecast || [])
+        setLastUpdated(cached.timestamp)
+        return
+      }
+    }
+
     setLoading(true)
     setError(null)
+
     try {
-      let queryParams = {}
-      if (params.lat && params.lon) {
-        queryParams.lat = params.lat
-        queryParams.lon = params.lon
-      } else if (params.city) {
-        queryParams.city = params.city
-      } else {
-        throw new Error('No location provided')
+      console.log(`🌤️ Fetching weather for: ${lat}, ${lon}`)
+      
+      // Fetch current weather with coordinates
+      const data = await apiClient.get('/weather/current', { lat, lon })
+      
+      console.log('📊 Weather API Response:', data)
+      
+      // Validate response
+      if (!data || !data.main || !data.weather?.[0]) {
+        throw new Error('Invalid weather data received')
       }
 
-      // Use apiClient instead of fetch
-      const data = await apiClient.get('/weather/current', queryParams)
-
-      // Fetch forecast from backend
-      const forecastData = await apiClient.get('/weather/forecast', queryParams)
-
-      setWeather({
-        location: data.name,
-        country: data.sys.country,
+      const weatherData = {
+        location: data.name || globalLocation?.city || 'Your Location',
+        country: data.sys?.country || 'IN',
         temperature: Math.round(data.main.temp),
+        feelsLike: Math.round(data.main.feels_like),
         condition: data.weather[0].main,
         description: data.weather[0].description,
         humidity: data.main.humidity,
-        windSpeed: Math.round(data.wind.speed * 3.6),
-        dewPoint: Math.round(data.main.temp - ((100 - data.main.humidity) / 5)),
         pressure: data.main.pressure,
+        windSpeed: Math.round((data.wind?.speed || 0) * 3.6), // m/s to km/h
+        windDeg: data.wind?.deg || 0,
         visibility: data.visibility ? Math.round(data.visibility / 1000) : null,
-        sunrise: new Date(data.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        sunset: new Date(data.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        soilTemp: Math.round(data.main.temp - 2), // Approximation
-        forecast: forecastData.list ? forecastData.list.filter((_, i) => i % 8 === 0).slice(1, 4).map((item) => ({
-          day: new Date(item.dt * 1000).toLocaleDateString([], { weekday: 'short' }),
-          temp: Math.round(item.main.temp),
-          condition: item.weather[0].main,
-          precipProb: Math.round((item.pop || 0) * 100)
-        })) : []
-      })
+        sunrise: data.sys?.sunrise ? new Date(data.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+        sunset: data.sys?.sunset ? new Date(data.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+        clouds: data.clouds?.all || 0,
+        timestamp: data.dt,
+        lat,
+        lon
+      }
+
+      console.log('✅ Processed weather:', weatherData)
+      setWeather(weatherData)
+      setLastUpdated(new Date())
+
+      // Fetch forecast
+      try {
+        const forecastData = await apiClient.get('/weather/forecast', { lat, lon })
+        
+        if (forecastData?.list) {
+          // Get one forecast per day (every 8th item = 24 hours)
+          const dailyForecast = forecastData.list
+            .filter((_, i) => i % 8 === 0)
+            .slice(0, 5)
+            .map(item => ({
+              date: new Date(item.dt * 1000),
+              day: new Date(item.dt * 1000).toLocaleDateString([], { weekday: 'short' }),
+              temp: Math.round(item.main.temp),
+              tempMin: Math.round(item.main.temp_min),
+              tempMax: Math.round(item.main.temp_max),
+              condition: item.weather[0].main,
+              description: item.weather[0].description,
+              humidity: item.main.humidity,
+              rain: Math.round((item.pop || 0) * 100),
+              windSpeed: Math.round((item.wind?.speed || 0) * 3.6)
+            }))
+          
+          setForecast(dailyForecast)
+          
+          // Cache the data
+          weatherCache.set(lat, lon, { 
+            current: weatherData, 
+            forecast: dailyForecast,
+            timestamp: new Date()
+          })
+        }
+      } catch (forecastErr) {
+        console.warn('Forecast fetch failed:', forecastErr)
+      }
+
     } catch (err) {
-      console.error('Weather fetch error:', err)
-      setError(err.message)
+      console.error('❌ Weather fetch error:', err)
+      setError(err.message || 'Failed to fetch weather data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [globalLocation?.city])
 
+  // Fetch weather when location is available
   useEffect(() => {
-    if (globalLocation) {
-      if (globalLocation.latitude && globalLocation.longitude) {
-        fetchWeather({ lat: globalLocation.latitude, lon: globalLocation.longitude })
-      } else if (globalLocation.city) {
-        fetchWeather({ city: globalLocation.city })
+    if (globalLocation?.latitude && globalLocation?.longitude) {
+      fetchWeather(globalLocation.latitude, globalLocation.longitude)
+    }
+  }, [globalLocation?.latitude, globalLocation?.longitude, fetchWeather])
+
+  const handleRefresh = () => {
+    if (globalLocation?.latitude && globalLocation?.longitude) {
+      weatherCache.clear()
+      fetchWeather(globalLocation.latitude, globalLocation.longitude, true)
+    }
+  }
+
+  const advice = getFarmingAdvice(weather)
+
+  // Loading state - Premium skeleton
+  if (locationLoading || (loading && !weather)) {
+    return (
+      <div className="min-h-screen p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Skeleton Header */}
+          <div className="animate-pulse mb-8">
+            <div className="h-8 bg-white/10 rounded-lg w-48 mb-2" />
+            <div className="h-4 bg-white/10 rounded w-32" />
+          </div>
+          
+          {/* Skeleton Main Card */}
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 mb-6 animate-pulse border border-white/10">
+            <div className="flex flex-col md:flex-row justify-between gap-8">
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 bg-white/10 rounded-full" />
+                <div>
+                  <div className="h-16 bg-white/10 rounded-lg w-32 mb-2" />
+                  <div className="h-6 bg-white/10 rounded w-24" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-20 h-20 bg-white/10 rounded-2xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Skeleton Forecast */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 animate-pulse border border-white/10">
+                <div className="h-4 bg-white/10 rounded w-12 mb-3" />
+                <div className="h-12 bg-white/10 rounded-xl mb-3" />
+                <div className="h-6 bg-white/10 rounded w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Location error state - with manual city selector
+  if (locationStatus === 'failed' || locationError || !globalLocation) {
+    const cities = [
+      { name: 'Mumbai', state: 'Maharashtra', latitude: 19.0760, longitude: 72.8777 },
+      { name: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.2090 },
+      { name: 'Bangalore', state: 'Karnataka', latitude: 12.9716, longitude: 77.5946 },
+      { name: 'Hyderabad', state: 'Telangana', latitude: 17.3850, longitude: 78.4867 },
+      { name: 'Chennai', state: 'Tamil Nadu', latitude: 13.0827, longitude: 80.2707 },
+      { name: 'Kolkata', state: 'West Bengal', latitude: 22.5726, longitude: 88.3639 },
+      { name: 'Pune', state: 'Maharashtra', latitude: 18.5204, longitude: 73.8567 },
+      { name: 'Jaipur', state: 'Rajasthan', latitude: 26.9124, longitude: 75.7873 },
+      { name: 'Lucknow', state: 'Uttar Pradesh', latitude: 26.8467, longitude: 80.9462 }
+    ]
+    
+    const handleCitySelect = (city) => {
+      console.log('📍 Manual city selection:', city.name)
+      if (updateLocation) {
+        updateLocation(city)
       }
     }
-  }, [globalLocation, fetchWeather])
-
-  // Location detecting state
-  if (locationStatus === 'detecting' || locationLoading) {
+    
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-        <motion.div
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-24 h-24 bg-blue-500/10 rounded-full flex items-center justify-center"
-        >
-          <Cloud className="text-blue-500 animate-pulse" size={48} />
-        </motion.div>
-        <div className="text-center">
-          <h2 className="text-2xl font-black text-gray-900">Detecting Your Location...</h2>
-          <p className="text-gray-500 font-medium">Preparing personalized weather insights</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Location failed state
-  if (locationStatus === 'failed') {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white/60 backdrop-blur-xl rounded-[3rem] p-12 border border-white shadow-2xl text-center space-y-8">
-          <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-red-200 rotate-12">
-            <Navigation className="text-white" size={48} />
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-white/10 backdrop-blur-xl rounded-3xl p-8 text-center border border-white/10">
+          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-12">
+            <Navigation className="text-white" size={40} />
           </div>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight">Location Detection Failed</h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto font-medium">
-              {locationError || 'Unable to detect your location automatically. Please select your city manually.'}
-            </p>
-          </div>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={retryLocationDetection}
-              className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-200"
-            >
-              Try Again
-            </button>
-            <button
-              onClick={() => window.location.hash = '#/market'}
-              className="px-10 py-5 bg-gray-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-700 transition-all shadow-xl shadow-gray-200"
-            >
-              Select City
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Location unset state
-  if (locationStatus === 'unset' || !globalLocation) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white/60 backdrop-blur-xl rounded-[3rem] p-12 border border-white shadow-2xl text-center space-y-8">
-          <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-200 rotate-12">
-            <Navigation className="text-white" size={48} />
-          </div>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight">Weather Intelligence</h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto font-medium">
-              Set your farm's location to receive precision weather forecasts and AI-driven agricultural advice.
-            </p>
-          </div>
+          <h2 className="text-2xl font-black text-white mb-3">Location Required</h2>
+          <p className="text-white/50 mb-6">
+            {locationError || 'Enable location access to get accurate weather for your farm.'}
+          </p>
+          
           <button
-            onClick={() => window.location.hash = '#/market'}
-            className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-200"
+            onClick={retryLocationDetection}
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl hover:opacity-90 transition-all mb-4"
           >
-            Set Location in Market Hub
+            Enable Location
+          </button>
+          
+          <p className="text-white/40 text-sm mb-4">Or select your city manually:</p>
+          
+          <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+            {cities.map((city) => (
+              <button
+                key={city.name}
+                onClick={() => handleCitySelect(city)}
+                className="p-2 bg-white/5 hover:bg-emerald-500/20 rounded-xl transition-all text-left border border-transparent hover:border-emerald-500/30"
+              >
+                <span className="text-white font-medium text-xs block">{city.name}</span>
+                <span className="text-white/40 text-[10px]">{city.state}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error && !weather) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border border-white/10">
+          <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="text-red-400" size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-3">Weather Unavailable</h2>
+          <p className="text-white/50 mb-8">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl hover:opacity-90 transition-all"
+          >
+            Try Again
           </button>
         </div>
       </div>
@@ -207,173 +352,203 @@ const Weather = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* Premium Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-200">
-              <CloudSun size={20} />
-            </div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Weather Forecast</h1>
-          </div>
-          <p className="text-gray-500 font-medium flex items-center gap-2">
-            <MapPin size={16} className="text-blue-600" />
-            Precision monitoring for <span className="text-gray-900 font-bold">{globalLocation.city}</span>
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => fetchWeather(globalLocation.latitude ? { lat: globalLocation.latitude, lon: globalLocation.longitude } : { city: globalLocation.city })}
-            disabled={loading}
-            className="flex items-center gap-3 px-6 py-3 bg-white border border-gray-100 rounded-2xl font-black uppercase tracking-widest text-[10px] text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh Data
-          </button>
-          <button
-            onClick={() => window.location.hash = '#/market'}
-            className="flex items-center gap-3 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-800 transition-all shadow-lg"
-          >
-            <Search size={14} />
-            Change City
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-100 p-6 rounded-[2rem] flex items-center gap-4 text-red-700">
-          <AlertTriangle size={24} />
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <p className="font-black uppercase tracking-widest text-xs">API Error</p>
-            <p className="font-medium">{error}</p>
+            <h1 className="text-3xl font-black text-white mb-1">Weather Forecast</h1>
+            <div className="flex items-center gap-2 text-slate-400">
+              <MapPin size={16} />
+              <span>{weather?.location || globalLocation?.city}</span>
+              <span className="text-slate-600">•</span>
+              <span className="text-xs">
+                {globalLocation?.latitude?.toFixed(4)}, {globalLocation?.longitude?.toFixed(4)}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-xs text-slate-500">
+                Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white rounded-xl hover:bg-white/20 transition-all font-medium"
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
           </div>
         </div>
-      )}
 
-      {weather && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Weather Card */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-4 mb-4">
-                    {getWeatherIcon(weather.condition)}
+        {weather && (
+          <>
+            {/* Main Weather Card */}
+            <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${getWeatherGradient(weather.condition)} p-8 mb-6 shadow-2xl`}>
+              {/* Glassmorphism overlay */}
+              <div className="absolute inset-0 bg-white/10 backdrop-blur-sm" />
+              
+              {/* Animated background elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24 blur-2xl" />
+              
+              <div className="relative z-10">
+                <div className="flex flex-col lg:flex-row justify-between gap-8">
+                  {/* Temperature Section */}
+                  <div className="flex items-center gap-6">
+                    <div className="transform hover:scale-110 transition-transform duration-300">
+                      <WeatherIcon condition={weather.condition} size={80} />
+                    </div>
                     <div>
-                      <h2 className="text-6xl font-black tracking-tighter">{weather.temperature}°C</h2>
-                      <p className="text-xl font-bold opacity-90 capitalize">{weather.description}</p>
+                      <div className="flex items-start">
+                        <span className="text-8xl font-black text-white tracking-tighter animate-fade-in">
+                          {weather.temperature}
+                        </span>
+                        <span className="text-4xl font-bold text-white/80 mt-2">°C</span>
+                      </div>
+                      <p className="text-xl text-white/90 capitalize font-medium">{weather.description}</p>
+                      <p className="text-white/60 text-sm mt-1">Feels like {weather.feelsLike}°C</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 pt-4">
-                    <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
-                      <Sunrise size={16} className="text-yellow-400" />
-                      <span className="text-xs font-bold">{weather.sunrise}</span>
+
+                  {/* Metrics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 hover:bg-white/20 transition-all group">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Droplets size={18} className="text-white/70 group-hover:text-white transition-colors" />
+                        <span className="text-xs text-white/60 uppercase tracking-wider">Humidity</span>
+                      </div>
+                      <span className="text-2xl font-bold text-white">{weather.humidity}%</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
-                      <Sunset size={16} className="text-orange-400" />
-                      <span className="text-xs font-bold">{weather.sunset}</span>
+                    
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 hover:bg-white/20 transition-all group">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Wind size={18} className="text-white/70 group-hover:text-white transition-colors" />
+                        <span className="text-xs text-white/60 uppercase tracking-wider">Wind</span>
+                      </div>
+                      <span className="text-2xl font-bold text-white">{weather.windSpeed} <span className="text-sm">km/h</span></span>
                     </div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-6 md:justify-end">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-2 backdrop-blur-md">
-                      <Droplets size={24} />
+                    
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 hover:bg-white/20 transition-all group">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Gauge size={18} className="text-white/70 group-hover:text-white transition-colors" />
+                        <span className="text-xs text-white/60 uppercase tracking-wider">Pressure</span>
+                      </div>
+                      <span className="text-2xl font-bold text-white">{weather.pressure} <span className="text-sm">hPa</span></span>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Humidity</p>
-                    <p className="text-lg font-black">{weather.humidity}%</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-2 backdrop-blur-md">
-                      <Wind size={24} />
+                    
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 hover:bg-white/20 transition-all group">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Eye size={18} className="text-white/70 group-hover:text-white transition-colors" />
+                        <span className="text-xs text-white/60 uppercase tracking-wider">Visibility</span>
+                      </div>
+                      <span className="text-2xl font-bold text-white">{weather.visibility || '—'} <span className="text-sm">km</span></span>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Wind</p>
-                    <p className="text-lg font-black">{weather.windSpeed} <span className="text-xs">km/h</span></p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-2 backdrop-blur-md">
-                      <Thermometer size={24} />
+                    
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 hover:bg-white/20 transition-all group">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sunrise size={18} className="text-amber-300 group-hover:text-amber-200 transition-colors" />
+                        <span className="text-xs text-white/60 uppercase tracking-wider">Sunrise</span>
+                      </div>
+                      <span className="text-2xl font-bold text-white">{weather.sunrise || '—'}</span>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Soil Temp</p>
-                    <p className="text-lg font-black">{weather.soilTemp}°C</p>
+                    
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 hover:bg-white/20 transition-all group">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sunset size={18} className="text-orange-300 group-hover:text-orange-200 transition-colors" />
+                        <span className="text-xs text-white/60 uppercase tracking-wider">Sunset</span>
+                      </div>
+                      <span className="text-2xl font-bold text-white">{weather.sunset || '—'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 3-Day Forecast */}
-            <div className="bg-white rounded-[3rem] p-10 shadow-xl border border-gray-50">
-              <h3 className="text-xl font-black text-gray-900 mb-8 flex items-center gap-3">
-                <Waves size={20} className="text-blue-600" />
-                3-Day Strategic Forecast
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {weather.forecast.map((day, index) => (
-                  <div key={index} className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col items-center text-center group hover:bg-blue-50 hover:border-blue-100 transition-all duration-500">
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 group-hover:text-blue-600">{day.day}</p>
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:shadow-md transition-all">
-                      {getWeatherIcon(day.condition)}
+            {/* Forecast Section */}
+            {forecast.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-white mb-4">5-Day Forecast</h2>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {forecast.map((day, index) => (
+                    <div 
+                      key={index}
+                      className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/10 hover:bg-white/15 hover:border-white/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+                    >
+                      <p className="text-sm font-bold text-white/50 mb-3 group-hover:text-white transition-colors">
+                        {index === 0 ? 'Today' : day.day}
+                      </p>
+                      <div className="flex justify-center mb-3 transform group-hover:scale-110 transition-transform">
+                        <WeatherIcon condition={day.condition} size={40} />
+                      </div>
+                      <p className="text-2xl font-black text-white text-center mb-1">{day.temp}°</p>
+                      <p className="text-xs text-white/40 text-center capitalize mb-3">{day.description}</p>
+                      <div className="flex items-center justify-center gap-1 text-xs">
+                        <Droplets size={12} className="text-blue-400" />
+                        <span className="text-white/50">{day.rain}%</span>
+                      </div>
                     </div>
-                    <p className="text-2xl font-black text-gray-900 mb-1">{day.temp}°C</p>
-                    <p className="text-xs font-bold text-gray-500 mb-4">{day.condition}</p>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg text-[10px] font-black text-blue-600 shadow-sm">
-                      <Droplets size={10} /> {day.precipProb}% Rain
-                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Farming Advice Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                    <Thermometer className="text-emerald-400" size={20} />
                   </div>
-                ))}
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Crop Advice</span>
+                </div>
+                <p className="text-white font-medium">{advice.crop}</p>
+              </div>
+              
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                    <Droplets className="text-emerald-400" size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Irrigation</span>
+                </div>
+                <p className="text-white font-medium">{advice.irrigation}</p>
+              </div>
+              
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                    <AlertTriangle className="text-amber-400" size={20} />
+                  </div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Alert</span>
+                </div>
+                <p className="text-white font-medium">{advice.alert}</p>
               </div>
             </div>
-          </div>
 
-          {/* AI Recommendations Column */}
-          <div className="space-y-8">
-            <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-              <h3 className="text-xl font-black mb-8 flex items-center gap-3 relative z-10">
-                <Zap size={20} className="text-yellow-400 fill-yellow-400" />
-                AI Farm Advisor
-              </h3>
-
-              <div className="space-y-6 relative z-10">
-                <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Sprout size={18} className="text-green-400" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-green-400">Crop Strategy</p>
-                  </div>
-                  <p className="text-sm font-bold leading-relaxed">{getCropRecommendations(weather)}</p>
-                </div>
-
-                <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Droplets size={18} className="text-blue-400" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Irrigation Advice</p>
-                  </div>
-                  <p className="text-sm font-bold leading-relaxed">{getIrrigationAdvice(weather)}</p>
-                </div>
-
-                <div className="p-6 bg-red-500/10 rounded-[2rem] border border-red-500/20">
-                  <div className="flex items-center gap-3 mb-3">
-                    <AlertTriangle size={18} className="text-red-400" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Critical Alert</p>
-                  </div>
-                  <p className="text-sm font-bold leading-relaxed text-red-100">{getWeatherAlert(weather)}</p>
-                </div>
-              </div>
-
-              <div className="mt-8 pt-8 border-t border-white/10 flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={14} className="text-green-400" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Data Verified</span>
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">v3.1 Engine</span>
-              </div>
+            {/* Data Source Footer */}
+            <div className="mt-8 text-center">
+              <p className="text-xs text-white/30">
+                Data source: OpenWeatherMap API • Coordinates: {weather.lat?.toFixed(4)}, {weather.lon?.toFixed(4)}
+              </p>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
+      
+      {/* CSS for animations */}
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out;
+        }
+      `}</style>
     </div>
   )
 }

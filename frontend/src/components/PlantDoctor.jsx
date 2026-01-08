@@ -1,11 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { useState, useRef } from 'react'
 import {
     Upload,
     Camera,
-    RefreshCw,
     AlertTriangle,
-    CheckCircle,
     Phone,
     Loader2,
     X,
@@ -19,13 +16,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const PlantDoctor = () => {
     const [image, setImage] = useState(null)
-    const [status, setStatus] = useState('idle') // idle, uploading, analyzing, result
+    const [status, setStatus] = useState('idle')
     const [uploadProgress, setUploadProgress] = useState(0)
     const [result, setResult] = useState(null)
     const [error, setError] = useState(null)
     const fileInputRef = useRef(null)
 
-    // Resize image to EXACTLY 224x224px for optimal AI processing
     const resizeImage = (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader()
@@ -65,7 +61,6 @@ const PlantDoctor = () => {
             setStatus('uploading')
             setUploadProgress(0)
 
-            // Simulate upload progress
             const interval = setInterval(() => {
                 setUploadProgress(prev => {
                     if (prev >= 100) {
@@ -85,7 +80,6 @@ const PlantDoctor = () => {
                     setError(null)
                 }, 1000)
             } catch (err) {
-                console.error("Image processing failed", err)
                 setError("Failed to process image. Please try another one.")
                 setStatus('idle')
             }
@@ -103,7 +97,6 @@ const PlantDoctor = () => {
         setResult(null)
 
         try {
-            // Simulate AI analysis with scanning animation
             await new Promise(resolve => setTimeout(resolve, 3500))
 
             const diseases = [
@@ -112,8 +105,8 @@ const PlantDoctor = () => {
                     type: 'Fungal',
                     confidence: 88,
                     symptoms: ['Dark concentric rings on leaves', 'Yellowing of older leaves', 'Brown spots with target-like pattern'],
-                    remedy: 'Remove infected leaves immediately. Apply copper-based fungicide. Ensure proper spacing between plants for air circulation.',
-                    prevention: ['Crop rotation every 2-3 years', 'Avoid overhead watering', 'Mulch around plants', 'Remove plant debris']
+                    remedy: 'Remove infected leaves immediately. Apply copper-based fungicide. Ensure proper spacing between plants.',
+                    prevention: ['Crop rotation every 2-3 years', 'Avoid overhead watering', 'Mulch around plants']
                 },
                 {
                     name: 'Leaf Spot',
@@ -121,23 +114,23 @@ const PlantDoctor = () => {
                     confidence: 92,
                     symptoms: ['Small water-soaked spots', 'Yellow halos around spots', 'Spots turn brown and dry'],
                     remedy: 'Prune affected areas. Apply copper hydroxide spray. Water at soil level only.',
-                    prevention: ['Use disease-free seeds', 'Avoid working with wet plants', 'Maintain good air circulation', 'Sanitize tools regularly']
+                    prevention: ['Use disease-free seeds', 'Avoid working with wet plants', 'Sanitize tools regularly']
                 },
                 {
                     name: 'Healthy Plant',
                     type: 'Healthy',
                     confidence: 95,
                     symptoms: ['Vibrant green leaves', 'No visible spots or discoloration', 'Strong stem structure'],
-                    remedy: 'Continue current care routine. Maintain regular watering schedule and monitor for any changes.',
-                    prevention: ['Regular monitoring', 'Balanced fertilization', 'Proper watering', 'Good soil drainage']
+                    remedy: 'Continue current care routine. Maintain regular watering schedule.',
+                    prevention: ['Regular monitoring', 'Balanced fertilization', 'Proper watering']
                 },
                 {
                     name: 'Powdery Mildew',
                     type: 'Fungal',
                     confidence: 85,
                     symptoms: ['White powdery coating on leaves', 'Leaf curling', 'Stunted growth'],
-                    remedy: 'Apply neem oil or sulfur-based fungicide. Improve air circulation. Remove severely infected leaves.',
-                    prevention: ['Avoid overcrowding', 'Water in morning', 'Ensure good sunlight', 'Use resistant varieties']
+                    remedy: 'Apply neem oil or sulfur-based fungicide. Improve air circulation.',
+                    prevention: ['Avoid overcrowding', 'Water in morning', 'Use resistant varieties']
                 }
             ]
 
@@ -145,102 +138,105 @@ const PlantDoctor = () => {
             setResult(randomDisease)
             setStatus('result')
 
-            // Save to backend
-            await apiClient.post('/plant-diagnosis', {
+            apiClient.post('/plant-diagnosis', {
                 disease: randomDisease.name,
                 confidence: randomDisease.confidence,
                 symptoms: randomDisease.symptoms,
                 remedy: randomDisease.remedy,
                 type: randomDisease.type,
                 diagnosed_at: new Date().toISOString()
-            }).catch(e => console.error("Failed to save diagnosis", e))
+            }).catch(() => {})
 
         } catch (err) {
-            console.error("Diagnosis failed:", err)
             setError("Analysis failed. Please try again.")
             setStatus('idle')
         }
     }
 
     return (
-        <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8 font-inter">
-            <div className="max-w-5xl mx-auto space-y-8">
+        <div className="min-h-screen p-4 md:p-6">
+            <div className="max-w-5xl mx-auto space-y-6">
                 {/* Header */}
-                <div className="text-center space-y-3">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-[#064E3B] flex items-center justify-center gap-3">
-                        <Zap className="text-[#FBBF24] fill-[#FBBF24]" size={32} />
-                        AI Plant Doctor
-                    </h1>
-                    <p className="text-gray-500 max-w-2xl mx-auto font-medium">
-                        Professional-grade crop diagnostic tool. Upload a high-resolution photo for instant disease detection and treatment protocols.
-                    </p>
-                </div>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-gradient-to-r from-teal-600/80 via-emerald-600/80 to-green-600/80 backdrop-blur-xl rounded-3xl p-6 border border-white/10"
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <Zap className="text-amber-400" size={20} />
+                        <span className="text-emerald-200 text-xs font-semibold uppercase tracking-wider">AI Powered</span>
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Plant Doctor</h1>
+                    <p className="text-white/60">Upload a photo for instant disease detection and treatment</p>
+                </motion.div>
 
-                <div className="grid lg:grid-cols-12 gap-8 items-start">
+                <div className="grid lg:grid-cols-12 gap-6 items-start">
                     {/* Left: Upload & Preview */}
-                    <div className="lg:col-span-5 space-y-6">
-                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
-                            <div className="aspect-square rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group">
+                    <div className="lg:col-span-5 space-y-4">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 p-5"
+                        >
+                            <div className="aspect-square rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center relative overflow-hidden">
                                 {image ? (
                                     <>
-                                        <img src={image} alt="Plant" className="w-full h-full object-cover" />
+                                        <img src={image} alt="Plant" className="w-full h-full object-cover rounded-xl" />
 
                                         {status === 'analyzing' && (
-                                            <div className="absolute inset-0 z-20 overflow-hidden">
+                                            <div className="absolute inset-0 z-20 overflow-hidden rounded-xl">
                                                 <motion.div
                                                     initial={{ top: '-10%' }}
                                                     animate={{ top: '110%' }}
                                                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                                    className="absolute left-0 right-0 h-1 bg-green-400 shadow-[0_0_15px_rgba(74,222,128,0.8)] z-30"
+                                                    className="absolute left-0 right-0 h-1 bg-emerald-400 shadow-[0_0_15px_rgba(74,222,128,0.8)]"
                                                 />
-                                                <div className="absolute inset-0 bg-green-900/20 backdrop-blur-[1px]" />
+                                                <div className="absolute inset-0 bg-emerald-900/30 backdrop-blur-[1px]" />
                                             </div>
                                         )}
 
                                         {status === 'idle' && (
                                             <button
-                                                onClick={() => { setImage(null); setStatus('idle'); setResult(null); }}
-                                                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors z-30"
+                                                onClick={() => { setImage(null); setResult(null) }}
+                                                className="absolute top-3 right-3 p-2 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors z-30"
                                             >
-                                                <X size={18} />
+                                                <X size={16} />
                                             </button>
                                         )}
                                     </>
                                 ) : (
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="text-center p-8 cursor-pointer w-full h-full flex flex-col items-center justify-center hover:bg-gray-100/50 transition-colors"
+                                        className="text-center p-8 cursor-pointer w-full h-full flex flex-col items-center justify-center hover:bg-white/5 transition-colors rounded-xl"
                                     >
-                                        <div className="w-20 h-20 bg-green-50 text-[#064E3B] rounded-3xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm">
-                                            <Upload size={32} />
+                                        <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mb-4">
+                                            <Upload size={28} />
                                         </div>
-                                        <p className="font-bold text-gray-800">Upload Plant Photo</p>
-                                        <p className="text-xs text-gray-400 mt-2">Supports JPG, PNG (Max 10MB)</p>
+                                        <p className="font-semibold text-white">Upload Plant Photo</p>
+                                        <p className="text-xs text-white/40 mt-2">JPG, PNG (Max 10MB)</p>
                                     </div>
                                 )}
 
-                                {/* Uploading State Overlay */}
                                 {status === 'uploading' && (
-                                    <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-8 z-40">
-                                        <Loader2 className="animate-spin text-[#064E3B] mb-4" size={40} />
-                                        <p className="font-bold text-gray-800">Uploading Image...</p>
-                                        <div className="w-full bg-gray-100 h-2 rounded-full mt-4 overflow-hidden">
+                                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center p-8 z-40 rounded-xl">
+                                        <Loader2 className="animate-spin text-emerald-400 mb-4" size={36} />
+                                        <p className="font-semibold text-white">Uploading...</p>
+                                        <div className="w-full bg-white/10 h-1.5 rounded-full mt-4 overflow-hidden">
                                             <motion.div
-                                                className="bg-[#064E3B] h-full"
+                                                className="bg-emerald-500 h-full"
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${uploadProgress}%` }}
                                             />
                                         </div>
-                                        <p className="text-xs text-gray-400 mt-2">{uploadProgress}% Complete</p>
                                     </div>
                                 )}
 
-                                {/* Analyzing State Overlay */}
                                 {status === 'analyzing' && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-40">
-                                        <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-3 border border-white/20">
-                                            <Activity className="animate-pulse text-green-400" size={20} />
-                                            <span className="font-bold tracking-wide">AI SCANNING...</span>
+                                    <div className="absolute inset-0 flex items-center justify-center z-40">
+                                        <div className="bg-black/60 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-2 border border-white/20">
+                                            <Activity className="animate-pulse text-emerald-400" size={18} />
+                                            <span className="font-semibold text-white text-sm">AI SCANNING...</span>
                                         </div>
                                     </div>
                                 )}
@@ -254,37 +250,37 @@ const PlantDoctor = () => {
                                 accept="image/*"
                             />
 
-                            <div className="mt-6 space-y-3">
+                            <div className="mt-4">
                                 {!image && (
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="w-full py-4 bg-[#064E3B] text-white rounded-2xl font-bold hover:bg-[#053F30] transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-3"
+                                        className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                                     >
-                                        <Camera size={20} />
+                                        <Camera size={18} />
                                         Take or Upload Photo
                                     </button>
                                 )}
                                 {image && status === 'idle' && (
                                     <button
                                         onClick={analyzeImage}
-                                        className="w-full py-4 bg-[#064E3B] text-white rounded-2xl font-bold hover:bg-[#053F30] transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-3"
+                                        className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                                     >
-                                        <Zap size={20} className="text-[#FBBF24] fill-[#FBBF24]" />
+                                        <Zap size={18} className="text-amber-300" />
                                         Start AI Analysis
                                     </button>
                                 )}
                             </div>
-                        </div>
+                        </motion.div>
 
                         {error && (
-                            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 text-sm font-medium">
-                                <AlertTriangle size={20} />
+                            <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-300 text-sm">
+                                <AlertTriangle size={18} />
                                 {error}
                             </div>
                         )}
                     </div>
 
-                    {/* Right: Results / Analysis Card */}
+                    {/* Right: Results */}
                     <div className="lg:col-span-7">
                         <AnimatePresence mode="wait">
                             {status === 'result' && result ? (
@@ -292,91 +288,87 @@ const PlantDoctor = () => {
                                     key="result"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
+                                    className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden"
                                 >
-                                    <div className={`p-8 ${result.type === 'Healthy' ? 'bg-[#064E3B]' : 'bg-red-900'} text-white relative`}>
+                                    <div className={`p-6 ${result.type === 'Healthy' ? 'bg-emerald-600/50' : 'bg-red-600/50'} relative`}>
                                         <div className="flex justify-between items-start">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest">
-                                                        Diagnosis Result
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold uppercase tracking-wider text-white">
+                                                        Diagnosis
                                                     </span>
-                                                    <span className="px-3 py-1 bg-[#FBBF24] text-[#064E3B] rounded-full text-[10px] font-black uppercase tracking-widest">
-                                                        {result.confidence}% Confidence
+                                                    <span className="px-3 py-1 bg-amber-500 text-black rounded-full text-[10px] font-bold uppercase">
+                                                        {result.confidence}% Match
                                                     </span>
                                                 </div>
-                                                <h2 className="text-4xl font-black tracking-tight">{result.name}</h2>
-                                                <p className="text-white/70 font-medium">{result.type} Condition Detected</p>
+                                                <h2 className="text-2xl font-bold text-white">{result.name}</h2>
+                                                <p className="text-white/70 text-sm">{result.type} Condition</p>
                                             </div>
                                             {result.type === 'Healthy' ? (
-                                                <ShieldCheck size={64} className="text-green-400 opacity-50" />
+                                                <ShieldCheck size={48} className="text-emerald-300/50" />
                                             ) : (
-                                                <AlertTriangle size={64} className="text-red-400 opacity-50" />
+                                                <AlertTriangle size={48} className="text-red-300/50" />
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="p-8 grid md:grid-cols-2 gap-8">
-                                        <div className="space-y-6">
-                                            <div>
-                                                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                    <Search size={16} className="text-[#064E3B]" />
-                                                    Observations
-                                                </h3>
-                                                <ul className="space-y-3">
-                                                    {result.symptoms.map((s, i) => (
-                                                        <li key={i} className="flex items-start gap-3 text-gray-700 font-medium text-sm">
-                                                            <div className="mt-1.5 w-1.5 h-1.5 bg-[#FBBF24] rounded-full shrink-0" />
-                                                            {s}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-
-                                            <div>
-                                                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                    <ShieldCheck size={16} className="text-[#064E3B]" />
-                                                    Prevention
-                                                </h3>
-                                                <ul className="space-y-3">
-                                                    {result.prevention.map((p, i) => (
-                                                        <li key={i} className="flex items-start gap-3 text-gray-700 font-medium text-sm">
-                                                            <div className="mt-1.5 w-1.5 h-1.5 bg-green-500 rounded-full shrink-0" />
-                                                            {p}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
+                                    <div className="p-6 space-y-6">
+                                        <div>
+                                            <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Search size={14} className="text-emerald-400" />
+                                                Observations
+                                            </h3>
+                                            <ul className="space-y-2">
+                                                {result.symptoms.map((s, i) => (
+                                                    <li key={i} className="flex items-start gap-2 text-white/80 text-sm">
+                                                        <div className="mt-1.5 w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0" />
+                                                        {s}
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </div>
 
-                                        <div className="space-y-6">
-                                            <div className="bg-[#F0FDF4] p-6 rounded-2xl border border-green-100">
-                                                <h3 className="text-sm font-black text-[#064E3B] uppercase tracking-widest mb-3">Treatment Protocol</h3>
-                                                <p className="text-[#064E3B] text-sm leading-relaxed font-medium">
-                                                    {result.remedy}
-                                                </p>
-                                            </div>
-
-                                            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-center">
-                                                <p className="text-gray-500 text-sm mb-4 font-medium">Require professional intervention?</p>
-                                                <button className="w-full py-3 bg-white border-2 border-[#064E3B] text-[#064E3B] rounded-xl font-bold hover:bg-green-50 transition-all flex items-center justify-center gap-2">
-                                                    <Phone size={18} />
-                                                    Agri-Expert Hotline
-                                                </button>
-                                            </div>
+                                        <div className="bg-emerald-500/20 p-5 rounded-xl border border-emerald-500/20">
+                                            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Treatment</h3>
+                                            <p className="text-white/80 text-sm">{result.remedy}</p>
                                         </div>
+
+                                        <div>
+                                            <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <ShieldCheck size={14} className="text-emerald-400" />
+                                                Prevention
+                                            </h3>
+                                            <ul className="space-y-2">
+                                                {result.prevention.map((p, i) => (
+                                                    <li key={i} className="flex items-start gap-2 text-white/80 text-sm">
+                                                        <div className="mt-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full shrink-0" />
+                                                        {p}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+
+                                        <button className="w-full py-3 bg-white/10 border border-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2">
+                                            <Phone size={16} />
+                                            Contact Agri-Expert
+                                        </button>
                                     </div>
                                 </motion.div>
                             ) : (
-                                <div className="h-full min-h-[400px] bg-white rounded-3xl border-2 border-dashed border-gray-100 flex flex-col items-center justify-center text-center p-12">
-                                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                                        <Activity className="text-gray-200" size={48} />
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.1 }}
+                                    className="h-full min-h-[400px] bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center p-10"
+                                >
+                                    <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
+                                        <Activity className="text-white/20" size={40} />
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-400">Awaiting Analysis</h3>
-                                    <p className="text-gray-300 max-w-xs mt-2 text-sm font-medium">
-                                        Upload a photo and start the analysis to see detailed health insights here.
+                                    <h3 className="text-lg font-semibold text-white/40">Awaiting Analysis</h3>
+                                    <p className="text-white/30 max-w-xs mt-2 text-sm">
+                                        Upload a photo and start the analysis to see detailed health insights.
                                     </p>
-                                </div>
+                                </motion.div>
                             )}
                         </AnimatePresence>
                     </div>

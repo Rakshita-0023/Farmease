@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Clock, Phone, Globe, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { 
+  ArrowLeft, MapPin, Clock, TrendingUp, TrendingDown, Minus, 
+  Navigation, RefreshCw, Sparkles, Store, ChevronRight
+} from 'lucide-react'
 import { apiClient } from '../config'
 
 const MarketDetails = () => {
   const { marketId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  
+  const lat = searchParams.get('lat')
+  const lng = searchParams.get('lng')
   
   const [marketData, setMarketData] = useState({
     market: null,
@@ -15,18 +23,22 @@ const MarketDetails = () => {
   })
 
   useEffect(() => {
-    if (marketId) {
+    if (marketId && lat && lng) {
       fetchMarketDetails()
+    } else if (marketId && (!lat || !lng)) {
+      setMarketData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Location coordinates required. Please go back and try again.'
+      }))
     }
-  }, [marketId])
+  }, [marketId, lat, lng])
 
   const fetchMarketDetails = async () => {
     try {
       setMarketData(prev => ({ ...prev, loading: true, error: null }))
       
-      console.log(`🔍 Fetching details for market: ${marketId}`)
-      
-      const response = await apiClient.get(`/markets/${marketId}/prices`)
+      const response = await apiClient.get(`/markets/${marketId}/prices`, { lat, lng })
       
       setMarketData({
         market: response.market,
@@ -35,64 +47,66 @@ const MarketDetails = () => {
         loading: false,
         error: null
       })
-      
-      console.log(`✅ Loaded market details: ${response.market?.name}`)
-      
     } catch (error) {
-      console.error('❌ Failed to fetch market details:', error)
       setMarketData(prev => ({
         ...prev,
         loading: false,
-        error: 'Failed to load market details. Please try again.'
+        error: error.message || 'Failed to load market details'
       }))
     }
   }
 
   const getTrendIcon = (trend) => {
     switch (trend) {
-      case 'up': return <TrendingUp className="w-4 h-4 text-green-600" />
-      case 'down': return <TrendingDown className="w-4 h-4 text-red-600" />
-      default: return <Minus className="w-4 h-4 text-gray-600" />
+      case 'up': return <TrendingUp size={16} className="text-emerald-400" />
+      case 'down': return <TrendingDown size={16} className="text-red-400" />
+      default: return <Minus size={16} className="text-white/40" />
     }
   }
 
-  const getTrendColor = (trend) => {
+  const getTrendBg = (trend) => {
     switch (trend) {
-      case 'up': return 'text-green-600'
-      case 'down': return 'text-red-600'
-      default: return 'text-gray-600'
+      case 'up': return 'bg-emerald-500/20 text-emerald-400'
+      case 'down': return 'bg-red-500/20 text-red-400'
+      default: return 'bg-white/10 text-white/60'
     }
   }
 
+  // Premium Loading State
   if (marketData.loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Market Details</h2>
-          <p className="text-gray-600">Fetching live crop prices...</p>
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 animate-pulse mx-auto mb-6" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Loading Prices</h2>
+          <p className="text-white/50">Fetching live crop prices...</p>
         </div>
       </div>
     )
   }
 
+  // Error State
   if (marketData.error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Market</h2>
-          <p className="text-gray-600 mb-6">{marketData.error}</p>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/10 backdrop-blur-xl rounded-3xl p-10 text-center border border-white/10">
+          <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <TrendingDown className="text-red-400" size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Error Loading Market</h2>
+          <p className="text-white/50 mb-8">{marketData.error}</p>
           <div className="space-y-3">
             <button
               onClick={fetchMarketDetails}
-              className="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition-colors font-medium"
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl hover:opacity-90 transition-all"
             >
               Try Again
             </button>
             <button
               onClick={() => navigate('/market')}
-              className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              className="w-full py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all"
             >
               Back to Markets
             </button>
@@ -105,146 +119,185 @@ const MarketDetails = () => {
   const { market, prices, metadata } = marketData
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-4 mb-4">
-            <button
-              onClick={() => navigate('/market')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
+    <div className="min-h-screen p-4 md:p-6">
+      {/* Premium Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-emerald-600/80 via-teal-600/80 to-cyan-600/80 backdrop-blur-xl rounded-3xl p-6 mb-6 border border-white/10 relative overflow-hidden"
+      >
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }} />
+        </div>
+        
+        <div className="relative">
+          <button
+            onClick={() => navigate('/market')}
+            className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back to Markets</span>
+          </button>
+          
+          <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{market?.name || 'Market Details'}</h1>
-              <div className="flex items-center gap-2 text-gray-600 mt-1">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-center gap-3 mb-2">
+                <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-white/90 text-sm font-medium">Live Prices</span>
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
+                {market?.name || 'Market Details'}
+              </h1>
+              <div className="flex items-center gap-2 text-white/80">
+                <MapPin size={16} />
                 <span>{market?.address || `${market?.city}, ${market?.state}`}</span>
               </div>
             </div>
-          </div>
-          
-          {/* Market Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-sm text-green-600 font-medium">Total Crops</div>
-              <div className="text-2xl font-bold text-green-700">{metadata?.total_crops || 0}</div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-sm text-blue-600 font-medium">Data Source</div>
-              <div className="text-sm font-semibold text-blue-700">AGMARKNET (Govt)</div>
-            </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <div className="text-sm text-orange-600 font-medium">Last Updated</div>
-              <div className="text-sm font-semibold text-orange-700">
-                {metadata?.last_updated ? new Date(metadata.last_updated).toLocaleDateString('en-IN') : 'Today'}
-              </div>
-            </div>
+            
+            <button
+              onClick={fetchMarketDetails}
+              className="p-3 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all"
+            >
+              <RefreshCw size={20} className="text-white" />
+            </button>
           </div>
         </div>
+      </motion.div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label: 'Total Crops', value: metadata?.total_crops || prices.length },
+          { label: 'Distance', value: `${market?.distance || '—'}km` },
+          { label: 'Updated', value: 'Today' }
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/10"
+          >
+            <div className="text-sm text-white/50 mb-1">{stat.label}</div>
+            <div className="text-2xl font-black text-white">{stat.value}</div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {prices.length > 0 ? (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900">Live Crop Prices</h2>
-                <p className="text-gray-600 mt-1">
-                  {metadata?.unit || 'Prices in ₹ per Quintal (100 kg)'}
-                </p>
-              </div>
-              
-              <div className="divide-y divide-gray-200">
-                {prices.map((crop, index) => (
-                  <div key={index} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{crop.commodity}</h3>
-                          {crop.variety && (
-                            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
-                              {crop.variety}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div>Market: {crop.market_name || market?.name}</div>
-                          <div>Range: ₹{crop.min_price} - ₹{crop.max_price}</div>
-                          <div>Date: {crop.date || new Date().toLocaleDateString('en-IN')}</div>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900 mb-1">
-                          ₹{crop.modal_price}
-                        </div>
-                        <div className={`flex items-center gap-1 text-sm ${getTrendColor(crop.trend)}`}>
-                          {getTrendIcon(crop.trend)}
-                          <span className="capitalize">{crop.trend || 'stable'}</span>
-                        </div>
-                      </div>
-                    </div>
+      {/* Prices List */}
+      {prices.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold text-white">Crop Prices</h2>
+            <span className="text-sm text-white/50">{metadata?.unit || '₹ per Quintal'}</span>
+          </div>
+          
+          {prices.map((crop, index) => (
+            <motion.div 
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-bold text-white">{crop.commodity}</h3>
+                    {crop.variety && (
+                      <span className="px-2 py-1 bg-white/10 text-white/60 rounded-lg text-sm">
+                        {crop.variety}
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Market Actions */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    const url = `https://www.google.com/maps/dir/?api=1&destination=${market?.lat},${market?.lng}`
-                    window.open(url, '_blank')
-                  }}
-                  className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                >
-                  <MapPin className="w-5 h-5 text-green-600" />
-                  <div className="text-left">
-                    <div className="font-medium text-green-700">Get Directions</div>
-                    <div className="text-sm text-green-600">Navigate to market</div>
+                  <div className="flex items-center gap-4 text-sm text-white/50">
+                    <span>Min: ₹{crop.min_price?.toLocaleString()}</span>
+                    <span>Max: ₹{crop.max_price?.toLocaleString()}</span>
                   </div>
-                </button>
+                </div>
                 
-                {market?.phone && (
-                  <button
-                    onClick={() => window.open(`tel:${market.phone}`, '_self')}
-                    className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                  >
-                    <Phone className="w-5 h-5 text-blue-600" />
-                    <div className="text-left">
-                      <div className="font-medium text-blue-700">Call Market</div>
-                      <div className="text-sm text-blue-600">{market.phone}</div>
-                    </div>
-                  </button>
-                )}
+                <div className="text-right">
+                  <div className="text-3xl font-black text-white mb-1">
+                    ₹{crop.modal_price?.toLocaleString()}
+                  </div>
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${getTrendBg(crop.trend)}`}>
+                    {getTrendIcon(crop.trend)}
+                    <span className="capitalize">{crop.trend || 'Stable'}</span>
+                  </div>
+                </div>
               </div>
-            </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-12 text-center border border-white/10">
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Store className="text-white/40" size={32} />
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-6" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Price Data Available</h3>
-            <p className="text-gray-600 mb-6">
-              {metadata?.note || 'No crop prices are currently available for this market.'}
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={fetchMarketDetails}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
-              >
-                Refresh Data
-              </button>
-              <div className="text-sm text-gray-500">
-                Data source: {metadata?.data_source || 'AGMARKNET (Government of India)'}
+          <h3 className="text-xl font-bold text-white mb-3">No Price Data</h3>
+          <p className="text-white/50 mb-6">
+            {metadata?.note || 'No crop prices available for this market today.'}
+          </p>
+          <button
+            onClick={fetchMarketDetails}
+            className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl hover:opacity-90 transition-all"
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+
+      {/* Actions */}
+      {market && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-6 bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10"
+        >
+          <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => {
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${market.lat},${market.lng}`, '_blank')
+              }}
+              className="flex items-center gap-4 p-4 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-xl transition-all border border-emerald-500/20"
+            >
+              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                <Navigation className="text-white" size={24} />
               </div>
-            </div>
+              <div className="text-left">
+                <div className="font-bold text-emerald-400">Get Directions</div>
+                <div className="text-sm text-emerald-400/60">Navigate to market</div>
+              </div>
+              <ChevronRight className="ml-auto text-emerald-400" size={20} />
+            </button>
+            
+            <button
+              onClick={() => navigate('/market')}
+              className="flex items-center gap-4 p-4 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/10"
+            >
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Store className="text-white" size={24} />
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-white">Browse Markets</div>
+                <div className="text-sm text-white/50">View all nearby markets</div>
+              </div>
+              <ChevronRight className="ml-auto text-white/40" size={20} />
+            </button>
           </div>
-        )}
+        </motion.div>
+      )}
+
+      {/* Data Source Footer */}
+      <div className="mt-8 flex items-center justify-center gap-2 text-sm text-white/30">
+        <Sparkles size={14} className="text-emerald-500" />
+        <span>Data source: {metadata?.data_source || 'AGMARKNET (Government of India)'}</span>
       </div>
     </div>
   )

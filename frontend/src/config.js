@@ -117,11 +117,37 @@ export const apiClient = {
       console.log('📊 Response Status:', response.status)
       console.log('📋 Content-Type:', response.headers.get('content-type'))
 
+      // Only auto-logout for critical auth failures, not for all 401/403
+      // Some endpoints like location save might fail without needing full logout
       if (response.status === 401 || response.status === 403) {
-        console.log(`❌ ${response.status} - Removing token and reloading`)
-        removeAuthToken()
-        window.location.reload()
-        return
+        console.log(`⚠️ ${response.status} response received for ${url}`)
+        
+        // Parse error to check if it's a "please log in again" error
+        const errorData = await response.json().catch(() => ({ error: 'Authentication failed' }))
+        
+        // If token is invalid/expired, force re-login
+        if (errorData.error?.includes('log in again') || errorData.error?.includes('Invalid token')) {
+          console.log(`❌ Token invalid - forcing re-login`)
+          removeAuthToken()
+          window.location.href = '/login'
+          return
+        }
+        
+        // Only auto-logout for auth endpoints (login, register, profile)
+        const isCriticalAuthEndpoint = url.includes('/auth/') || url.includes('/profile')
+        
+        if (isCriticalAuthEndpoint) {
+          console.log(`❌ Critical auth failure - removing token`)
+          removeAuthToken()
+          window.location.reload()
+          return
+        }
+        
+        // For all other endpoints, just throw an error without logout
+        const error = new Error(errorData.error || 'Authentication required')
+        error.status = response.status
+        error.data = errorData
+        throw error
       }
 
       // Check if response is JSON

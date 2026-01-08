@@ -17,6 +17,12 @@ export const useMandiData = (state = '', district = '', mandi = '') => {
             try {
                 console.log('🔄 Fetching market data...', { state, district, mandi })
 
+                // Don't fetch if no location is provided
+                if (!state && !district && !mandi) {
+                    console.log('⚠️ No location provided, skipping market data fetch')
+                    return []
+                }
+
                 let url = '/market/compare' // Default to top crops/comparison
 
                 if (mandi) {
@@ -47,7 +53,8 @@ export const useMandiData = (state = '', district = '', mandi = '') => {
         retry: 1,
         refetchOnWindowFocus: false,
         refetchOnMount: true,
-        enabled: true
+        // Only enable if we have at least one location parameter
+        enabled: !!(state || district || mandi)
     })
 }
 

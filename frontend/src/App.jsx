@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import EnhancedDashboard from './components/EnhancedDashboard'
 import Login from './components/Login'
@@ -16,14 +16,19 @@ import AboutUs from './components/AboutUs'
 import Contact from './components/Contact'
 import TermsOfService from './components/TermsOfService'
 import MarketComparison from './components/MarketComparison'
+import PersistentVideoBackground from './components/PersistentVideoBackground'
 import { getAuthToken, removeAuthToken } from './config'
-
 import { LocationProvider } from './LocationContext'
 
 function App() {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Video background shows on public routes AND authenticated dashboard
+  const isPublicRoute = ['/landing', '/login'].includes(location.pathname)
+  const showVideoBackground = isPublicRoute || !!user
 
   useEffect(() => {
     let isMounted = true
@@ -71,61 +76,70 @@ function App() {
     navigate('/landing')
   }
 
-  // Loading screen
+  // Loading screen with video background
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-700">Loading FarmEase...</h2>
-          <p className="text-gray-500 mt-2">Preparing your agricultural dashboard</p>
+      <>
+        <PersistentVideoBackground show={true} />
+        <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-white/30 border-t-emerald-400 rounded-full animate-spin mx-auto mb-4"></div>
+            <h2 className="text-xl font-bold text-white">Loading FarmEase...</h2>
+            <p className="text-white/60 mt-2">Preparing your agricultural dashboard</p>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
     <LocationProvider user={user}>
-      <Routes>
-        {/* Public Routes */}
-        <Route
-          path="/landing"
-          element={!user ? <LandingPage onGetStarted={() => navigate('/login')} /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/login"
-          element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" replace />}
-        />
+      {/* Persistent Video Background - always mounted, visibility controlled */}
+      <PersistentVideoBackground show={showVideoBackground} />
 
-        {/* Protected Routes */}
-        <Route
-          element={user ? (
-            <Layout
-              user={user}
-              onLogout={handleLogout}
-            />
-          ) : (
-            <Navigate to="/landing" replace />
-          )}
-        >
-          <Route path="/" element={<EnhancedDashboard />} />
-          <Route path="/farms" element={<FarmManagement />} />
-          <Route path="/weather" element={<Weather />} />
-          <Route path="/market" element={<Market />} />
-          <Route path="/market/:marketId" element={<MarketDetails />} />
-          <Route path="/market/comparison" element={<MarketComparison />} />
-          <Route path="/tips" element={<Tips />} />
-          <Route path="/doctor" element={<PlantDoctor />} />
-          <Route path="/community" element={<CommunityForum />} />
-          <Route path="/schemes" element={<Schemes />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/terms" element={<TermsOfService />} />
-        </Route>
+      {/* Main Content */}
+      <div className="relative z-10">
+        <Routes>
+          {/* Public Routes - content floats above video */}
+          <Route
+            path="/landing"
+            element={!user ? <LandingPage onGetStarted={() => navigate('/login')} /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/login"
+            element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" replace />}
+          />
 
-        {/* Catch-all route */}
-        <Route path="*" element={<Navigate to={user ? "/" : "/landing"} replace />} />
-      </Routes>
+          {/* Protected Routes */}
+          <Route
+            element={user ? (
+              <Layout
+                user={user}
+                onLogout={handleLogout}
+              />
+            ) : (
+              <Navigate to="/landing" replace />
+            )}
+          >
+            <Route path="/" element={<EnhancedDashboard />} />
+            <Route path="/farms" element={<FarmManagement />} />
+            <Route path="/weather" element={<Weather />} />
+            <Route path="/market" element={<Market />} />
+            <Route path="/market/:marketId" element={<MarketDetails />} />
+            <Route path="/market/comparison" element={<MarketComparison />} />
+            <Route path="/tips" element={<Tips />} />
+            <Route path="/doctor" element={<PlantDoctor />} />
+            <Route path="/community" element={<CommunityForum />} />
+            <Route path="/schemes" element={<Schemes />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/terms" element={<TermsOfService />} />
+          </Route>
+
+          {/* Catch-all route */}
+          <Route path="*" element={<Navigate to={user ? "/" : "/landing"} replace />} />
+        </Routes>
+      </div>
     </LocationProvider>
   )
 }
