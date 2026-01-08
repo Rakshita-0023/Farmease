@@ -6,6 +6,7 @@ import {
   Navigation, RefreshCw, Sparkles, Store, ChevronRight
 } from 'lucide-react'
 import { apiClient } from '../config'
+import CropCard from './CropCard'
 
 const MarketDetails = () => {
   const { marketId } = useParams()
@@ -188,7 +189,7 @@ const MarketDetails = () => {
         ))}
       </div>
 
-      {/* Prices List */}
+      {/* Prices Grid - Premium Crop Cards */}
       {prices.length > 0 ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-2">
@@ -196,42 +197,26 @@ const MarketDetails = () => {
             <span className="text-sm text-white/50">{metadata?.unit || '₹ per Quintal'}</span>
           </div>
           
-          {prices.map((crop, index) => (
-            <motion.div 
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-bold text-white">{crop.commodity}</h3>
-                    {crop.variety && (
-                      <span className="px-2 py-1 bg-white/10 text-white/60 rounded-lg text-sm">
-                        {crop.variety}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-white/50">
-                    <span>Min: ₹{crop.min_price?.toLocaleString()}</span>
-                    <span>Max: ₹{crop.max_price?.toLocaleString()}</span>
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <div className="text-3xl font-black text-white mb-1">
-                    ₹{crop.modal_price?.toLocaleString()}
-                  </div>
-                  <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${getTrendBg(crop.trend)}`}>
-                    {getTrendIcon(crop.trend)}
-                    <span className="capitalize">{crop.trend || 'Stable'}</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {prices.map((crop, index) => (
+              <motion.div 
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <CropCard
+                  commodity={crop.commodity}
+                  variety={crop.variety}
+                  minPrice={crop.min_price}
+                  maxPrice={crop.max_price}
+                  modalPrice={crop.modal_price}
+                  trend={crop.trend}
+                  market={market?.name}
+                />
+              </motion.div>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-12 text-center border border-white/10">
