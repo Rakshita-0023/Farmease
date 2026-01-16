@@ -46,14 +46,33 @@ const localData = {
 // Initialize database connection
 async function initDB() {
   try {
-    console.log('🔍 Checking SQLite database connection...')
-    await db.query('SELECT 1')
-    console.log('✅ SQLite database connected successfully')
-    await createTables()
-    storageState.useLocalStorage = false // Use real database
+    // Production: Use MySQL (Railway) - NO SQLite fallback
+    if (process.env.DATABASE_URL) {
+      console.log('📊 Production mode: Using Railway MySQL Database')
+      console.log('🔍 Testing MySQL connection...')
+      await db.query('SELECT 1')
+      console.log('✅ MySQL database connected successfully')
+      await createTablesMySQL()
+      storageState.useLocalStorage = false
+    } else {
+      // Development only: SQLite
+      console.log('📊 Development mode: Using SQLite Database')
+      await db.query('SELECT 1')
+      console.log('✅ SQLite database connected successfully')
+      await createTablesSQLite()
+      storageState.useLocalStorage = false
+    }
   } catch (err) {
-    console.error('❌ SQLite connection failed:', err.message)
-    console.warn('⚠️ Falling back to in-memory storage')
+    console.error('❌ Database connection failed:', err.message)
+    
+    // In production, do NOT fall back to in-memory - fail loudly
+    if (process.env.DATABASE_URL) {
+      console.error('🚨 CRITICAL: MySQL connection failed in production!')
+      console.error('🚨 Check DATABASE_URL and Railway MySQL status')
+      // Still allow server to start but log the error
+    }
+    
+    console.warn('⚠️ Using in-memory storage (data will not persist)')
     storageState.useLocalStorage = true
   }
 
@@ -66,8 +85,90 @@ async function initDB() {
   }
 }
 
+// MySQL tables (for Railway/Production)
+async function createTablesMySQL() {
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      city VARCHAR(255),
+      state VARCHAR(255),
+      country VARCHAR(255) DEFAULT 'India',
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS farms (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      crop VARCHAR(255) NOT NULL,
+      area DECIMAL(10, 2) NOT NULL,
+      soil_type VARCHAR(100),
+      planting_date DATE,
+      health_score INT DEFAULT 100,
+      days_to_harvest INT,
+      progress INT DEFAULT 0,
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS activities (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      farm_id INT NOT NULL,
+      type VARCHAR(100) NOT NULL,
+      description TEXT,
+      date DATE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (farm_id) REFERENCES farms(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS diagnoses (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      crop VARCHAR(255),
+      disease VARCHAR(255),
+      confidence DECIMAL(5, 2),
+      recommendations TEXT,
+      image_url TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS posts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL,
+      category VARCHAR(100),
+      likes INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      post_id INT NOT NULL,
+      user_id INT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (post_id) REFERENCES posts(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`
+  ]
 
-async function createTables() {
+  for (const sql of tables) {
+    try {
+      await db.query(sql)
+    } catch (err) {
+      console.log('Table may already exist:', err.message)
+    }
+  }
+  console.log('✅ MySQL tables ready')
+}
+
+// SQLite tables (for local development)
+async function createTablesSQLite() {
 
   const tables = [
     `CREATE TABLE IF NOT EXISTS users (

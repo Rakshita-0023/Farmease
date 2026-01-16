@@ -1,26 +1,43 @@
 const mysql = require("mysql2/promise");
 
-// Use Railway MySQL in production, SQLite in development
+// Database connection - MySQL in production, SQLite in development
 let pool;
+let dbType = 'none';
 
 if (process.env.DATABASE_URL) {
-  // Production: Railway MySQL
-  console.log('📊 Using Railway MySQL Database');
+  // ========== PRODUCTION: Railway MySQL ==========
+  dbType = 'mysql';
+  console.log('📊 DATABASE_URL detected - Using MySQL');
+  
   pool = mysql.createPool({
     uri: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
     waitForConnections: true,
     connectionLimit: 10,
+    connectTimeout: 30000,
+    acquireTimeout: 30000,
   });
+  
+  console.log('✅ MySQL connection pool created');
+  
 } else {
-  // Development: SQLite
+  // ========== DEVELOPMENT: SQLite ==========
+  dbType = 'sqlite';
+  console.log('📊 No DATABASE_URL - Using SQLite for development');
+  
   const sqlite3 = require('sqlite3').verbose();
   const path = require('path');
   
   const dbPath = path.join(__dirname, 'farmease.db');
-  console.log('📊 Using SQLite Database:', dbPath);
+  console.log('📊 SQLite Database path:', dbPath);
   
-  const sqliteDb = new sqlite3.Database(dbPath);
+  const sqliteDb = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error('❌ SQLite connection error:', err.message);
+    } else {
+      console.log('✅ SQLite database connected');
+    }
+  });
   
   // Promisify SQLite for async/await compatibility
   pool = {
@@ -45,3 +62,4 @@ if (process.env.DATABASE_URL) {
 }
 
 module.exports = pool;
+module.exports.dbType = dbType;
