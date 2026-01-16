@@ -92,19 +92,30 @@ const Login = ({ onLogin }) => {
         ? import.meta.env.VITE_API_BASE_URL
         : '/api'
 
+      console.log('Google Auth - API_BASE:', API_BASE)
+      console.log('Google Auth - Full URL:', `${API_BASE}/auth/google`)
+
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credentialResponse.credential })
       })
 
-      // Check content type before parsing
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned an invalid response. Please check if the backend is running.')
-      }
+      console.log('Google Auth - Response status:', response.status)
+      console.log('Google Auth - Response headers:', response.headers.get('content-type'))
 
-      const res = await response.json()
+      // Get response text first to debug
+      const responseText = await response.text()
+      console.log('Google Auth - Response text (first 200 chars):', responseText.substring(0, 200))
+
+      // Try to parse as JSON
+      let res
+      try {
+        res = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError)
+        throw new Error(`Server returned invalid response: ${responseText.substring(0, 100)}...`)
+      }
 
       if (!response.ok) {
         throw new Error(res.details || res.error || 'Google authentication failed')
