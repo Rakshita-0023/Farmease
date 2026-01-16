@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Eye, EyeOff, Loader2, AlertCircle, X, Zap, Leaf } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
+import { API_BASE_URL } from '../config'
 
 const Login = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true)
@@ -88,21 +89,16 @@ const Login = ({ onLogin }) => {
     setError('')
 
     try {
-      const API_BASE = import.meta.env.PROD
-        ? import.meta.env.VITE_API_BASE_URL
-        : '/api'
+      console.log('Google Auth - API_BASE_URL:', API_BASE_URL)
+      console.log('Google Auth - Full URL:', `${API_BASE_URL}/auth/google`)
 
-      console.log('Google Auth - API_BASE:', API_BASE)
-      console.log('Google Auth - Full URL:', `${API_BASE}/auth/google`)
-
-      const response = await fetch(`${API_BASE}/auth/google`, {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credentialResponse.credential })
       })
 
       console.log('Google Auth - Response status:', response.status)
-      console.log('Google Auth - Response headers:', response.headers.get('content-type'))
 
       // Get response text first to debug
       const responseText = await response.text()
@@ -114,7 +110,7 @@ const Login = ({ onLogin }) => {
         res = JSON.parse(responseText)
       } catch (parseError) {
         console.error('Failed to parse response as JSON:', parseError)
-        throw new Error(`Server returned invalid response: ${responseText.substring(0, 100)}...`)
+        throw new Error(`Server error. Please try again.`)
       }
 
       if (!response.ok) {
