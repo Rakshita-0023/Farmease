@@ -50,27 +50,28 @@ const Login = ({ onLogin }) => {
     setLoading(true)
 
     try {
-      const API_BASE = import.meta.env.PROD
-        ? import.meta.env.VITE_API_BASE_URL
-        : '/api'
-
       const endpoint = isLogin ? '/auth/login' : '/auth/register'
       const payload = isLogin
         ? { email: formData.email, password: formData.password }
         : { name: formData.name, email: formData.email, password: formData.password }
 
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
 
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || 'Authentication failed')
+      const responseText = await res.text()
+      let response
+      try {
+        response = JSON.parse(responseText)
+      } catch {
+        throw new Error('Server error. Please try again.')
       }
 
-      const response = await res.json()
+      if (!res.ok) {
+        throw new Error(response.error || 'Authentication failed')
+      }
 
       if (response.success) {
         localStorage.setItem('token', response.token)
