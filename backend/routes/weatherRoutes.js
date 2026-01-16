@@ -2,220 +2,277 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 
-// Middleware to authenticate token (optional for weather, but good for rate limiting/tracking)
-// For now, we'll keep it public or use the same auth middleware if passed
+/**
+ * Weather Routes - Using Open-Meteo as PRIMARY source
+ * 
+ * Why Open-Meteo:
+ * - 100% free, no API key required
+ * - Excellent accuracy for India
+ * - Agricultural-friendly data (soil temp, humidity, etc.)
+ * - No rate limits or sudden blocks
+ * - Perfect for farming applications
+ * 
+ * OpenWeatherMap kept as fallback only
+ */
 
 module.exports = (authenticateToken) => {
 
-    // Helper to map Open-Meteo WMO codes to OpenWeatherMap conditions
-    const mapWmoToOwm = (code) => {
-        const map = {
-            0: { main: 'Clear', description: 'clear sky' },
-            1: { main: 'Clouds', description: 'mainly clear' },
-            2: { main: 'Clouds', description: 'partly cloudy' },
-            3: { main: 'Clouds', description: 'overcast' },
-            45: { main: 'Fog', description: 'fog' },
-            48: { main: 'Fog', description: 'depositing rime fog' },
-            51: { main: 'Drizzle', description: 'light drizzle' },
-            53: { main: 'Drizzle', description: 'moderate drizzle' },
-            55: { main: 'Drizzle', description: 'dense drizzle' },
-            61: { main: 'Rain', description: 'slight rain' },
-            63: { main: 'Rain', description: 'moderate rain' },
-            65: { main: 'Rain', description: 'heavy rain' },
-            71: { main: 'Snow', description: 'slight snow' },
-            73: { main: 'Snow', description: 'moderate snow' },
-            75: { main: 'Snow', description: 'heavy snow' },
-            95: { main: 'Thunderstorm', description: 'thunderstorm' },
+    // Map Open-Meteo WMO weather codes to readable conditions
+    const mapWmoToCondition = (code) => {
+        const conditions = {
+            0: { main: 'Clear', description: 'Clear sky', icon: '01d' },
+            1: { main: 'Clear', description: 'Mainly clear', icon: '01d' },
+            2: { main: 'Clouds', description: 'Partly cloudy', icon: '02d' },
+            3: { main: 'Clouds', description: 'Overcast', icon: '03d' },
+            45: { main: 'Fog', description: 'Foggy', icon: '50d' },
+            48: { main: 'Fog', description: 'Depositing rime fog', icon: '50d' },
+            51: { main: 'Drizzle', description: 'Light drizzle', icon: '09d' },
+            53: { main: 'Drizzle', description: 'Moderate drizzle', icon: '09d' },
+            55: { main: 'Drizzle', description: 'Dense drizzle', icon: '09d' },
+            56: { main: 'Drizzle', description: 'Freezing drizzle', icon: '09d' },
+            57: { main: 'Drizzle', description: 'Dense freezing drizzle', icon: '09d' },
+            61: { main: 'Rain', description: 'Slight rain', icon: '10d' },
+            63: { main: 'Rain', description: 'Moderate rain', icon: '10d' },
+            65: { main: 'Rain', description: 'Heavy rain', icon: '10d' },
+            66: { main: 'Rain', description: 'Freezing rain', icon: '13d' },
+            67: { main: 'Rain', description: 'Heavy freezing rain', icon: '13d' },
+            71: { main: 'Snow', description: 'Slight snow', icon: '13d' },
+            73: { main: 'Snow', description: 'Moderate snow', icon: '13d' },
+            75: { main: 'Snow', description: 'Heavy snow', icon: '13d' },
+            77: { main: 'Snow', description: 'Snow grains', icon: '13d' },
+            80: { main: 'Rain', description: 'Slight rain showers', icon: '09d' },
+            81: { main: 'Rain', description: 'Moderate rain showers', icon: '09d' },
+            82: { main: 'Rain', description: 'Violent rain showers', icon: '09d' },
+            85: { main: 'Snow', description: 'Slight snow showers', icon: '13d' },
+            86: { main: 'Snow', description: 'Heavy snow showers', icon: '13d' },
+            95: { main: 'Thunderstorm', description: 'Thunderstorm', icon: '11d' },
+            96: { main: 'Thunderstorm', description: 'Thunderstorm with hail', icon: '11d' },
+            99: { main: 'Thunderstorm', description: 'Thunderstorm with heavy hail', icon: '11d' },
         };
-        return map[code] || { main: 'Clear', description: 'clear sky' };
+        return conditions[code] || { main: 'Clear', description: 'Clear sky', icon: '01d' };
     };
 
-    // GET current weather for authenticated user's saved location
+    // Calculate sunrise/sunset times (approximate based on latitude)
+    const getSunTimes = (lat) => {
+        const now = new Date();
+        // Simple approximation - adjust based on season and latitude
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const sunriseHour = 6 + Math.sin((dayOfYear - 80) * Math.PI / 182.5) * 1;
+        const sunsetHour = 18 - Math.sin((dayOfYear - 80) * Math.PI / 182.5) * 1;
+        
+        const sunrise = new Date(now);
+        sunrise.setHours(Math.floor(sunriseHour), (sunriseHour % 1) * 60, 0);
+        
+        const sunset = new Date(now);
+        sunset.setHours(Math.floor(sunsetHour), (sunsetHour % 1) * 60, 0);
+        
+        return {
+            sunrise: Math.floor(sunrise.getTime() / 1000),
+            sunset: Math.floor(sunset.getTime() / 1000)
+        };
+    };
+
+    // GET current weather
     router.get('/current', authenticateToken, async (req, res) => {
         try {
             console.log(`🌤️ Weather request for user: ${req.user.userId}`);
             
-            // Check if coordinates are passed directly (from frontend LocationContext)
             const { lat, lon } = req.query;
             
             let latitude, longitude, city;
             
             if (lat && lon) {
-                // Use coordinates from query params (frontend has detected location)
                 latitude = parseFloat(lat);
                 longitude = parseFloat(lon);
                 city = 'Your Location';
-                console.log(`🌤️ Using coordinates from request: ${latitude}, ${longitude}`);
+                console.log(`📍 Using coordinates from request: ${latitude}, ${longitude}`);
             } else {
-                // Try to get user's saved location from database
-                try {
-                    const locationResponse = await axios.get(`http://localhost:5001/api/user/location`, {
-                        headers: {
-                            'Authorization': req.headers.authorization
-                        }
-                    });
-                    
-                    if (locationResponse.data && locationResponse.data.latitude && locationResponse.data.longitude) {
-                        latitude = locationResponse.data.latitude;
-                        longitude = locationResponse.data.longitude;
-                        city = locationResponse.data.city || 'Your Location';
-                        console.log(`🌤️ Using saved location: ${city} (${latitude}, ${longitude})`);
-                    }
-                } catch (locationError) {
-                    console.log('❌ Failed to get user saved location:', locationError.message);
-                }
-            }
-            
-            if (!latitude || !longitude) {
                 return res.status(400).json({ 
-                    error: 'No saved location found',
-                    message: 'Please set your farm location in your profile to view weather data',
+                    error: 'Coordinates required',
+                    message: 'Please provide lat and lon parameters',
                     requiresLocation: true
                 });
             }
 
-            // Try OpenWeatherMap first
-            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
-
+            // ============================================
+            // PRIMARY: Open-Meteo (free, no API key, accurate)
+            // ============================================
             try {
-                const response = await axios.get(url);
-                console.log(`✅ Weather data fetched for: ${response.data.name || city}`);
-                return res.json(response.data);
-            } catch (owmError) {
-                console.warn('⚠️ OpenWeatherMap failed, falling back to Open-Meteo:', owmError.message);
+                console.log(`🌤️ Fetching from Open-Meteo (PRIMARY)...`);
                 
-                // Fallback to Open-Meteo using saved coordinates
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m,surface_pressure,visibility`;
-                const weatherRes = await axios.get(weatherUrl);
-                const current = weatherRes.data.current_weather;
-                const hourly = weatherRes.data.hourly;
+                const openMeteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,cloud_cover&timezone=auto`;
+                
+                const response = await axios.get(openMeteoUrl, { timeout: 10000 });
+                const current = response.data.current;
+                
+                if (!current || current.temperature_2m === undefined) {
+                    throw new Error('Invalid Open-Meteo response');
+                }
 
-                // Map to OWM format
-                const weatherCondition = mapWmoToOwm(current.weathercode);
-                const currentHourIndex = new Date().getHours();
+                const condition = mapWmoToCondition(current.weather_code);
+                const sunTimes = getSunTimes(latitude);
 
-                const mappedData = {
-                    name: city,
-                    sys: { country: 'IN', sunrise: Date.now() / 1000 - 20000, sunset: Date.now() / 1000 + 20000 },
+                // Reverse geocode to get city name
+                let cityName = city;
+                try {
+                    const geoUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+                    const geoRes = await axios.get(geoUrl, { timeout: 5000 });
+                    cityName = geoRes.data.city || geoRes.data.locality || geoRes.data.principalSubdivision || 'Your Location';
+                } catch (geoErr) {
+                    console.warn('⚠️ Geocoding failed, using default city name');
+                }
+
+                const weatherData = {
+                    name: cityName,
+                    coord: { lat: latitude, lon: longitude },
+                    sys: { 
+                        country: 'IN',
+                        sunrise: sunTimes.sunrise,
+                        sunset: sunTimes.sunset
+                    },
                     main: {
-                        temp: current.temperature,
-                        humidity: hourly.relativehumidity_2m[currentHourIndex] || 50,
-                        pressure: hourly.surface_pressure[currentHourIndex] || 1013,
+                        temp: Math.round(current.temperature_2m * 10) / 10,
+                        feels_like: Math.round(current.apparent_temperature * 10) / 10,
+                        humidity: current.relative_humidity_2m,
+                        pressure: Math.round(current.surface_pressure),
                     },
                     weather: [{
-                        main: weatherCondition.main,
-                        description: weatherCondition.description,
-                        icon: '01d'
+                        main: condition.main,
+                        description: condition.description,
+                        icon: condition.icon
                     }],
                     wind: {
-                        speed: current.windspeed / 3.6,
-                        deg: current.winddirection
+                        speed: current.wind_speed_10m / 3.6, // km/h to m/s
+                        deg: current.wind_direction_10m
                     },
-                    visibility: hourly.visibility ? hourly.visibility[currentHourIndex] : 10000,
-                    dt: Math.floor(Date.now() / 1000)
+                    clouds: { all: current.cloud_cover },
+                    visibility: 10000,
+                    dt: Math.floor(Date.now() / 1000),
+                    timezone: response.data.utc_offset_seconds || 19800,
+                    source: 'Open-Meteo'
                 };
 
-                console.log(`✅ Weather data (fallback) fetched for: ${city}`);
-                return res.json(mappedData);
+                console.log(`✅ Open-Meteo: ${weatherData.main.temp}°C, ${condition.description}, Humidity: ${weatherData.main.humidity}%`);
+                return res.json(weatherData);
+
+            } catch (openMeteoError) {
+                console.warn('⚠️ Open-Meteo failed:', openMeteoError.message);
+                console.log('🔄 Falling back to OpenWeatherMap...');
+            }
+
+            // ============================================
+            // FALLBACK: OpenWeatherMap
+            // ============================================
+            try {
+                const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+                const owmUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
+                
+                const response = await axios.get(owmUrl, { timeout: 10000 });
+                response.data.source = 'OpenWeatherMap';
+                
+                console.log(`✅ OpenWeatherMap fallback: ${response.data.main.temp}°C`);
+                return res.json(response.data);
+
+            } catch (owmError) {
+                console.error('❌ Both weather sources failed');
+                throw new Error('Weather data unavailable');
             }
 
         } catch (error) {
-            console.error('❌ Weather fetch failed:', error);
+            console.error('❌ Weather fetch failed:', error.message);
             res.status(500).json({ 
                 error: 'Failed to fetch weather data',
-                message: 'Unable to get weather for your saved location'
+                message: error.message
             });
         }
     });
 
-    // GET weather forecast for authenticated user's saved location
+    // GET weather forecast (5-day)
     router.get('/forecast', authenticateToken, async (req, res) => {
         try {
             console.log(`🌤️ Forecast request for user: ${req.user.userId}`);
             
-            // Check if coordinates are passed directly (from frontend LocationContext)
             const { lat, lon } = req.query;
             
-            let latitude, longitude, city;
-            
-            if (lat && lon) {
-                // Use coordinates from query params
-                latitude = parseFloat(lat);
-                longitude = parseFloat(lon);
-                city = 'Your Location';
-                console.log(`🌤️ Using coordinates from request for forecast: ${latitude}, ${longitude}`);
-            } else {
-                // Try to get user's saved location from database
-                try {
-                    const locationResponse = await axios.get(`http://localhost:5001/api/user/location`, {
-                        headers: {
-                            'Authorization': req.headers.authorization
-                        }
-                    });
-                    
-                    if (locationResponse.data && locationResponse.data.latitude && locationResponse.data.longitude) {
-                        latitude = locationResponse.data.latitude;
-                        longitude = locationResponse.data.longitude;
-                        city = locationResponse.data.city || 'Your Location';
-                    }
-                } catch (locationError) {
-                    console.log('❌ Failed to get user saved location for forecast:', locationError.message);
-                }
-            }
-            
-            if (!latitude || !longitude) {
+            if (!lat || !lon) {
                 return res.status(400).json({ 
-                    error: 'No saved location found',
-                    message: 'Please set your farm location in your profile to view weather forecast',
+                    error: 'Coordinates required',
+                    message: 'Please provide lat and lon parameters',
                     requiresLocation: true
                 });
             }
-            
-            console.log(`🌤️ Using location for forecast: ${city} (${latitude}, ${longitude})`);
 
-            // Try OpenWeatherMap first
-            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
+            const latitude = parseFloat(lat);
+            const longitude = parseFloat(lon);
 
+            // ============================================
+            // PRIMARY: Open-Meteo Forecast
+            // ============================================
             try {
-                const response = await axios.get(url);
-                console.log(`✅ Forecast data fetched for: ${city}`);
-                return res.json(response.data);
-            } catch (owmError) {
-                console.warn('⚠️ OpenWeatherMap forecast failed, falling back to Open-Meteo');
+                console.log(`🌤️ Fetching forecast from Open-Meteo...`);
                 
-                // Fallback to Open-Meteo using saved coordinates
-                const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max&timezone=auto`;
-                const forecastRes = await axios.get(forecastUrl);
-                const daily = forecastRes.data.daily;
+                const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max&timezone=auto`;
+                
+                const response = await axios.get(forecastUrl, { timeout: 10000 });
+                const daily = response.data.daily;
+                
+                if (!daily || !daily.time) {
+                    throw new Error('Invalid forecast response');
+                }
 
-                // Map to OWM Forecast format
-                const list = [];
-                for (let i = 0; i < daily.time.length; i++) {
-                    const condition = mapWmoToOwm(daily.weathercode[i]);
-                    list.push({
-                        dt: new Date(daily.time[i]).getTime() / 1000 + 43200, // Noon
+                // Convert to OpenWeatherMap-like format for frontend compatibility
+                const list = daily.time.map((date, i) => {
+                    const condition = mapWmoToCondition(daily.weather_code[i]);
+                    return {
+                        dt: new Date(date).getTime() / 1000 + 43200, // Noon
                         main: {
                             temp: (daily.temperature_2m_max[i] + daily.temperature_2m_min[i]) / 2,
                             temp_min: daily.temperature_2m_min[i],
                             temp_max: daily.temperature_2m_max[i],
-                            humidity: 50
+                            humidity: 50 // Open-Meteo doesn't provide daily humidity in free tier
                         },
-                        weather: [{ main: condition.main, description: condition.description }],
-                        pop: (daily.precipitation_probability_max[i] || 0) / 100
-                    });
-                }
+                        weather: [{
+                            main: condition.main,
+                            description: condition.description,
+                            icon: condition.icon
+                        }],
+                        pop: (daily.precipitation_probability_max[i] || 0) / 100,
+                        wind: {
+                            speed: (daily.wind_speed_10m_max[i] || 0) / 3.6
+                        }
+                    };
+                });
 
-                console.log(`✅ Forecast data (fallback) fetched for: ${city}`);
-                return res.json({ list });
+                console.log(`✅ Open-Meteo forecast: ${list.length} days`);
+                return res.json({ list, source: 'Open-Meteo' });
+
+            } catch (openMeteoError) {
+                console.warn('⚠️ Open-Meteo forecast failed:', openMeteoError.message);
+            }
+
+            // ============================================
+            // FALLBACK: OpenWeatherMap Forecast
+            // ============================================
+            try {
+                const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+                const owmUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
+                
+                const response = await axios.get(owmUrl, { timeout: 10000 });
+                response.data.source = 'OpenWeatherMap';
+                
+                console.log(`✅ OpenWeatherMap forecast fallback`);
+                return res.json(response.data);
+
+            } catch (owmError) {
+                console.error('❌ Both forecast sources failed');
+                throw new Error('Forecast data unavailable');
             }
 
         } catch (error) {
-            console.error('❌ Forecast fetch failed:', error);
+            console.error('❌ Forecast fetch failed:', error.message);
             res.status(500).json({ 
                 error: 'Failed to fetch forecast data',
-                message: 'Unable to get forecast for your saved location'
+                message: error.message
             });
         }
     });

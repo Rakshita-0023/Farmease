@@ -5,7 +5,7 @@
 class WeatherCache {
   constructor() {
     this.cache = new Map()
-    this.CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+    this.CACHE_TTL = 2 * 60 * 1000 // 2 minutes - keep data fresh for farming decisions
   }
 
   /**

@@ -221,7 +221,9 @@ const Weather = () => {
 
   const handleRefresh = () => {
     if (globalLocation?.latitude && globalLocation?.longitude) {
+      // Clear both weather cache and location cache to force fresh data
       weatherCache.clear()
+      console.log('🔄 Forcing fresh weather fetch...')
       fetchWeather(globalLocation.latitude, globalLocation.longitude, true)
     }
   }
