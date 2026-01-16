@@ -9,27 +9,41 @@ import { useLocation } from 'react-router-dom'
 const PersistentVideoBackground = ({ show = true }) => {
   const videoRef = useRef(null)
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
+  const [videoError, setVideoError] = useState(false)
   const location = useLocation()
   
   // Video only on public routes (landing, login)
-  const isPublicRoute = ['/landing', '/login'].includes(location.pathname)
-  const showVideo = isPublicRoute && show
-  const showStaticBg = !isPublicRoute && show
+  const isPublicRoute = ['/landing', '/login', '/'].includes(location.pathname) && !localStorage.getItem('token')
+  const showVideo = isPublicRoute && show && !videoError
+  const showStaticBg = (!isPublicRoute || videoError) && show
 
   useEffect(() => {
     const video = videoRef.current
     if (!video || !showVideo) return
 
-    const handleCanPlay = () => setIsVideoLoaded(true)
+    const handleCanPlay = () => {
+      console.log('Video can play')
+      setIsVideoLoaded(true)
+    }
+    
+    const handleError = (e) => {
+      console.error('Video error:', e)
+      setVideoError(true)
+    }
     
     video.addEventListener('canplay', handleCanPlay)
     video.addEventListener('loadeddata', handleCanPlay)
+    video.addEventListener('error', handleError)
     
-    video.play().catch(() => setIsVideoLoaded(true))
+    video.play().catch((err) => {
+      console.log('Video autoplay failed:', err)
+      setIsVideoLoaded(true)
+    })
 
     return () => {
       video.removeEventListener('canplay', handleCanPlay)
       video.removeEventListener('loadeddata', handleCanPlay)
+      video.removeEventListener('error', handleError)
     }
   }, [showVideo])
 
@@ -59,19 +73,21 @@ const PersistentVideoBackground = ({ show = true }) => {
           muted
           playsInline
           preload="auto"
+          poster="/backimg.png"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
             isVideoLoaded ? 'opacity-100' : 'opacity-0'
           }`}
+          onError={() => setVideoError(true)}
         >
           <source src="/background.min.mp4" type="video/mp4" />
         </video>
       )}
 
-      {/* Static image - on dashboard/authenticated pages */}
+      {/* Static image - on dashboard/authenticated pages OR video fallback */}
       {showStaticBg && (
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/background_img.png)' }}
+          style={{ backgroundImage: 'url(/backimg.png)' }}
         />
       )}
 
