@@ -49,8 +49,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle preflight OPTIONS requests for all routes
-app.options('*', cors());
+// Handle preflight OPTIONS requests for all routes (Express 5 compatible)
+app.options(/.*/, cors());
 
 // Parse JSON bodies
 app.use(express.json({ limit: '10mb' }))
