@@ -46,13 +46,20 @@ const localData = {
 // Initialize database connection
 async function initDB() {
   try {
-    // Production: Use MySQL (Railway) - NO SQLite fallback
+    // Production: Use DATABASE_URL (PostgreSQL or MySQL)
     if (process.env.DATABASE_URL) {
-      console.log('📊 Production mode: Using Railway MySQL Database')
-      console.log('🔍 Testing MySQL connection...')
+      const dbType = require('./db').dbType
+      console.log(`📊 Production mode: Using ${dbType.toUpperCase()} Database`)
+      console.log('🔍 Testing database connection...')
       await db.query('SELECT 1')
-      console.log('✅ MySQL database connected successfully')
-      await createTablesMySQL()
+      console.log(`✅ ${dbType.toUpperCase()} database connected successfully`)
+      
+      // Create tables based on database type
+      if (dbType === 'postgres') {
+        await createTablesPostgres()
+      } else if (dbType === 'mysql') {
+        await createTablesMySQL()
+      }
       storageState.useLocalStorage = false
     } else {
       // Development only: SQLite
@@ -67,8 +74,8 @@ async function initDB() {
     
     // In production, do NOT fall back to in-memory - fail loudly
     if (process.env.DATABASE_URL) {
-      console.error('🚨 CRITICAL: MySQL connection failed in production!')
-      console.error('🚨 Check DATABASE_URL and Railway MySQL status')
+      console.error('🚨 CRITICAL: Database connection failed in production!')
+      console.error('🚨 Check DATABASE_URL and database server status')
       // Still allow server to start but log the error
     }
     
@@ -165,6 +172,101 @@ async function createTablesMySQL() {
     }
   }
   console.log('✅ MySQL tables ready')
+}
+
+// PostgreSQL tables (for Render/Supabase/Neon/Production)
+async function createTablesPostgres() {
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      city VARCHAR(255),
+      state VARCHAR(255),
+      country VARCHAR(255) DEFAULT 'India',
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS farms (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      name VARCHAR(255) NOT NULL,
+      crop VARCHAR(255) NOT NULL,
+      area DECIMAL(10, 2) NOT NULL,
+      soil_type VARCHAR(100),
+      planting_date DATE,
+      health_score INTEGER DEFAULT 100,
+      days_to_harvest INTEGER,
+      progress INTEGER DEFAULT 0,
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS activities (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      farm_id INTEGER REFERENCES farms(id),
+      type VARCHAR(100) NOT NULL,
+      details TEXT,
+      quantity TEXT,
+      date DATE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS plant_diagnoses (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      disease VARCHAR(255),
+      confidence DECIMAL(5, 2),
+      symptoms TEXT,
+      remedy TEXT,
+      type VARCHAR(100),
+      image_url TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS forum_posts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      content TEXT NOT NULL,
+      tags TEXT,
+      likes INTEGER DEFAULT 0,
+      comments_count INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS comments (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER NOT NULL REFERENCES forum_posts(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS market_prices (
+      id SERIAL PRIMARY KEY,
+      commodity TEXT NOT NULL,
+      variety TEXT,
+      market TEXT NOT NULL,
+      district TEXT NOT NULL,
+      state TEXT NOT NULL,
+      min_price DECIMAL(10, 2) NOT NULL,
+      max_price DECIMAL(10, 2) NOT NULL,
+      modal_price DECIMAL(10, 2) NOT NULL,
+      latitude DECIMAL(10, 8),
+      longitude DECIMAL(11, 8),
+      trend VARCHAR(50) DEFAULT 'stable',
+      date DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ]
+
+  for (const sql of tables) {
+    try {
+      await db.query(sql)
+    } catch (err) {
+      console.log('Table creation note:', err.message)
+    }
+  }
+  console.log('✅ PostgreSQL tables ready')
 }
 
 // SQLite tables (for local development)

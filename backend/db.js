@@ -1,24 +1,81 @@
-const mysql = require("mysql2/promise");
+// Database connection - PostgreSQL in production, SQLite in development
 
-// Database connection - MySQL in production, SQLite in development
 let pool;
 let dbType = 'none';
 
 if (process.env.DATABASE_URL) {
-  // ========== PRODUCTION: Railway MySQL ==========
-  dbType = 'mysql';
-  console.log('📊 DATABASE_URL detected - Using MySQL');
+  // ========== PRODUCTION: PostgreSQL or MySQL ==========
+  const isPostgres = process.env.DATABASE_URL.startsWith('postgres');
+  const isMySQL = process.env.DATABASE_URL.startsWith('mysql');
   
-  pool = mysql.createPool({
-    uri: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    waitForConnections: true,
-    connectionLimit: 10,
-    connectTimeout: 30000,
-    acquireTimeout: 30000,
-  });
-  
-  console.log('✅ MySQL connection pool created');
+  if (isPostgres) {
+    // PostgreSQL (Render, Supabase, Neon, etc.)
+    dbType = 'postgres';
+    console.log('📊 DATABASE_URL detected - Using PostgreSQL');
+    
+    const { Pool } = require('pg');
+    
+    const pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL.includes('render.com') 
+        ? { rejectUnauthorized: false }
+        : false,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 30000,
+    });
+    
+    console.log('✅ PostgreSQL connection pool created');
+    
+    // Wrap PostgreSQL to return MySQL-compatible format [rows, fields]
+    pool = {
+      query: async (sql, params = []) => {
+        // Convert MySQL ? placeholders to PostgreSQL $1, $2, etc.
+        let pgSql = sql;
+        let paramIndex = 0;
+        pgSql = pgSql.replace(/\?/g, () => `$${++paramIndex}`);
+        
+        const result = await pgPool.query(pgSql, params);
+        return [result.rows, result.fields];
+      },
+      execute: async (sql, params = []) => {
+        // Convert MySQL ? placeholders to PostgreSQL $1, $2, etc.
+        let pgSql = sql;
+        let paramIndex = 0;
+        pgSql = pgSql.replace(/\?/g, () => `$${++paramIndex}`);
+        
+        // For INSERT, add RETURNING id to get the inserted ID
+        if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
+          pgSql = pgSql.replace(/;?\s*$/, ' RETURNING id');
+        }
+        
+        const result = await pgPool.query(pgSql, params);
+        return [{
+          insertId: result.rows[0]?.id || null,
+          affectedRows: result.rowCount
+        }];
+      }
+    };
+    
+  } else if (isMySQL) {
+    // MySQL (Railway, PlanetScale, etc.)
+    dbType = 'mysql';
+    console.log('📊 DATABASE_URL detected - Using MySQL');
+    
+    const mysql = require('mysql2/promise');
+    
+    pool = mysql.createPool({
+      uri: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      waitForConnections: true,
+      connectionLimit: 10,
+      connectTimeout: 30000,
+    });
+    
+    console.log('✅ MySQL connection pool created');
+  } else {
+    console.error('❌ Unknown DATABASE_URL format');
+  }
   
 } else {
   // ========== DEVELOPMENT: SQLite ==========
