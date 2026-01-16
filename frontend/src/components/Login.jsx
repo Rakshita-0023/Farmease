@@ -98,12 +98,17 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({ token: credentialResponse.credential })
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.details || errorData.error || 'Google authentication failed')
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned an invalid response. Please check if the backend is running.')
       }
 
       const res = await response.json()
+
+      if (!response.ok) {
+        throw new Error(res.details || res.error || 'Google authentication failed')
+      }
 
       if (res.success) {
         localStorage.setItem('token', res.token)
@@ -113,6 +118,7 @@ const Login = ({ onLogin }) => {
         setError(`Google sign in failed: ${res.details || res.error || 'Unknown error'}`)
       }
     } catch (err) {
+      console.error('Google auth error:', err)
       setError(err.message || 'Google sign in failed')
       setToast({ message: err.message, type: 'error' })
     } finally {
