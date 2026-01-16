@@ -243,11 +243,11 @@ const FarmManagement = () => {
                     />
                   </div>
                   <div className="flex justify-between text-[10px] text-white/30 mt-2">
-                    <span className={progress >= 0 ? 'text-emerald-400' : ''}>🌱</span>
-                    <span className={progress >= 25 ? 'text-emerald-400' : ''}>🌿</span>
-                    <span className={progress >= 50 ? 'text-emerald-400' : ''}>🌸</span>
-                    <span className={progress >= 75 ? 'text-emerald-400' : ''}>🌾</span>
-                    <span className={progress >= 90 ? 'text-emerald-400' : ''}>✅</span>
+                    <span className={progress >= 0 ? 'text-emerald-400' : ''}>●</span>
+                    <span className={progress >= 25 ? 'text-emerald-400' : ''}>●</span>
+                    <span className={progress >= 50 ? 'text-emerald-400' : ''}>●</span>
+                    <span className={progress >= 75 ? 'text-emerald-400' : ''}>●</span>
+                    <span className={progress >= 90 ? 'text-emerald-400' : ''}>●</span>
                   </div>
                 </div>
 

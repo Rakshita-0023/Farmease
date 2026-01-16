@@ -44,7 +44,6 @@ const Dashboard = () => {
 
     recentFarms.forEach((farm, index) => {
       const daysAgo = index === 0 ? 'Today' : index === 1 ? 'Yesterday' : `${index + 1} days ago`
-      const statusIcon = farm.progress >= 80 ? '🌟' : farm.progress >= 60 ? '🌱' : farm.progress >= 40 ? '🌿' : '🌾'
       const statusText = farm.progress >= 80 ? 'Excellent' : farm.progress >= 60 ? 'Growing Well' : farm.progress >= 40 ? 'Developing' : 'Recently Planted'
 
       activities.push({

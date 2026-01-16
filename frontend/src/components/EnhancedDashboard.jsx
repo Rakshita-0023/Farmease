@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../config'
 import OnboardingWizard from './OnboardingWizard'
-import { Cloud, Sun, CloudRain, Wind, Droplets, MapPin, TrendingUp, Leaf, Activity } from 'lucide-react'
+import { Cloud, Sun, CloudRain, Wind, Droplets, MapPin, TrendingUp, Leaf, Activity, Home, Sprout, CheckCircle, Heart } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useLocation } from '../LocationContext'
 import { useMandiData } from '../hooks/useMandiData'
@@ -244,10 +244,10 @@ const EnhancedDashboard = () => {
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Farms', value: farmMetrics.totalFarms, icon: '🏡', color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/20' },
-          { label: 'Active Crops', value: farmMetrics.activeCrops, icon: '🌾', color: 'from-emerald-500/15 to-teal-500/15', border: 'border-emerald-500/20' },
-          { label: 'Harvest Ready', value: farmMetrics.harvestReady, icon: '✅', color: 'from-emerald-500/10 to-teal-500/10', border: 'border-emerald-500/20' },
-          { label: 'Health Score', value: `${farmMetrics.healthScore}%`, icon: '💚', color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/20' }
+          { label: 'Total Farms', value: farmMetrics.totalFarms, icon: Home, color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/20' },
+          { label: 'Active Crops', value: farmMetrics.activeCrops, icon: Sprout, color: 'from-emerald-500/15 to-teal-500/15', border: 'border-emerald-500/20' },
+          { label: 'Harvest Ready', value: farmMetrics.harvestReady, icon: CheckCircle, color: 'from-emerald-500/10 to-teal-500/10', border: 'border-emerald-500/20' },
+          { label: 'Health Score', value: `${farmMetrics.healthScore}%`, icon: Heart, color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/20' }
         ].map((metric, i) => (
           <motion.div
             key={metric.label}
@@ -256,7 +256,9 @@ const EnhancedDashboard = () => {
             transition={{ delay: i * 0.1 }}
             className={`bg-gradient-to-br ${metric.color} backdrop-blur-xl rounded-2xl p-5 border ${metric.border} hover:bg-white/10 transition-all cursor-default`}
           >
-            <div className="text-2xl mb-3">{metric.icon}</div>
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3">
+              <metric.icon size={20} className="text-emerald-400" />
+            </div>
             <div className="text-2xl font-bold text-white">{metric.value}</div>
             <div className="text-white/50 text-sm mt-1">{metric.label}</div>
           </motion.div>
@@ -343,8 +345,8 @@ const EnhancedDashboard = () => {
                   className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl cursor-pointer transition-all group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                      {crop.commodity === 'Rice' ? '🌾' : crop.commodity === 'Wheat' ? '🍞' : crop.commodity === 'Tomato' ? '🍅' : '🌱'}
+                    <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Leaf size={18} className="text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-white text-sm">{crop.commodity}</p>
