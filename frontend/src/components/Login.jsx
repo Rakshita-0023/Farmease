@@ -55,13 +55,18 @@ const Login = ({ onLogin }) => {
         ? { email: formData.email, password: formData.password }
         : { name: formData.name, email: formData.email, password: formData.password }
 
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const fullUrl = `${API_BASE_URL}${endpoint}`
+      console.log('Auth request to:', fullUrl)
+
+      const res = await fetch(fullUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
 
       const responseText = await res.text()
+      console.log('Auth response:', responseText.substring(0, 100))
+      
       let response
       try {
         response = JSON.parse(responseText)
