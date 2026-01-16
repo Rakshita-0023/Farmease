@@ -21,6 +21,40 @@ const { getProvider } = require('./services/marketProviders/index');
 const app = express()
 const PORT = process.env.PORT || 5001
 
+// ============================================
+// CORS MUST BE FIRST - BEFORE ANY ROUTES
+// ============================================
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://farmeaseai-kappa.vercel.app',
+  'https://farmeaseai.vercel.app',
+  'https://farmease-zeta.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (Postman, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    console.log('⚠️ CORS blocked origin:', origin);
+    return callback(new Error('CORS not allowed'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight OPTIONS requests for all routes
+app.options('*', cors());
+
+// Parse JSON bodies
+app.use(express.json({ limit: '10mb' }))
+
 // Root route for health check
 app.get("/", (req, res) => {
   res.json({
@@ -425,37 +459,6 @@ const createUser = async (name, email, passwordHash) => {
     throw error
   }
 }
-
-// Middleware - CORS configuration for production
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://farmeaseai-kappa.vercel.app',
-  'https://farmeaseai.vercel.app',
-  'https://farmease-zeta.vercel.app'
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, server-to-server)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('⚠️ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
-// Handle preflight requests for all routes
-app.options('*', cors());
-
-app.use(express.json({ limit: '10mb' }))
 
 // Inject helper functions into auth routes
 const authRoutes = createAuthRoutes(findUser, createUser)
