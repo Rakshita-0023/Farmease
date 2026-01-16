@@ -89,10 +89,11 @@ const Login = ({ onLogin }) => {
     setError('')
 
     try {
-      console.log('Google Auth - API_BASE_URL:', API_BASE_URL)
-      console.log('Google Auth - Full URL:', `${API_BASE_URL}/auth/google`)
+      // Use hardcoded URL to ensure it works
+      const apiUrl = 'https://farmease-tqgy.onrender.com/api/auth/google'
+      console.log('Google Auth - Calling URL:', apiUrl)
 
-      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credentialResponse.credential })
@@ -100,17 +101,14 @@ const Login = ({ onLogin }) => {
 
       console.log('Google Auth - Response status:', response.status)
 
-      // Get response text first to debug
       const responseText = await response.text()
-      console.log('Google Auth - Response text (first 200 chars):', responseText.substring(0, 200))
+      console.log('Google Auth - Response:', responseText.substring(0, 200))
 
-      // Try to parse as JSON
       let res
       try {
         res = JSON.parse(responseText)
       } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError)
-        throw new Error(`Server error. Please try again.`)
+        throw new Error('Server error. Please try again.')
       }
 
       if (!response.ok) {
