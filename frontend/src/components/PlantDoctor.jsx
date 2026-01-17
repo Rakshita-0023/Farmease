@@ -97,58 +97,64 @@ const PlantDoctor = () => {
         setResult(null)
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 3500))
+            // Convert base64 image to blob
+            const response = await fetch(image)
+            const blob = await response.blob()
+            
+            // Create FormData
+            const formData = new FormData()
+            formData.append('file', blob, 'plant-image.jpg')
 
-            const diseases = [
-                {
-                    name: 'Early Blight',
-                    type: 'Fungal',
-                    confidence: 88,
-                    symptoms: ['Dark concentric rings on leaves', 'Yellowing of older leaves', 'Brown spots with target-like pattern'],
-                    remedy: 'Remove infected leaves immediately. Apply copper-based fungicide. Ensure proper spacing between plants.',
-                    prevention: ['Crop rotation every 2-3 years', 'Avoid overhead watering', 'Mulch around plants']
-                },
-                {
-                    name: 'Leaf Spot',
-                    type: 'Bacterial',
-                    confidence: 92,
-                    symptoms: ['Small water-soaked spots', 'Yellow halos around spots', 'Spots turn brown and dry'],
-                    remedy: 'Prune affected areas. Apply copper hydroxide spray. Water at soil level only.',
-                    prevention: ['Use disease-free seeds', 'Avoid working with wet plants', 'Sanitize tools regularly']
-                },
-                {
-                    name: 'Healthy Plant',
-                    type: 'Healthy',
-                    confidence: 95,
-                    symptoms: ['Vibrant green leaves', 'No visible spots or discoloration', 'Strong stem structure'],
-                    remedy: 'Continue current care routine. Maintain regular watering schedule.',
-                    prevention: ['Regular monitoring', 'Balanced fertilization', 'Proper watering']
-                },
-                {
-                    name: 'Powdery Mildew',
-                    type: 'Fungal',
-                    confidence: 85,
-                    symptoms: ['White powdery coating on leaves', 'Leaf curling', 'Stunted growth'],
-                    remedy: 'Apply neem oil or sulfur-based fungicide. Improve air circulation.',
-                    prevention: ['Avoid overcrowding', 'Water in morning', 'Use resistant varieties']
+            console.log('🌿 Sending image to Plant Doctor API...')
+
+            // Call backend API
+            const result = await apiClient.post('/plant-disease', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
                 }
-            ]
+            })
 
-            const randomDisease = diseases[Math.floor(Math.random() * diseases.length)]
-            setResult(randomDisease)
+            console.log('✅ Plant Doctor response:', result)
+
+            // Parse disease name and create result object
+            const diseaseName = result.disease || 'Unknown Disease'
+            const confidence = result.confidence || 0
+
+            // Determine if healthy or diseased
+            const isHealthy = diseaseName.toLowerCase().includes('healthy')
+            
+            // Create structured result
+            const diseaseResult = {
+                name: diseaseName,
+                type: isHealthy ? 'Healthy' : 'Disease Detected',
+                confidence: Math.round(confidence),
+                symptoms: isHealthy 
+                    ? ['Vibrant green leaves', 'No visible spots or discoloration', 'Strong stem structure']
+                    : ['Visible disease symptoms detected', 'Requires immediate attention', 'Check leaves and stems carefully'],
+                remedy: isHealthy
+                    ? 'Continue current care routine. Maintain regular watering schedule.'
+                    : 'Consult with an agricultural expert for specific treatment. Remove affected leaves if necessary.',
+                prevention: isHealthy
+                    ? ['Regular monitoring', 'Balanced fertilization', 'Proper watering']
+                    : ['Isolate affected plants', 'Improve air circulation', 'Use disease-resistant varieties']
+            }
+
+            setResult(diseaseResult)
             setStatus('result')
 
+            // Save diagnosis to backend (optional)
             apiClient.post('/plant-diagnosis', {
-                disease: randomDisease.name,
-                confidence: randomDisease.confidence,
-                symptoms: randomDisease.symptoms,
-                remedy: randomDisease.remedy,
-                type: randomDisease.type,
+                disease: diseaseName,
+                confidence: confidence,
+                symptoms: diseaseResult.symptoms,
+                remedy: diseaseResult.remedy,
+                type: diseaseResult.type,
                 diagnosed_at: new Date().toISOString()
             }).catch(() => {})
 
         } catch (err) {
-            setError("Analysis failed. Please try again.")
+            console.error('❌ Plant disease detection error:', err)
+            setError(err.message || "Analysis failed. Please try again.")
             setStatus('idle')
         }
     }

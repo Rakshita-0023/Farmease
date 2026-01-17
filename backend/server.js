@@ -13,6 +13,7 @@ const locationRoutes = require("./routes/locationRoutes");
 const createUserRoutes = require("./routes/userRoutes");
 const createWeatherRoutes = require("./routes/weatherRoutes");
 const cropRoutes = require("./routes/crop"); // ✅ ML ROUTE
+const plantDiseaseRoutes = require("./routes/plantDiseaseRoutes"); // ✅ PLANT DOCTOR ML ROUTE
 
 // Market services
 const IntegratedMarketService = require("./services/marketRegistry/integratedMarketService");
@@ -94,6 +95,9 @@ app.use("/api/weather", createWeatherRoutes(authenticateToken));
 
 // ✅ ML CROP RECOMMENDATION ROUTE
 app.use("/api", cropRoutes);
+
+// ✅ ML PLANT DISEASE DETECTION ROUTE
+app.use("/api", plantDiseaseRoutes);
 
 // ==================== SIMPLE TEST ====================
 app.get("/api/simple-test", (req, res) => {
