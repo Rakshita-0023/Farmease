@@ -35,6 +35,7 @@ export default function Layout({ user, onLogout }) {
         { id: '/farms', icon: <Sprout size={20} />, label: t('myFarms') },
         { id: '/weather', icon: <CloudSun size={20} />, label: t('weather') },
         { id: '/market', icon: <Store size={20} />, label: t('market') },
+        { id: '/crop-recommendation', icon: <Leaf size={20} />, label: 'Crop Recommendation' },
         { id: '/tips', icon: <Lightbulb size={20} />, label: t('tips') },
         { id: '/doctor', icon: <Stethoscope size={20} />, label: t('plantDoctor') },
         { id: '/community', icon: <Users size={20} />, label: t('community') },

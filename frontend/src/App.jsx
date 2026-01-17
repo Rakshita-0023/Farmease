@@ -16,6 +16,7 @@ import AboutUs from './components/AboutUs'
 import Contact from './components/Contact'
 import TermsOfService from './components/TermsOfService'
 import MarketComparison from './components/MarketComparison'
+import CropRecommendation from './components/CropRecommendation'
 import PersistentVideoBackground from './components/PersistentVideoBackground'
 import { getAuthToken, removeAuthToken } from './config'
 import { LocationProvider } from './LocationContext'
@@ -127,6 +128,7 @@ function App() {
             <Route path="/market" element={<Market />} />
             <Route path="/market/:marketId" element={<MarketDetails />} />
             <Route path="/market/comparison" element={<MarketComparison />} />
+            <Route path="/crop-recommendation" element={<CropRecommendation />} />
             <Route path="/tips" element={<Tips />} />
             <Route path="/doctor" element={<PlantDoctor />} />
             <Route path="/community" element={<CommunityForum />} />
