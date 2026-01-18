@@ -28,6 +28,7 @@ const PORT = process.env.PORT || 5001
 // ============================================
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:3000',
   'https://farmeaseai-kappa.vercel.app',
   'https://farmeaseai.vercel.app',
@@ -584,6 +585,18 @@ app.use('/api/weather', createWeatherRoutes(authenticateToken))
 // ✅ ML ROUTES
 app.use('/api', cropRoutes)
 app.use('/api', plantDiseaseRoutes)
+
+// ✅ KISAN CHARCHA ROUTES
+const charchaRoutes = require('./routes/charchaRoutes');
+const membershipRoutes = require('./routes/membershipRoutes');
+const messageRoutes = require('./routes/messageRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+
+app.use('/api/charchas', authenticateToken, charchaRoutes);
+app.use('/api/charchas', authenticateToken, membershipRoutes);
+app.use('/api/charchas', authenticateToken, messageRoutes);
+app.use('/api/join-requests', authenticateToken, membershipRoutes);
+app.use('/api/notifications', authenticateToken, notificationRoutes);
 
 // Protected routes
 app.get('/api/farms', authenticateToken, async (req, res) => {

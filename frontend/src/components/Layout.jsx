@@ -38,7 +38,7 @@ export default function Layout({ user, onLogout }) {
         { id: '/crop-recommendation', icon: <Leaf size={20} />, label: 'Crop Recommendation' },
         { id: '/tips', icon: <Lightbulb size={20} />, label: t('tips') },
         { id: '/doctor', icon: <Stethoscope size={20} />, label: t('plantDoctor') },
-        { id: '/community', icon: <Users size={20} />, label: t('community') },
+        { id: '/charchas', icon: <Users size={20} />, label: t('community') },
         { id: '/schemes', icon: <FileText size={20} />, label: t('schemes') },
         { id: '/about', icon: <Info size={20} />, label: t('aboutUs') },
         { id: '/contact', icon: <PhoneCall size={20} />, label: t('contact') },

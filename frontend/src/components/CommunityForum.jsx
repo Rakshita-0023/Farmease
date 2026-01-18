@@ -162,11 +162,24 @@ const CommunityForum = () => {
                                 <p className="text-white/80 mb-4 leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    {(post.tags || ['General']).map((tag, i) => (
-                                        <span key={i} className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg flex items-center gap-1">
-                                            <Tag size={12} /> {tag}
-                                        </span>
-                                    ))}
+                                    {(() => {
+                                        try {
+                                            const tags = Array.isArray(post.tags) 
+                                                ? post.tags 
+                                                : (typeof post.tags === 'string' ? JSON.parse(post.tags) : ['General']);
+                                            return tags.map((tag, i) => (
+                                                <span key={i} className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg flex items-center gap-1">
+                                                    <Tag size={12} /> {tag}
+                                                </span>
+                                            ));
+                                        } catch (e) {
+                                            return (
+                                                <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg flex items-center gap-1">
+                                                    <Tag size={12} /> General
+                                                </span>
+                                            );
+                                        }
+                                    })()}
                                 </div>
 
                                 <div className="flex items-center gap-6 pt-4 border-t border-white/10">

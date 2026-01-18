@@ -21,6 +21,13 @@ import PersistentVideoBackground from './components/PersistentVideoBackground'
 import { getAuthToken, removeAuthToken } from './config'
 import { LocationProvider } from './LocationContext'
 
+// Kisan Charcha Components
+import CharchaDashboard from './components/KisanCharcha/CharchaDashboard'
+import CreateCharcha from './components/KisanCharcha/CreateCharcha'
+import CharchaView from './components/KisanCharcha/CharchaView'
+import CharchaBrowser from './components/KisanCharcha/CharchaBrowser'
+import NotificationCenter from './components/KisanCharcha/NotificationCenter'
+
 function App() {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -136,6 +143,13 @@ function App() {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms" element={<TermsOfService />} />
+            
+            {/* Kisan Charcha Routes */}
+            <Route path="/charchas" element={<CharchaDashboard />} />
+            <Route path="/charchas/create" element={<CreateCharcha />} />
+            <Route path="/charchas/browse" element={<CharchaBrowser />} />
+            <Route path="/charchas/:id" element={<CharchaView />} />
+            <Route path="/notifications" element={<NotificationCenter />} />
           </Route>
 
           {/* Catch-all route */}
