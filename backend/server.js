@@ -3,6 +3,8 @@ const cors = require('cors')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const axios = require('axios')
+require('dotenv').config() // ✅ Load env vars FIRST before any other imports
+
 const db = require('./db')
 // Import auth routes factory
 const createAuthRoutes = require('./routes/authRoutes')
@@ -11,7 +13,6 @@ const createUserRoutes = require('./routes/userRoutes')
 const createWeatherRoutes = require('./routes/weatherRoutes')
 const cropRoutes = require('./routes/crop') // ✅ ML CROP RECOMMENDATION
 const plantDiseaseRoutes = require('./routes/plantDiseaseRoutes') // ✅ PLANT DISEASE DETECTION
-require('dotenv').config()
 
 // INTEGRATED MARKET SERVICE WITH REGISTRY
 const IntegratedMarketService = require('./services/marketRegistry/integratedMarketService')

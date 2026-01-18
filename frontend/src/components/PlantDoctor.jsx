@@ -11,7 +11,7 @@ import {
     ShieldCheck,
     Activity
 } from 'lucide-react'
-import { apiClient } from '../config'
+import { apiClient, API_BASE_URL } from '../config'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const PlantDoctor = () => {
@@ -101,19 +101,29 @@ const PlantDoctor = () => {
             const response = await fetch(image)
             const blob = await response.blob()
             
-            // Create FormData
+            // Create FormData with proper file
             const formData = new FormData()
             formData.append('file', blob, 'plant-image.jpg')
 
             console.log('🌿 Sending image to Plant Doctor API...')
 
-            // Call backend API
-            const result = await apiClient.post('/plant-disease', formData, {
+            // Use native fetch for file upload (apiClient breaks FormData)
+            const token = localStorage.getItem('token')
+            const uploadResponse = await fetch(`${API_BASE_URL}/plant-disease`, {
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+                    'Authorization': token ? `Bearer ${token}` : ''
+                    // Don't set Content-Type - let browser set it with boundary
+                },
+                body: formData
             })
 
+            if (!uploadResponse.ok) {
+                const errorData = await uploadResponse.json()
+                throw new Error(errorData.message || 'Analysis failed')
+            }
+
+            const result = await uploadResponse.json()
             console.log('✅ Plant Doctor response:', result)
 
             // Parse disease name and create result object

@@ -1,20 +1,23 @@
 """
-FarmEase ML API - Crop Recommendation Service
-Uses Random Forest model trained on agricultural data
+FarmEase ML API - Crop Recommendation & Plant Disease Detection Service
+- Crop Recommendation: Random Forest model trained on agricultural data
+- Disease Detection: CNN model trained on PlantVillage dataset
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import pickle
 import numpy as np
 from pathlib import Path
+from PIL import Image
+import io
 
 # Initialize FastAPI app
 app = FastAPI(
     title="FarmEase ML API",
-    description="Crop recommendation based on soil and climate data",
-    version="1.0.0"
+    description="Crop recommendation and plant disease detection",
+    version="2.0.0"
 )
 
 # CORS configuration
@@ -51,6 +54,8 @@ class CropInput(BaseModel):
 
 # Load model (will be created if doesn't exist)
 MODEL_PATH = Path(__file__).parent / "crop_model.pkl"
+DISEASE_MODEL_PATH = Path(__file__).parent / "disease_model.h5"
+DISEASE_CLASSES_PATH = Path(__file__).parent / "disease_classes.txt"
 
 def load_or_create_model():
     """Load existing model or create a simple rule-based fallback"""
@@ -64,7 +69,37 @@ def load_or_create_model():
     print("ℹ️ Using rule-based crop recommendation (no ML model found)")
     return None
 
+def load_disease_model():
+    """Load TensorFlow disease detection model"""
+    if DISEASE_MODEL_PATH.exists():
+        try:
+            import tensorflow as tf
+            model = tf.keras.models.load_model(str(DISEASE_MODEL_PATH))
+            print("✅ Disease detection model loaded successfully")
+            return model
+        except Exception as e:
+            print(f"⚠️ Could not load disease model: {e}")
+            return None
+    print("ℹ️ Disease detection model not found")
+    return None
+
+def load_disease_classes():
+    """Load disease class names"""
+    if DISEASE_CLASSES_PATH.exists():
+        try:
+            with open(DISEASE_CLASSES_PATH, 'r') as f:
+                classes = [line.strip() for line in f.readlines()]
+            print(f"✅ Loaded {len(classes)} disease classes")
+            return classes
+        except Exception as e:
+            print(f"⚠️ Could not load disease classes: {e}")
+            return []
+    print("ℹ️ Disease classes file not found")
+    return []
+
 model = load_or_create_model()
+disease_model = load_disease_model()
+disease_classes = load_disease_classes()
 
 # Crop mapping (for model output)
 CROP_LABELS = [
@@ -211,14 +246,66 @@ def health_check():
     """Detailed health check"""
     return {
         "status": "healthy",
-        "model_loaded": model is not None,
-        "model_type": type(model).__name__ if model else "rule_based",
+        "crop_model_loaded": model is not None,
+        "crop_model_type": type(model).__name__ if model else "rule_based",
+        "disease_model_loaded": disease_model is not None,
+        "disease_classes_count": len(disease_classes),
         "supported_crops": len(CROP_LABELS)
     }
+
+@app.post("/predict-disease")
+async def predict_disease(file: UploadFile = File(...)):
+    """
+    Predict plant disease from uploaded image
+    
+    Returns:
+        disease: Name of the detected disease
+        confidence: Prediction confidence percentage
+    """
+    try:
+        if disease_model is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Disease detection model not loaded"
+            )
+        
+        if not disease_classes:
+            raise HTTPException(
+                status_code=503,
+                detail="Disease classes not loaded"
+            )
+        
+        # Read and preprocess image
+        image_bytes = await file.read()
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        image = image.resize((224, 224))
+        image_array = np.array(image) / 255.0
+        image_array = np.expand_dims(image_array, axis=0)
+        
+        # Make prediction
+        predictions = disease_model.predict(image_array, verbose=0)
+        class_index = np.argmax(predictions[0])
+        confidence = float(predictions[0][class_index])
+        
+        disease_name = disease_classes[class_index] if class_index < len(disease_classes) else "Unknown"
+        
+        return {
+            "disease": disease_name,
+            "confidence": round(confidence * 100, 2),
+            "raw_predictions": predictions[0].tolist()[:5]  # Top 5 predictions
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Disease prediction failed: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn
     print("🌱 Starting FarmEase ML API...")
-    print(f"📊 Model loaded: {model is not None}")
+    print(f"📊 Crop model loaded: {model is not None}")
     print(f"🌾 Supported crops: {len(CROP_LABELS)}")
+    print(f"🍃 Disease model loaded: {disease_model is not None}")
+    print(f"🦠 Disease classes: {len(disease_classes)}")
     uvicorn.run(app, host="0.0.0.0", port=8000)
