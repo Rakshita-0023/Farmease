@@ -4,8 +4,10 @@
 
 📋 WHAT YOU NEED:
    ✓ Google Drive account
-   ✓ disease_model.h5 file (11.6 MB) - located in ml-service/
-   ✓ 5 minutes
+   ✓ disease_model.h5 file (11.6 MB) - for Plant Doctor
+   ✓ crop_model.pkl file (~1 KB) - for Crop Recommendation
+   ✓ Both files located in ml-service/
+   ✓ 10 minutes
 
 ═══════════════════════════════════════════════════════════════
 

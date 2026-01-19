@@ -11,7 +11,7 @@
 
 ## 🔧 Production Issues & Solutions
 
-### Issue 1: Plant Doctor - "Bad Gateway" ❌
+### Issue 1: Plant Doctor & Crop Recommendation - "Bad Gateway" ❌
 **Problem**: External ML service on Render is down/sleeping
 
 **Solution Implemented**: External model hosting
@@ -20,10 +20,13 @@
 - Faster deployments
 
 **Action Required**:
-1. Upload `disease_model.h5` to Google Drive
-2. Get shareable link and extract FILE_ID
-3. Set `DISEASE_MODEL_GDRIVE_ID` in Render environment
-4. Change start command to `bash start.sh`
+1. Upload `disease_model.h5` to Google Drive (for Plant Doctor)
+2. Upload `crop_model.pkl` to Google Drive (for Crop Recommendation)
+3. Get shareable links and extract FILE_IDs
+4. Set environment variables in Render:
+   - `DISEASE_MODEL_GDRIVE_ID` (for Plant Doctor)
+   - `CROP_MODEL_GDRIVE_ID` (for Crop Recommendation)
+5. Change start command to `bash start.sh`
 
 **Guide**: See `ml-service/UPLOAD_GUIDE.txt`
 
@@ -47,8 +50,8 @@
 | Weather | ✅ Working | ✅ Working |
 | Market Prices | ✅ Working | ⚠️ Auth Issue |
 | Plant Doctor | ✅ Working | ❌ Needs Setup |
+| Crop Recommendation | ✅ Working | ❌ Needs Setup |
 | Kisan Charcha | ✅ Working | ✅ Working |
-| Crop Recommendation | ✅ Working | ✅ Working |
 | All Other Features | ✅ Working | ✅ Working |
 
 ## 🚀 Next Steps
