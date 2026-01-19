@@ -17,6 +17,14 @@ frontend/node_modules/
 frontend/dist/
 frontend/build/
 
+# ML Service
+ml-service/venv/
+ml-service/__pycache__/
+ml-service/*.pyc
+# Model files will be downloaded from external storage
+# ml-service/disease_model.h5
+# ml-service/crop_model.pkl
+
 # Logs
 *.log
 npm-debug.log*
