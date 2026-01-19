@@ -1,0 +1,115 @@
+═══════════════════════════════════════════════════════════════
+  FARMEASE ML MODEL - GOOGLE DRIVE UPLOAD GUIDE
+═══════════════════════════════════════════════════════════════
+
+📋 WHAT YOU NEED:
+   ✓ Google Drive account
+   ✓ disease_model.h5 file (11.6 MB) - located in ml-service/
+   ✓ 5 minutes
+
+═══════════════════════════════════════════════════════════════
+
+STEP 1: UPLOAD TO GOOGLE DRIVE
+───────────────────────────────────────────────────────────────
+1. Open https://drive.google.com
+2. Click "New" button (top left)
+3. Select "File upload"
+4. Choose: ml-service/disease_model.h5
+5. Wait for upload (should take 10-30 seconds)
+
+═══════════════════════════════════════════════════════════════
+
+STEP 2: MAKE IT PUBLIC
+───────────────────────────────────────────────────────────────
+1. Find the uploaded "disease_model.h5" file
+2. Right-click on it
+3. Click "Share"
+4. Click "Change to anyone with the link"
+5. Click "Copy link"
+
+Your link will look like:
+https://drive.google.com/file/d/1ABC123XYZ456DEF789/view?usp=sharing
+
+═══════════════════════════════════════════════════════════════
+
+STEP 3: EXTRACT FILE ID
+───────────────────────────────────────────────────────────────
+From this link:
+https://drive.google.com/file/d/1ABC123XYZ456DEF789/view?usp=sharing
+                                  ^^^^^^^^^^^^^^^^^^^^
+                                  This is your FILE ID
+
+Copy just this part: 1ABC123XYZ456DEF789
+
+═══════════════════════════════════════════════════════════════
+
+STEP 4: CONFIGURE RENDER
+───────────────────────────────────────────────────────────────
+1. Go to https://dashboard.render.com
+2. Find your ML service (farmease-plant-doctor)
+3. Click on it
+4. Click "Environment" in left sidebar
+5. Click "Add Environment Variable"
+6. Enter:
+   Key:   DISEASE_MODEL_GDRIVE_ID
+   Value: 1ABC123XYZ456DEF789  (your actual file ID)
+7. Click "Save Changes"
+
+═══════════════════════════════════════════════════════════════
+
+STEP 5: UPDATE START COMMAND
+───────────────────────────────────────────────────────────────
+1. Still in Render dashboard
+2. Click "Settings" in left sidebar
+3. Scroll to "Start Command"
+4. Change from: python app.py
+   To: bash start.sh
+5. Click "Save Changes"
+
+═══════════════════════════════════════════════════════════════
+
+STEP 6: DEPLOY & VERIFY
+───────────────────────────────────────────────────────────────
+Render will automatically redeploy. Check the logs for:
+
+✅ Success indicators:
+   📥 Downloading from Google Drive to disease_model.h5...
+   ✅ Downloaded disease_model.h5 (11.6 MB)
+   ✅ Disease detection model loaded successfully
+   ✅ Loaded 38 disease classes
+
+❌ If you see errors:
+   - Check that Google Drive link is public
+   - Verify FILE_ID is correct (no extra characters)
+   - Make sure start command is "bash start.sh"
+
+═══════════════════════════════════════════════════════════════
+
+STEP 7: TEST
+───────────────────────────────────────────────────────────────
+1. Go to your hosted app
+2. Navigate to Plant Doctor
+3. Upload a plant image
+4. Click "Start AI Analysis"
+5. Should see disease detection results! 🎉
+
+═══════════════════════════════════════════════════════════════
+
+TROUBLESHOOTING:
+───────────────────────────────────────────────────────────────
+Problem: "Bad Gateway" error
+Solution: Wait 30-60 seconds for service to download model
+
+Problem: "Model not found" in logs
+Solution: Check FILE_ID is correct and link is public
+
+Problem: Service keeps restarting
+Solution: Check Render logs for specific error messages
+
+═══════════════════════════════════════════════════════════════
+
+Need help? Check:
+- ml-service/QUICK_SETUP.md (detailed guide)
+- ml-service/MODEL_SETUP.md (advanced options)
+
+═══════════════════════════════════════════════════════════════
