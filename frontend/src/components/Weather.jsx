@@ -135,11 +135,20 @@ const Weather = () => {
 
     try {
       console.log(`🌤️ Fetching weather for: ${lat}, ${lon}`)
+      console.log(`📍 Location context:`, globalLocation)
+      console.log(`🕐 Current time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`)
       
       // Fetch current weather with coordinates
       const data = await apiClient.get('/weather/current', { lat, lon })
       
-      console.log('📊 Weather API Response:', data)
+      console.log('📊 Weather API Response (RAW):', JSON.stringify(data, null, 2))
+      console.log('📊 Temperature:', data.main?.temp, '°C')
+      console.log('📊 Feels Like:', data.main?.feels_like, '°C')
+      console.log('📊 Condition:', data.weather?.[0]?.main, '-', data.weather?.[0]?.description)
+      console.log('📊 Humidity:', data.main?.humidity, '%')
+      console.log('📊 Wind Speed:', data.wind?.speed, 'm/s')
+      console.log('📊 Source:', data.source)
+      console.log('📊 Timestamp:', new Date(data.dt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))
       
       // Validate response
       if (!data || !data.main || !data.weather?.[0]) {
