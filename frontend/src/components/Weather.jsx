@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { apiClient } from '../config'
 import { useLocation } from '../LocationContext'
 import weatherCache from '../services/weatherCache'
+import { formatCoordsPair } from '../utils/coordinateUtils'
 import {
   Cloud, Sun, CloudRain, Wind, Droplets, Thermometer,
   MapPin, RefreshCw, AlertTriangle, Sunrise, Sunset,
@@ -223,7 +224,9 @@ const Weather = () => {
     if (globalLocation?.latitude && globalLocation?.longitude) {
       // Clear both weather cache and location cache to force fresh data
       weatherCache.clear()
+      localStorage.removeItem('weatherData') // Clear any localStorage cache
       console.log('🔄 Forcing fresh weather fetch...')
+      console.log('📍 Current location:', globalLocation)
       fetchWeather(globalLocation.latitude, globalLocation.longitude, true)
     }
   }
@@ -365,7 +368,7 @@ const Weather = () => {
               <span>{weather?.location || globalLocation?.city}</span>
               <span className="text-slate-600">•</span>
               <span className="text-xs">
-                {globalLocation?.latitude?.toFixed(4)}, {globalLocation?.longitude?.toFixed(4)}
+                {formatCoordsPair(globalLocation?.latitude, globalLocation?.longitude)}
               </span>
             </div>
           </div>
@@ -534,7 +537,7 @@ const Weather = () => {
             {/* Data Source Footer */}
             <div className="mt-8 text-center">
               <p className="text-xs text-white/30">
-                Data source: OpenWeatherMap API • Coordinates: {weather.lat?.toFixed(4)}, {weather.lon?.toFixed(4)}
+                Data source: OpenWeatherMap API • Coordinates: {formatCoordsPair(weather.lat, weather.lon)}
               </p>
             </div>
           </>

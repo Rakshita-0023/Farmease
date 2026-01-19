@@ -271,7 +271,7 @@ const NearbyMarketsMap = () => {
                         </div>
                         <div className="flex items-center gap-3 text-gray-500">
                           <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                          <span className="text-xs font-bold">{market.rating.toFixed(1)}/5 • {market.commodityCount} Items</span>
+                          <span className="text-xs font-bold">{Number(market.rating)?.toFixed(1) || 'N/A'}/5 • {market.commodityCount} Items</span>
                         </div>
                       </div>
 
@@ -346,7 +346,7 @@ const NearbyMarketsMap = () => {
                       </div>
                       <div className="flex items-center gap-2 text-gray-500">
                         <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                        <span className="text-[10px] font-bold">{market.rating.toFixed(1)}/5</span>
+                        <span className="text-[10px] font-bold">{Number(market.rating)?.toFixed(1) || 'N/A'}/5</span>
                       </div>
                     </div>
 
