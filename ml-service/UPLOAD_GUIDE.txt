@@ -18,6 +18,7 @@ STEP 1: UPLOAD TO GOOGLE DRIVE
 3. Select "File upload"
 4. Choose: ml-service/disease_model.h5
 5. Wait for upload (should take 10-30 seconds)
+6. Repeat for ml-service/crop_model.pkl (instant upload)
 
 ═══════════════════════════════════════════════════════════════
 
@@ -28,20 +29,29 @@ STEP 2: MAKE IT PUBLIC
 3. Click "Share"
 4. Click "Change to anyone with the link"
 5. Click "Copy link"
+6. Repeat steps 1-5 for "crop_model.pkl"
 
-Your link will look like:
+Your links will look like:
 https://drive.google.com/file/d/1ABC123XYZ456DEF789/view?usp=sharing
+https://drive.google.com/file/d/9ZYX987WVU654CBA321/view?usp=sharing
 
 ═══════════════════════════════════════════════════════════════
 
-STEP 3: EXTRACT FILE ID
+STEP 3: EXTRACT FILE IDs
 ───────────────────────────────────────────────────────────────
-From this link:
+From disease_model.h5 link:
 https://drive.google.com/file/d/1ABC123XYZ456DEF789/view?usp=sharing
                                   ^^^^^^^^^^^^^^^^^^^^
-                                  This is your FILE ID
+                                  Disease Model FILE ID
 
-Copy just this part: 1ABC123XYZ456DEF789
+From crop_model.pkl link:
+https://drive.google.com/file/d/9ZYX987WVU654CBA321/view?usp=sharing
+                                  ^^^^^^^^^^^^^^^^^^^^
+                                  Crop Model FILE ID
+
+Copy both FILE IDs:
+- Disease: 1ABC123XYZ456DEF789
+- Crop: 9ZYX987WVU654CBA321
 
 ═══════════════════════════════════════════════════════════════
 
@@ -52,9 +62,16 @@ STEP 4: CONFIGURE RENDER
 3. Click on it
 4. Click "Environment" in left sidebar
 5. Click "Add Environment Variable"
-6. Enter:
+6. Add BOTH variables:
+   
+   First variable:
    Key:   DISEASE_MODEL_GDRIVE_ID
-   Value: 1ABC123XYZ456DEF789  (your actual file ID)
+   Value: 1ABC123XYZ456DEF789  (your disease model file ID)
+   
+   Second variable:
+   Key:   CROP_MODEL_GDRIVE_ID
+   Value: 9ZYX987WVU654CBA321  (your crop model file ID)
+   
 7. Click "Save Changes"
 
 ═══════════════════════════════════════════════════════════════
@@ -77,8 +94,11 @@ Render will automatically redeploy. Check the logs for:
 ✅ Success indicators:
    📥 Downloading from Google Drive to disease_model.h5...
    ✅ Downloaded disease_model.h5 (11.6 MB)
+   📥 Downloading from Google Drive to crop_model.pkl...
+   ✅ Downloaded crop_model.pkl (1.2 KB)
    ✅ Disease detection model loaded successfully
    ✅ Loaded 38 disease classes
+   ✅ Crop model loaded successfully
 
 ❌ If you see errors:
    - Check that Google Drive link is public
@@ -90,10 +110,16 @@ Render will automatically redeploy. Check the logs for:
 STEP 7: TEST
 ───────────────────────────────────────────────────────────────
 1. Go to your hosted app
-2. Navigate to Plant Doctor
-3. Upload a plant image
-4. Click "Start AI Analysis"
-5. Should see disease detection results! 🎉
+2. Test Plant Doctor:
+   - Navigate to Plant Doctor
+   - Upload a plant image
+   - Click "Start AI Analysis"
+   - Should see disease detection results! 🎉
+3. Test Crop Recommendation:
+   - Navigate to Crop Recommendation
+   - Enter soil and climate data
+   - Click "Get Recommendation"
+   - Should see crop suggestions! 🌾
 
 ═══════════════════════════════════════════════════════════════
 
