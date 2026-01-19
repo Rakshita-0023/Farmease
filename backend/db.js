@@ -82,7 +82,16 @@ if (process.env.DATABASE_URL) {
   dbType = 'sqlite';
   console.log('📊 No DATABASE_URL - Using SQLite for development');
   
-  const sqlite3 = require('sqlite3').verbose();
+  // Only require sqlite3 when actually needed (optional dependency)
+  let sqlite3;
+  try {
+    sqlite3 = require('sqlite3').verbose();
+  } catch (err) {
+    console.error('❌ SQLite3 not installed. Install with: npm install sqlite3');
+    console.error('   Or set DATABASE_URL for PostgreSQL/MySQL');
+    process.exit(1);
+  }
+  
   const path = require('path');
   
   const dbPath = path.join(__dirname, 'farmease.db');

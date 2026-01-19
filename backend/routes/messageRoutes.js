@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db-sqlite');
+const db = require('../db');
 const MentionParser = require('../utils/mentionParser');
 const PermissionValidator = require('../utils/permissionValidator');
 

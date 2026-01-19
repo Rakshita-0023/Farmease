@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db-sqlite');
+const db = require('../db');
 
 // GET /api/notifications - Get user notifications
 router.get('/', async (req, res) => {

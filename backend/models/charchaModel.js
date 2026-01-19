@@ -1,4 +1,4 @@
-const db = require('../db-sqlite');
+const db = require('../db');
 
 /**
  * Charcha Model - Database query helpers for Charcha operations

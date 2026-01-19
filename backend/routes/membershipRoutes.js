@@ -3,7 +3,7 @@ const router = express.Router();
 const MembershipModel = require('../models/membershipModel');
 const CharchaModel = require('../models/charchaModel');
 const PermissionValidator = require('../utils/permissionValidator');
-const db = require('../db-sqlite');
+const db = require('../db');
 
 // GET /api/charchas/:id/members - Get all members of a Charcha
 router.get('/:id/members', async (req, res) => {

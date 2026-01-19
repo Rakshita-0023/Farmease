@@ -1,4 +1,4 @@
-const db = require('../db-sqlite');
+const db = require('../db');
 
 /**
  * Membership Model - Database query helpers for membership and join request operations
