@@ -2,20 +2,27 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../config'
 import OnboardingWizard from './OnboardingWizard'
-import { Cloud, Sun, CloudRain, Wind, Droplets, MapPin, TrendingUp, Leaf, Activity, Home, Sprout, CheckCircle, Heart } from 'lucide-react'
+import {
+  Cloud, Sun, CloudRain, Wind, Droplets, MapPin, TrendingUp,
+  Leaf, Activity, Home, Sprout, CheckCircle, Heart,
+  AlertTriangle, Navigation, Shovel, Calendar, TrendingDown
+} from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useLocation } from '../LocationContext'
 import { useMandiData } from '../hooks/useMandiData'
+import './EnhancedDashboard.css'
 
 const EnhancedDashboard = () => {
   const { location: globalLocation, loading: locationLoading, locationStatus, retryLocationDetection, updateLocation, error: locationError } = useLocation()
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
 
+  // Fetch Farms
   const { data: farms = [], isLoading: farmsLoading, refetch: refetchFarms } = useQuery({
     queryKey: ['farms'],
     queryFn: () => apiClient.get('/farms')
   })
 
+  // Fetch Current Weather
   const { data: weather, isLoading: weatherLoading } = useQuery({
     queryKey: ['weather', globalLocation?.latitude, globalLocation?.longitude],
     queryFn: async () => {
@@ -29,35 +36,63 @@ const EnhancedDashboard = () => {
         temperature: Math.round(data.main.temp),
         condition: data.weather?.[0]?.main || 'Clear',
         humidity: data.main.humidity,
+        windSpeed: Math.round(data.wind.speed * 3.6), // Convert to km/h if it's m/s
         location: data.name || globalLocation.city,
-        icon: data.weather?.[0]?.main
+        icon: data.weather?.[0]?.main,
+        rainProb: data.clouds?.all || 0 // Using cloud cover as proxy if pop is missing
       }
     },
     enabled: !!globalLocation?.latitude && !!globalLocation?.longitude,
     staleTime: 5 * 60 * 1000
   })
 
+  // Fetch Forecast
+  const { data: forecastData } = useQuery({
+    queryKey: ['weather-forecast', globalLocation?.latitude, globalLocation?.longitude],
+    queryFn: async () => {
+      if (!globalLocation?.latitude || !globalLocation?.longitude) return null
+      const data = await apiClient.get('/weather/forecast', {
+        lat: globalLocation.latitude,
+        lon: globalLocation.longitude
+      })
+      // Normalize forecast data (handle both 3-hourly and daily formats)
+      const list = data.list || []
+      const daily = list.length > 10
+        ? list.filter((item, index) => index % 8 === 0).slice(0, 5)
+        : list.slice(0, 5)
+
+      return daily.map(day => ({
+        day: new Date(day.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' }),
+        temp: Math.round(day.main.temp_max || day.main.temp),
+        icon: day.weather[0].main
+      }))
+    },
+    enabled: !!globalLocation?.latitude && !!globalLocation?.longitude,
+    staleTime: 30 * 60 * 1000
+  })
+
+  // Market Data (Sonipat Mandi context)
   const { data: marketPrices = [], isLoading: pricesLoading } = useMandiData(
-    globalLocation?.state || '',
-    globalLocation?.city || '',
+    globalLocation?.state || 'Haryana',
+    globalLocation?.city || 'Sonipat',
     ''
   )
 
   const trendingCrops = useMemo(() => {
     return Array.isArray(marketPrices)
-      ? marketPrices.filter(p => p.trend === 'up').slice(0, 4)
+      ? marketPrices.slice(0, 4)
       : []
   }, [marketPrices])
 
-  const getWeatherIcon = (condition) => {
+  const getWeatherIcon = (condition, size = 28) => {
     const icons = {
-      'Clear': <Sun className="text-amber-400" size={28} />,
-      'Clouds': <Cloud className="text-slate-300" size={28} />,
-      'Rain': <CloudRain className="text-blue-400" size={28} />,
-      'Drizzle': <CloudRain className="text-blue-300" size={28} />,
-      'Thunderstorm': <Wind className="text-purple-400" size={28} />
+      'Clear': <Sun className="text-amber-400" size={size} />,
+      'Clouds': <Cloud className="text-slate-300" size={size} />,
+      'Rain': <CloudRain className="text-blue-400" size={size} />,
+      'Drizzle': <CloudRain className="text-blue-300" size={size} />,
+      'Thunderstorm': <Wind className="text-purple-400" size={size} />
     }
-    return icons[condition] || <Sun className="text-amber-400" size={28} />
+    return icons[condition] || <Sun className="text-amber-400" size={size} />
   }
 
   const farmMetrics = useMemo(() => {
@@ -70,14 +105,34 @@ const EnhancedDashboard = () => {
     }
   }, [farms])
 
-  const alerts = useMemo(() => {
+  // Derived Actionable Insights
+  const weatherInsights = useMemo(() => {
+    if (!weather) return { crop: 'Detecting conditions...', irrigation: 'Awaiting data...', alertText: 'Analyzing...', alertType: 'favorable' }
+
+    let crop = 'Cabbage, Carrots, Spinach – Cold-hardy crops recommended'
+    if (weather.temperature > 28) crop = 'Maize, Okra, Brinjal – Heat-tolerant crops suggested'
+
+    let irrigation = 'Light watering suggested – Moderate conditions'
+    if (weather.humidity > 75) irrigation = 'Low watering suggested – High humidity present'
+    if (weather.temperature > 32 && weather.humidity < 40) irrigation = 'Deep watering required – Low soil moisture likely'
+
+    let alertText = 'Favorable farming conditions today'
+    let alertType = 'favorable'
+    if (weather.temperature > 38) { alertText = 'Extreme Heat Alert – Limit outdoor activities'; alertType = 'danger'; }
+    else if (weather.rainProb > 70) { alertText = 'Heavy Rain Forecast – Protect sensitive crops'; alertType = 'warning'; }
+    else if (weather.windSpeed > 25) { alertText = 'High Winds – Avoid spraying pesticides'; alertType = 'warning'; }
+
+    return { crop, irrigation, alertText, alertType }
+  }, [weather])
+
+  const alertsList = useMemo(() => {
     const list = []
     if (farms.length > 0 && weather?.temperature > 35) {
-      list.push({ id: 'heat', type: 'danger', message: `High heat alert (${weather.temperature}°C)`, severity: 'high' })
+      list.push({ id: 'heat', type: 'danger', message: `High heat alert: ${weather.temperature}°C reported in Sonipat`, severity: 'high' })
     }
     farms.forEach(farm => {
       if ((farm.progress || 0) > 90) {
-        list.push({ id: `harvest-${farm.id}`, type: 'success', message: `${farm.name} ready for harvest`, severity: 'high' })
+        list.push({ id: `harvest-${farm.id}`, type: 'success', message: `${farm.name} is reaching peak harvest maturity`, severity: 'medium' })
       }
     })
     return list
@@ -92,7 +147,7 @@ const EnhancedDashboard = () => {
     sessionStorage.setItem('onboarding_dismissed', 'true')
   }
 
-  // Loading State
+  // Loading Screen
   if (locationStatus === 'detecting' || locationLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-6">
@@ -101,84 +156,12 @@ const EnhancedDashboard = () => {
           transition={{ duration: 2, repeat: Infinity }}
           className="w-20 h-20 bg-emerald-500/20 backdrop-blur-xl rounded-full flex items-center justify-center border border-emerald-500/30"
         >
-          <MapPin className="text-emerald-400 animate-pulse" size={40} />
+          <Navigation className="text-emerald-400 animate-pulse" size={40} />
         </motion.div>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white">Detecting Location...</h2>
-          <p className="text-white/50 mt-2">Setting up your dashboard</p>
+          <h2 className="text-2xl font-bold text-white">Detecting Farm Location...</h2>
+          <p className="text-white/50 mt-2">Personalizing your agricultural dashboard</p>
         </div>
-      </div>
-    )
-  }
-
-  // Location Failed - Show manual city selector
-  if (locationStatus === 'failed') {
-    const cities = [
-      { name: 'Mumbai', state: 'Maharashtra', latitude: 19.0760, longitude: 72.8777 },
-      { name: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.2090 },
-      { name: 'Bangalore', state: 'Karnataka', latitude: 12.9716, longitude: 77.5946 },
-      { name: 'Hyderabad', state: 'Telangana', latitude: 17.3850, longitude: 78.4867 },
-      { name: 'Chennai', state: 'Tamil Nadu', latitude: 13.0827, longitude: 80.2707 },
-      { name: 'Kolkata', state: 'West Bengal', latitude: 22.5726, longitude: 88.3639 },
-      { name: 'Pune', state: 'Maharashtra', latitude: 18.5204, longitude: 73.8567 },
-      { name: 'Ahmedabad', state: 'Gujarat', latitude: 23.0225, longitude: 72.5714 },
-      { name: 'Jaipur', state: 'Rajasthan', latitude: 26.9124, longitude: 75.7873 },
-      { name: 'Lucknow', state: 'Uttar Pradesh', latitude: 26.8467, longitude: 80.9462 },
-      { name: 'Chandigarh', state: 'Punjab', latitude: 30.7333, longitude: 76.7794 },
-      { name: 'Bhopal', state: 'Madhya Pradesh', latitude: 23.2599, longitude: 77.4126 }
-    ]
-    
-    const handleCitySelect = (city) => {
-      console.log('📍 Dashboard: Manual city selection:', city.name)
-      if (updateLocation) {
-        updateLocation(city)
-      }
-    }
-    
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-6 p-6">
-        <div className="w-20 h-20 bg-amber-500/20 backdrop-blur-xl rounded-full flex items-center justify-center border border-amber-500/30">
-          <MapPin className="text-amber-400" size={40} />
-        </div>
-        <div className="text-center space-y-4 max-w-md">
-          <h2 className="text-2xl font-bold text-white">Select Your Location</h2>
-          <p className="text-white/50">{locationError || 'Auto-detection failed. Please select your city manually.'}</p>
-          
-          {/* Manual City Selector */}
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 text-left">
-            <p className="text-white/70 text-sm mb-4">Choose your city to continue:</p>
-            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-              {cities.map((city) => (
-                <button
-                  key={city.name}
-                  onClick={() => handleCitySelect(city)}
-                  className="flex flex-col items-start p-3 bg-white/5 hover:bg-emerald-500/20 rounded-xl transition-all text-left border border-transparent hover:border-emerald-500/30"
-                >
-                  <span className="text-white font-medium text-sm">{city.name}</span>
-                  <span className="text-white/40 text-xs">{city.state}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={retryLocationDetection}
-              className="flex-1 px-4 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
-            >
-              <MapPin size={16} />
-              Retry Auto-detect
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (farmsLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-12 h-12 border-4 border-white/20 border-t-emerald-400 rounded-full animate-spin" />
       </div>
     )
   }
@@ -186,7 +169,7 @@ const EnhancedDashboard = () => {
   const showOnboarding = farms.length === 0 && !hasDismissedOnboarding
 
   return (
-    <div className="p-6 space-y-6 min-h-full">
+    <div className="dashboard-container custom-scrollbar">
       {showOnboarding && (
         <OnboardingWizard
           onComplete={() => { refetchFarms(); dismissOnboarding() }}
@@ -194,181 +177,199 @@ const EnhancedDashboard = () => {
         />
       )}
 
-      {/* Hero Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-2xl"
-      >
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">Live Dashboard</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">
-              Welcome back, {user.name || 'Farmer'}
-            </h1>
-            <p className="text-white/50 mt-1">Here's your farm overview for today</p>
-          </div>
-
-          {/* Weather Card */}
-          {weather ? (
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 min-w-[200px]">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center">
-                  {getWeatherIcon(weather.icon)}
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-white">{weather.temperature}°C</div>
-                  <div className="text-white/50 text-sm flex items-center gap-1">
-                    <MapPin size={12} /> {weather.location}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : weatherLoading ? (
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 animate-pulse">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/10 rounded-xl" />
-                <div className="space-y-2">
-                  <div className="h-6 w-16 bg-white/10 rounded" />
-                  <div className="h-4 w-24 bg-white/10 rounded" />
-                </div>
-              </div>
-            </div>
-          ) : null}
+      {/* Header & Compact Weather */}
+      <header className="hero-header">
+        <div className="welcome-section">
+          <h1>Welcome back, {user.name || 'Farmer'}</h1>
+          <p>Here’s your farm overview for today</p>
         </div>
-      </motion.div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Farms', value: farmMetrics.totalFarms, icon: Home, color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/20' },
-          { label: 'Active Crops', value: farmMetrics.activeCrops, icon: Sprout, color: 'from-emerald-500/15 to-teal-500/15', border: 'border-emerald-500/20' },
-          { label: 'Harvest Ready', value: farmMetrics.harvestReady, icon: CheckCircle, color: 'from-emerald-500/10 to-teal-500/10', border: 'border-emerald-500/20' },
-          { label: 'Health Score', value: `${farmMetrics.healthScore}%`, icon: Heart, color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/20' }
-        ].map((metric, i) => (
-          <motion.div
-            key={metric.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className={`bg-gradient-to-br ${metric.color} backdrop-blur-xl rounded-2xl p-5 border ${metric.border} hover:bg-white/10 transition-all cursor-default`}
-          >
-            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3">
-              <metric.icon size={20} className="text-emerald-400" />
+        <div className="glass-card compact-weather-card">
+          {weather ? (
+            <>
+              <div className="weather-main-info">
+                <div className="weather-icon-wrapper">
+                  {getWeatherIcon(weather.condition, 24)}
+                </div>
+                <div className="weather-temp-group">
+                  <span className="current-temp">{weather.temperature}°C</span>
+                  <span className="weather-location text-teal-400">
+                    <MapPin size={10} /> {weather.location || 'Sonipat'}
+                  </span>
+                </div>
+              </div>
+              <div className="weather-stats-grid">
+                <div className="weather-stat-item">
+                  <span className="stat-value">{weather.humidity}%</span>
+                  <span className="stat-label">Humidity</span>
+                </div>
+                <div className="weather-stat-item">
+                  <span className="stat-value">{weather.windSpeed}k/h</span>
+                  <span className="stat-label">Wind</span>
+                </div>
+                <div className="weather-stat-item">
+                  <span className="stat-value">{weather.rainProb}%</span>
+                  <span className="stat-label">Rain</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="animate-pulse flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/10 rounded-lg" />
+              <div className="space-y-2">
+                <div className="h-4 w-12 bg-white/10 rounded" />
+                <div className="h-2 w-16 bg-white/10 rounded" />
+              </div>
             </div>
-            <div className="text-2xl font-bold text-white">{metric.value}</div>
-            <div className="text-white/50 text-sm mt-1">{metric.label}</div>
-          </motion.div>
+          )}
+        </div>
+      </header>
+
+      {/* Row 1: Farm Stats */}
+      <div className="metrics-grid">
+        {[
+          { label: 'Total Farms', value: farmMetrics.totalFarms, icon: Home },
+          { label: 'Active Crops', value: farmMetrics.activeCrops, icon: Sprout },
+          { label: 'Harvest Ready', value: farmMetrics.harvestReady, icon: CheckCircle },
+          { label: 'Health Score', value: `${farmMetrics.healthScore}%`, icon: Heart }
+        ].map((metric, i) => (
+          <div key={metric.label} className="glass-card metric-card-inner">
+            <div className="metric-icon-box">
+              <metric.icon size={20} />
+            </div>
+            <div className="metric-value-text">{metric.value}</div>
+            <div className="metric-label-text">{metric.label}</div>
+          </div>
         ))}
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Alerts Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="lg:col-span-2 bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Activity size={20} className="text-emerald-400" />
-              Recent Alerts
-            </h2>
-            <span className="text-xs bg-white/10 text-white/60 px-3 py-1 rounded-full">
-              {alerts.length} New
+      {/* Row 2: Today's Farm Conditions (Weather Driven) */}
+      <div className="conditions-row">
+        {/* Crop Advice */}
+        <div className="glass-card advice-card">
+          <div className="advice-header">
+            <Leaf className="advice-icon" size={18} />
+            <span className="advice-title">Crop Advice</span>
+          </div>
+          <div className="advice-content">
+            {weatherInsights.crop}
+          </div>
+        </div>
+
+        {/* Irrigation Advice */}
+        <div className="glass-card advice-card">
+          <div className="advice-header">
+            <Droplets className="advice-icon" size={18} />
+            <span className="advice-title">Irrigation Advice</span>
+          </div>
+          <div className="advice-content">
+            {weatherInsights.irrigation}
+          </div>
+        </div>
+
+        {/* Weather Alert */}
+        <div className="glass-card advice-card">
+          <div className="advice-header">
+            <Activity className="advice-icon" size={18} />
+            <span className="advice-title">Weather Status</span>
+          </div>
+          <div className="advice-content flex items-center justify-between">
+            <span className={`status-indicator status-${weatherInsights.alertType}`}>
+              {weatherInsights.alertType === 'favorable' ? '✔' : '⚠'} {weatherInsights.alertText}
             </span>
           </div>
-          <div className="space-y-3">
-            {alerts.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-2">✨</div>
-                <p className="text-white/40">All clear! No alerts right now.</p>
-              </div>
-            ) : (
-              alerts.map((alert, i) => (
-                <motion.div
-                  key={alert.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`p-4 rounded-xl border-l-4 ${
-                    alert.severity === 'high' 
-                      ? 'bg-red-500/10 border-red-500 text-red-200' 
-                      : 'bg-amber-500/10 border-amber-500 text-amber-200'
-                  }`}
-                >
-                  <p className="font-medium">{alert.message}</p>
-                  <p className="text-xs opacity-60 mt-1">Just now</p>
-                </motion.div>
+        </div>
+      </div>
+
+      {/* Row 3: Alerts & Market */}
+      <div className="mid-row">
+        {/* Recent Alerts */}
+        <div className="glass-card section-card">
+          <div className="section-header">
+            <h2><AlertTriangle className="text-amber-400" size={20} /> Recent Alerts</h2>
+            {alertsList.length > 0 && <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">{alertsList.length} Active</span>}
+          </div>
+          <div className="section-content">
+            {alertsList.length > 0 ? (
+              alertsList.map(alert => (
+                <div key={alert.id} className={`alert-item alert-${alert.severity}`}>
+                  <Activity size={16} className="mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm">{alert.message}</p>
+                    <span className="text-[10px] text-white/40 uppercase">Action required</span>
+                  </div>
+                </div>
               ))
+            ) : (
+              <div className="empty-state-placeholder">
+                <span className="empty-icon">✨</span>
+                <p>All clear! No alerts right now</p>
+              </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
-        {/* Market Highlights */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <TrendingUp size={20} className="text-emerald-400" />
-              Market Trends
-            </h2>
-            <button 
-              onClick={() => window.location.hash = '#/market'}
-              className="text-xs text-emerald-400 font-semibold hover:underline"
-            >
-              View All
-            </button>
+        {/* Market Trends */}
+        <div className="glass-card section-card">
+          <div className="section-header">
+            <h2><TrendingUp className="text-emerald-400" size={20} /> Market Trends</h2>
+            <span className="text-[10px] text-white/40 font-bold uppercase">Sonipat Mandi</span>
           </div>
-          <div className="space-y-3">
+          <div className="section-content">
             {pricesLoading ? (
-              [1, 2, 3].map(i => (
-                <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse" />
-              ))
+              [1, 2, 3].map(i => <div key={i} className="animate-pulse h-16 bg-white/5 rounded-xl mb-3" />)
             ) : trendingCrops.length > 0 ? (
               trendingCrops.map((crop, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  onClick={() => window.location.hash = '#/market'}
-                  className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl cursor-pointer transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Leaf size={18} className="text-emerald-400" />
+                <div key={i} className="market-item">
+                  <div className="market-crop-info">
+                    <div className="crop-icon-mini">
+                      <Leaf size={14} />
                     </div>
                     <div>
-                      <p className="font-semibold text-white text-sm">{crop.commodity}</p>
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider">{crop.market}</p>
+                      <p className="font-bold text-sm">{crop.commodity}</p>
+                      <p className="text-[10px] text-white/40 capitalize">{crop.district}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-white">₹{crop.modal_price}</p>
-                    <p className="text-[10px] text-emerald-400 flex items-center justify-end gap-0.5">
+                  <div className="market-price-info">
+                    <p className="font-bold">₹{crop.modal_price}</p>
+                    <div className="trend-indicator trend-up">
                       <TrendingUp size={10} /> Rising
-                    </p>
+                    </div>
                   </div>
-                </motion.div>
+                </div>
               ))
             ) : (
-              <div className="text-center py-8">
-                <div className="text-3xl mb-2">📊</div>
-                <p className="text-white/40 text-sm">No trending crops</p>
+              <div className="empty-state-placeholder">
+                <Activity className="empty-icon" />
+                <p>Syncing market data...</p>
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
+      </div>
+
+      {/* Row 4: Mini 5-Day Forecast */}
+      <div className="forecast-strip-container">
+        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-4 px-2">5-Day Outlook</h2>
+        <div className="glass-card forecast-strip">
+          {forecastData ? (
+            forecastData.map((day, i) => (
+              <div key={i} className="forecast-day-card">
+                <span className="forecast-day-name">{day.day}</span>
+                {getWeatherIcon(day.icon, 20)}
+                <span className="forecast-temp">{day.temp}°C</span>
+              </div>
+            ))
+          ) : (
+            [1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="animate-pulse flex flex-col items-center gap-2">
+                <div className="h-3 w-8 bg-white/10 rounded" />
+                <div className="w-6 h-6 bg-white/10 rounded-full" />
+                <div className="h-4 w-10 bg-white/10 rounded" />
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   )

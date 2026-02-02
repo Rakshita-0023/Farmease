@@ -5,7 +5,7 @@ import EnhancedDashboard from './components/EnhancedDashboard'
 import Login from './components/Login'
 import LandingPage from './components/LandingPage'
 import FarmManagement from './components/FarmManagement'
-import Weather from './components/Weather'
+
 import Market from './components/Market'
 import MarketDetails from './components/MarketDetails'
 import Tips from './components/Tips'
@@ -131,7 +131,7 @@ function App() {
           >
             <Route path="/" element={<EnhancedDashboard />} />
             <Route path="/farms" element={<FarmManagement />} />
-            <Route path="/weather" element={<Weather />} />
+
             <Route path="/market" element={<Market />} />
             <Route path="/market/:marketId" element={<MarketDetails />} />
             <Route path="/market/comparison" element={<MarketComparison />} />
@@ -143,7 +143,7 @@ function App() {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms" element={<TermsOfService />} />
-            
+
             {/* Kisan Charcha Routes */}
             <Route path="/charchas" element={<CharchaDashboard />} />
             <Route path="/charchas/create" element={<CreateCharcha />} />

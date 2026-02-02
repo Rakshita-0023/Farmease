@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import './WeatherEnhancements.css'
+
 import { MapPin, BarChart3, ChevronDown, RefreshCw, TrendingUp, TrendingDown, Navigation, Target, Globe } from 'lucide-react'
 import { useLocation } from '../LocationContext'
 import icon from 'leaflet/dist/images/marker-icon.png'

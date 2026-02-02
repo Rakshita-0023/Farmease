@@ -33,7 +33,6 @@ export default function Layout({ user, onLogout }) {
     const navItems = [
         { id: '/', icon: <LayoutDashboard size={20} />, label: t('dashboard') },
         { id: '/farms', icon: <Sprout size={20} />, label: t('myFarms') },
-        { id: '/weather', icon: <CloudSun size={20} />, label: t('weather') },
         { id: '/market', icon: <Store size={20} />, label: t('market') },
         { id: '/crop-recommendation', icon: <Leaf size={20} />, label: 'Crop Recommendation' },
         { id: '/tips', icon: <Lightbulb size={20} />, label: t('tips') },
@@ -78,8 +77,8 @@ export default function Layout({ user, onLogout }) {
                             <span className="font-black text-xl tracking-tight text-white">FarmEase</span>
                         )}
                     </div>
-                    <button 
-                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
+                    <button
+                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                         className="p-2 hover:bg-white/10 rounded-xl text-white/70 hover:text-white transition-all"
                     >
                         {sidebarCollapsed ? <Menu size={18} /> : <X size={18} />}

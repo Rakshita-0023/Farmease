@@ -1,4 +1,4 @@
-import './WeatherEnhancements.css'
+
 
 const AboutUs = () => {
   return (
@@ -12,8 +12,8 @@ const AboutUs = () => {
         <div className="about-section">
           <h2>Our Mission</h2>
           <p>
-            FarmEase is dedicated to revolutionizing agriculture through technology. 
-            We provide farmers with intelligent tools, real-time data, and expert 
+            FarmEase is dedicated to revolutionizing agriculture through technology.
+            We provide farmers with intelligent tools, real-time data, and expert
             guidance to maximize crop yields and ensure sustainable farming practices.
           </p>
         </div>
@@ -65,7 +65,7 @@ const AboutUs = () => {
         <div className="about-section">
           <h2>Technology Stack</h2>
           <p>
-            Built with modern web technologies including React, Node.js, and machine learning 
+            Built with modern web technologies including React, Node.js, and machine learning
             models to provide reliable, fast, and accurate agricultural insights.
           </p>
         </div>

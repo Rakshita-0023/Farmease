@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './MarketMap.css'
-import './WeatherEnhancements.css'
+
 
 const MarketMap = ({ userLocation }) => {
   const [nearbyMarkets, setNearbyMarkets] = useState([])
@@ -12,7 +12,7 @@ const MarketMap = ({ userLocation }) => {
   const fetchRealMarketPrices = async (userLat, userLng, userState, userCity) => {
     try {
       console.log(`📡 Fetching real market prices for user location: ${userLat}, ${userLng}`)
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/market-prices?lat=${userLat}&lng=${userLng}&state=${userState}&city=${userCity}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -53,7 +53,7 @@ const MarketMap = ({ userLocation }) => {
   const fetchRealNearbyMarkets = async (userLat, userLng) => {
     try {
       console.log(`🗺️ Fetching real nearby markets for user location: ${userLat}, ${userLng}`)
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/market/nearby?lat=${userLat}&lng=${userLng}&radius=50`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -65,7 +65,7 @@ const MarketMap = ({ userLocation }) => {
       }
 
       const marketsData = await response.json()
-      
+
       if (!marketsData.success || !marketsData.markets) {
         throw new Error('Invalid markets API response')
       }
@@ -74,13 +74,13 @@ const MarketMap = ({ userLocation }) => {
 
       // Transform API data to match component format
       const transformedMarkets = []
-      
+
       for (const market of marketsData.markets) {
         // Get real crop prices for this market's location
         const marketPrices = await fetchRealMarketPrices(
-          market.lat, 
-          market.lng, 
-          market.state, 
+          market.lat,
+          market.lng,
+          market.state,
           market.city
         )
 
@@ -119,9 +119,9 @@ const MarketMap = ({ userLocation }) => {
     try {
       setLoading(true)
       console.log('🔄 Fetching real nearby markets from API...')
-      
+
       const markets = await fetchRealNearbyMarkets(location.latitude, location.longitude)
-      
+
       if (markets.length === 0) {
         console.warn('⚠️ No markets returned from API')
         setNearbyMarkets([])
@@ -130,7 +130,7 @@ const MarketMap = ({ userLocation }) => {
 
       console.log(`✅ Successfully loaded ${markets.length} real nearby markets`)
       setNearbyMarkets(markets)
-      
+
     } catch (error) {
       console.error('❌ Error fetching nearby markets:', error)
       setNearbyMarkets([])

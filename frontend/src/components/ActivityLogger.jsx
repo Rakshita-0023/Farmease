@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './WeatherEnhancements.css'
+
 
 const ActivityLogger = ({ farm, onClose, onSave }) => {
   const [activity, setActivity] = useState({
@@ -43,11 +43,11 @@ const ActivityLogger = ({ farm, onClose, onSave }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="activity-modal add-farm-modal" onClick={(e) => e.stopPropagation()}>
         <h3>Log Activity - {farm.name}</h3>
-        
+
         <form onSubmit={handleSubmit}>
           <select
             value={activity.type}
-            onChange={(e) => setActivity({...activity, type: e.target.value})}
+            onChange={(e) => setActivity({ ...activity, type: e.target.value })}
             className="glassmorphic-select"
           >
             {activityTypes.map(type => (
@@ -58,7 +58,7 @@ const ActivityLogger = ({ farm, onClose, onSave }) => {
           <input
             type="date"
             value={activity.date}
-            onChange={(e) => setActivity({...activity, date: e.target.value})}
+            onChange={(e) => setActivity({ ...activity, date: e.target.value })}
             required
           />
 
@@ -66,7 +66,7 @@ const ActivityLogger = ({ farm, onClose, onSave }) => {
             className="activity-notes"
             placeholder="Enter activity details..."
             value={activity.notes}
-            onChange={(e) => setActivity({...activity, notes: e.target.value})}
+            onChange={(e) => setActivity({ ...activity, notes: e.target.value })}
             required
           />
 

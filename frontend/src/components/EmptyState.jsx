@@ -1,12 +1,12 @@
-import './WeatherEnhancements.css'
 
-const EmptyState = ({ 
-  icon = '📭', 
-  title = 'No data found', 
-  description = 'There\'s nothing here yet.', 
+
+const EmptyState = ({
+  icon = '📭',
+  title = 'No data found',
+  description = 'There\'s nothing here yet.',
   actionText = 'Get Started',
   onAction = null,
-  children 
+  children
 }) => {
   return (
     <div className="empty-state">
@@ -14,11 +14,11 @@ const EmptyState = ({
         <div className="empty-state-icon">{icon}</div>
         <h3 className="empty-state-title">{title}</h3>
         <p className="empty-state-description">{description}</p>
-        
+
         {children}
-        
+
         {onAction && (
-          <button 
+          <button
             onClick={onAction}
             className="empty-state-action primary-btn"
           >

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './WeatherEnhancements.css'
+
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -37,7 +37,7 @@ const Contact = () => {
           <div className="success-icon">✅</div>
           <h2>Message Sent Successfully!</h2>
           <p>Thank you for contacting us. We'll get back to you within 24 hours.</p>
-          <button 
+          <button
             className="primary-btn"
             onClick={() => setSubmitted(false)}
           >
@@ -126,8 +126,8 @@ const Contact = () => {
               required
             ></textarea>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="submit-btn"
               disabled={loading}
             >

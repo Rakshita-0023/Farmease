@@ -1,4 +1,4 @@
-import './WeatherEnhancements.css'
+
 
 const TermsOfService = () => {
   return (
@@ -12,8 +12,8 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing and using FarmEase, you accept and agree to be bound by the terms 
-            and provision of this agreement. If you do not agree to abide by the above, 
+            By accessing and using FarmEase, you accept and agree to be bound by the terms
+            and provision of this agreement. If you do not agree to abide by the above,
             please do not use this service.
           </p>
         </section>
@@ -56,7 +56,7 @@ const TermsOfService = () => {
             <li>Community posts and interactions</li>
           </ul>
           <p>
-            We do not sell personal data to third parties. Data is used solely for 
+            We do not sell personal data to third parties. Data is used solely for
             service improvement and agricultural research.
           </p>
         </section>
@@ -64,9 +64,9 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>5. Disclaimer of Warranties</h2>
           <p>
-            FarmEase provides information and tools "as is" without warranty of any kind. 
-            While we strive for accuracy, agricultural decisions should consider multiple 
-            factors and local expertise. We are not liable for crop losses or damages 
+            FarmEase provides information and tools "as is" without warranty of any kind.
+            While we strive for accuracy, agricultural decisions should consider multiple
+            factors and local expertise. We are not liable for crop losses or damages
             resulting from use of our recommendations.
           </p>
         </section>
@@ -74,8 +74,8 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>6. Limitation of Liability</h2>
           <p>
-            FarmEase shall not be liable for any indirect, incidental, special, 
-            consequential, or punitive damages, including without limitation, loss of 
+            FarmEase shall not be liable for any indirect, incidental, special,
+            consequential, or punitive damages, including without limitation, loss of
             profits, data, use, goodwill, or other intangible losses.
           </p>
         </section>
@@ -83,8 +83,8 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>7. Intellectual Property</h2>
           <p>
-            The service and its original content, features, and functionality are and 
-            will remain the exclusive property of FarmEase and its licensors. The 
+            The service and its original content, features, and functionality are and
+            will remain the exclusive property of FarmEase and its licensors. The
             service is protected by copyright, trademark, and other laws.
           </p>
         </section>
@@ -92,8 +92,8 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>8. Termination</h2>
           <p>
-            We may terminate or suspend your account and bar access to the service 
-            immediately, without prior notice or liability, under our sole discretion, 
+            We may terminate or suspend your account and bar access to the service
+            immediately, without prior notice or liability, under our sole discretion,
             for any reason whatsoever including breach of terms.
           </p>
         </section>
@@ -101,8 +101,8 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>9. Changes to Terms</h2>
           <p>
-            We reserve the right to modify or replace these terms at any time. If a 
-            revision is material, we will provide at least 30 days notice prior to 
+            We reserve the right to modify or replace these terms at any time. If a
+            revision is material, we will provide at least 30 days notice prior to
             any new terms taking effect.
           </p>
         </section>
@@ -122,7 +122,7 @@ const TermsOfService = () => {
         <section className="terms-section">
           <h2>11. Governing Law</h2>
           <p>
-            These terms shall be interpreted and governed in accordance with the laws 
+            These terms shall be interpreted and governed in accordance with the laws
             of India, without regard to its conflict of law provisions.
           </p>
         </section>
@@ -130,7 +130,7 @@ const TermsOfService = () => {
 
       <div className="terms-footer">
         <p>
-          By continuing to use FarmEase, you acknowledge that you have read, 
+          By continuing to use FarmEase, you acknowledge that you have read,
           understood, and agree to be bound by these Terms of Service.
         </p>
       </div>
