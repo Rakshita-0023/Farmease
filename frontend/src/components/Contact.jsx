@@ -76,7 +76,7 @@ const Contact = () => {
           <HelpCircle className="text-emerald-400" size={18} />
           <span className="text-[10px] text-white/40 font-black uppercase tracking-[3px]">Support Center</span>
         </div>
-        <h1 className="text-gradient">Contact Us</h1>
+        <h1>Contact Us</h1>
         <p>Get in touch with our agricultural experts for support and guidance</p>
       </header>
 
