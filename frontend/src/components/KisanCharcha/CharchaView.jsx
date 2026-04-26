@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Send, Users, Lock, Globe, MessageSquare, Crown, Shield } from 'lucide-react';
+import { API_ROOT } from '../../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = API_ROOT;
 
 export default function CharchaView() {
   const { id } = useParams();

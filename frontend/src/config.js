@@ -3,6 +3,11 @@ export const API_BASE_URL = import.meta.env.PROD
   ? (import.meta.env.VITE_API_BASE_URL || 'https://farmease-tqgy.onrender.com/api')
   : '/api'
 
+// Base API host without trailing /api - useful for modules still using absolute /api paths
+export const API_ROOT = API_BASE_URL.endsWith('/api')
+  ? API_BASE_URL.slice(0, -4)
+  : API_BASE_URL
+
 console.log('🔗 API_BASE_URL:', API_BASE_URL)
 console.log('🔗 PROD:', import.meta.env.PROD)
 console.log('🔗 VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
@@ -31,7 +36,9 @@ export const removeAuthToken = () => {
 
 export const getAuthHeaders = () => {
   const token = getAuthToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  const language = localStorage.getItem('i18nextLng') || 'en'
+  const baseHeaders = { 'X-Language': language }
+  return token ? { ...baseHeaders, Authorization: `Bearer ${token}` } : baseHeaders
 }
 
 // Post-Authentication Location Handler

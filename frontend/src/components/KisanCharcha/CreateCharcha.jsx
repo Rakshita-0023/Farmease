@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Plus, Lock, Globe, Type, AlignLeft, Tag } from 'lucide-react';
+import { API_ROOT } from '../../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = API_ROOT;
 
 const CATEGORIES = ['Crops', 'Livestock', 'Market', 'Weather', 'Equipment', 'General'];
 

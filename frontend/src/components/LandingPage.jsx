@@ -1,10 +1,14 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   Cloud, Sprout, TrendingUp, Lightbulb, 
-  ArrowRight, CheckCircle, Leaf, BarChart3, Shield
+  ArrowRight, CheckCircle, Leaf, BarChart3, Shield, Menu, X
 } from 'lucide-react'
 
 const LandingPage = ({ onGetStarted }) => {
+  const navigate = useNavigate()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const features = [
     { 
       icon: <Cloud size={28} />, 
@@ -62,13 +66,54 @@ const LandingPage = ({ onGetStarted }) => {
               </div>
               <span className="text-2xl font-black text-white">FarmEase</span>
             </div>
-            <button
-              onClick={onGetStarted}
-              className="px-6 py-2.5 bg-white text-emerald-600 rounded-xl font-bold hover:bg-emerald-50 transition-all"
-            >
-              Get Started
-            </button>
+
+            {/* Desktop: Login & Sign Up */}
+            <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={() => navigate('/login')}
+                className="px-5 py-2.5 bg-transparent border-2 border-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-500/10 transition-all"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => navigate('/login')}
+                className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all"
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {/* Mobile: hamburger */}
+            <div className="md:hidden flex items-center">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 text-white rounded-lg hover:bg-white/10 transition-all"
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              >
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile menu dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden px-6 pb-4 pt-2 border-t border-white/10">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
+                  className="w-full px-5 py-2.5 bg-transparent border-2 border-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-500/10 transition-all text-center"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
+                  className="w-full px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all text-center"
+                >
+                  Sign Up
+                </button>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Hero Section */}

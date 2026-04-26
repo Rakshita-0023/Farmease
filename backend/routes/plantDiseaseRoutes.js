@@ -7,6 +7,7 @@ const router = express.Router();
 
 // Plant Doctor ML API URL
 const PLANT_DOCTOR_API_URL = process.env.PLANT_DOCTOR_API_URL || 'https://farmease-plant-doctor.onrender.com';
+const PLANT_DOCTOR_LOCAL_API_URL = process.env.PLANT_DOCTOR_LOCAL_API_URL || 'http://127.0.0.1:8000';
 
 // Configure multer for memory storage (no disk writes)
 const upload = multer({
@@ -41,7 +42,8 @@ router.post('/plant-disease', upload.single('file'), async (req, res) => {
     }
 
     console.log(`📸 Image received: ${req.file.originalname} (${req.file.size} bytes)`);
-    console.log(`🔗 Forwarding to ML API: ${PLANT_DOCTOR_API_URL}/predict-disease`);
+    const candidateApis = [PLANT_DOCTOR_API_URL, PLANT_DOCTOR_LOCAL_API_URL].filter(Boolean);
+    console.log(`🔗 Forwarding to ML API candidates: ${candidateApis.join(', ')}`);
 
     // Create form data to forward to ML API
     const formData = new FormData();
@@ -51,18 +53,42 @@ router.post('/plant-disease', upload.single('file'), async (req, res) => {
     });
 
     // Forward image to ML API with timeout for cold starts
-    const response = await axios.post(
-      `${PLANT_DOCTOR_API_URL}/predict-disease`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders()
-        },
-        timeout: 30000, // 30 seconds for cold starts
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
+    let response = null;
+    let lastError = null;
+    for (const apiBase of candidateApis) {
+      try {
+        response = await axios.post(
+          `${apiBase}/predict-disease`,
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders()
+            },
+            timeout: 30000, // 30 seconds for cold starts
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+          }
+        );
+        console.log(`✅ Plant disease response from: ${apiBase}`);
+        break;
+      } catch (error) {
+        lastError = error;
+        console.warn(`⚠️ Plant disease API failed: ${apiBase} -> ${error.message}`);
       }
-    );
+    }
+
+    if (!response) {
+      // Graceful fallback: return actionable manual-review result instead of hard failure
+      return res.json({
+        success: true,
+        disease: 'Manual Review Recommended',
+        rawDisease: 'manual_review_recommended',
+        confidence: 35,
+        fallback: true,
+        message: 'Plant Doctor ML service unavailable. Returned a safe fallback assessment.',
+        timestamp: new Date().toISOString()
+      });
+    }
 
     console.log('✅ ML API response:', response.data);
 
@@ -117,17 +143,26 @@ router.post('/plant-disease', upload.single('file'), async (req, res) => {
  */
 router.get('/plant-disease/health', async (req, res) => {
   try {
-    const response = await axios.get(`${PLANT_DOCTOR_API_URL}/health`, { timeout: 5000 });
+    let response;
+    try {
+      response = await axios.get(`${PLANT_DOCTOR_API_URL}/health`, { timeout: 5000 });
+    } catch {
+      response = await axios.get(`${PLANT_DOCTOR_LOCAL_API_URL}/health`, { timeout: 5000 });
+    }
     res.json({
       success: true,
+      available: true,
       ml_service: response.data,
-      ml_api_url: PLANT_DOCTOR_API_URL
+      ml_api_url: response.config?.url || PLANT_DOCTOR_API_URL
     });
   } catch (error) {
-    res.status(503).json({
-      success: false,
-      message: 'Plant Doctor ML service unavailable',
-      ml_api_url: PLANT_DOCTOR_API_URL
+    res.json({
+      success: true,
+      available: false,
+      degraded: true,
+      message: 'Plant Doctor ML service unavailable - manual-review fallback is active',
+      ml_api_url: PLANT_DOCTOR_API_URL,
+      fallback: 'manual_review_recommended'
     });
   }
 });

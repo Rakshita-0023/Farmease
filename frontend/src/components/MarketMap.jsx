@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './MarketMap.css'
+import { API_BASE_URL } from '../config'
 
 
 const MarketMap = ({ userLocation }) => {
@@ -13,7 +14,7 @@ const MarketMap = ({ userLocation }) => {
     try {
       console.log(`📡 Fetching real market prices for user location: ${userLat}, ${userLng}`)
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/market-prices?lat=${userLat}&lng=${userLng}&state=${userState}&city=${userCity}`, {
+      const response = await fetch(`${API_BASE_URL}/market-prices?lat=${userLat}&lng=${userLng}&state=${userState}&city=${userCity}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -54,7 +55,7 @@ const MarketMap = ({ userLocation }) => {
     try {
       console.log(`🗺️ Fetching real nearby markets for user location: ${userLat}, ${userLng}`)
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/market/nearby?lat=${userLat}&lng=${userLng}&radius=50`, {
+      const response = await fetch(`${API_BASE_URL}/market/nearby?lat=${userLat}&lng=${userLng}&radius=50`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

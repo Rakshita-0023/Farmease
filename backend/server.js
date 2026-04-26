@@ -50,7 +50,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Language']
 }));
 
 // Handle preflight OPTIONS requests for all routes (Express 5 compatible)
@@ -610,6 +610,643 @@ app.get('/api/farms', authenticateToken, async (req, res) => {
   }
 })
 
+app.get('/api/dashboard/overview', authenticateToken, async (req, res) => {
+  try {
+    const lang = String(req.query.lang || req.headers['x-language'] || 'en').toLowerCase();
+    const copy = getDashboardCopy(lang);
+
+    const [users] = await db.query(
+      'SELECT name, city, state, country, latitude, longitude FROM users WHERE id = ?',
+      [req.user.userId]
+    );
+    const profile = users?.[0] || {};
+
+    const lat = Number(req.query.lat || profile.latitude || 0);
+    const lng = Number(req.query.lng || profile.longitude || 0);
+
+    const farms = await getUserFarms(req.user.userId);
+    const farmMetrics = {
+      totalFarms: farms.length,
+      activeCrops: farms.filter(f => (f.progress || 0) < 100).length,
+      harvestReady: farms.filter(f => (f.progress || 0) >= 90).length,
+      healthScore: farms.length > 0
+        ? Math.round(farms.reduce((sum, farm) => sum + (farm.health_score || 0), 0) / farms.length)
+        : 0
+    };
+
+    const weather = lat && lng ? await fetchCurrentWeather(lat, lng) : null;
+
+    let nearbyMarkets = [];
+    if (lat && lng) {
+      const marketResult = await integratedMarketService.getVerifiedMarketsWithPrices(lat, lng, 50);
+      nearbyMarkets = Array.isArray(marketResult?.markets) ? marketResult.markets : [];
+    }
+    const trendingCrops = nearbyMarkets
+      .flatMap(m => m.commodities || [])
+      .filter(c => Number(c.modal_price || 0) > 0)
+      .slice(0, 4);
+
+    let cropAdvice = copy.cropCold;
+    if (weather?.temperature > 28) cropAdvice = copy.cropHeat;
+
+    let irrigationAdvice = copy.irrigationModerate;
+    if (weather?.humidity > 75) irrigationAdvice = copy.irrigationHumidity;
+    if (weather?.temperature > 32 && weather?.humidity < 40) irrigationAdvice = copy.irrigationDryHeat;
+
+    let weatherStatus = copy.favorable;
+    let weatherStatusType = 'favorable';
+    if (weather?.temperature > 38) {
+      weatherStatus = copy.extremeHeat;
+      weatherStatusType = 'danger';
+    } else if ((weather?.rainProb || 0) > 70) {
+      weatherStatus = copy.heavyRain;
+      weatherStatusType = 'warning';
+    } else if ((weather?.windSpeed || 0) > 25) {
+      weatherStatus = copy.highWinds;
+      weatherStatusType = 'warning';
+    }
+
+    const setupDone = [
+      farmMetrics.totalFarms > 0,
+      Boolean(profile.city),
+      Boolean(weather),
+      trendingCrops.length > 0
+    ].filter(Boolean).length;
+
+    const statsCards = farmMetrics.totalFarms > 0
+      ? [
+          { value: farmMetrics.totalFarms, label: copy.totalFarms },
+          { value: farmMetrics.activeCrops, label: copy.activeCrops },
+          { value: farmMetrics.harvestReady, label: copy.harvestReady },
+          { value: `${farmMetrics.healthScore}%`, label: copy.healthScore }
+        ]
+      : [
+          { value: `${setupDone}/4`, label: copy.setupComplete },
+          { value: copy.registerField, label: copy.unlockCropTracking },
+          { value: weather ? copy.weatherLive : copy.weatherPending, label: copy.weatherLink },
+          { value: trendingCrops.length ? copy.marketReady : copy.weatherPending, label: copy.marketFeed }
+        ];
+
+    const alerts = [];
+    if (farms.length > 0 && weather?.temperature > 35) {
+      alerts.push(`${copy.heatAlert}: ${weather.temperature}°C`);
+    }
+    farms.forEach(farm => {
+      if ((farm.progress || 0) > 90) {
+        alerts.push(`${farm.name} ${copy.harvestPeak}`);
+      }
+    });
+
+    const todayActions = [];
+    if (farmMetrics.totalFarms === 0) {
+      todayActions.push({
+        id: 'add-field',
+        title: copy.addFirstField,
+        detail: copy.addFirstFieldDetail,
+        cta: copy.registerField,
+        route: '/farms',
+        priority: 'high'
+      });
+    }
+    if (weather?.temperature > 35) {
+      todayActions.push({
+        id: 'heat-action',
+        title: copy.heatRiskAction,
+        detail: copy.heatRiskDetail,
+        cta: copy.viewFarmPlan,
+        route: '/farms',
+        priority: 'high'
+      });
+    }
+    if (trendingCrops[0]) {
+      todayActions.push({
+        id: 'market-opportunity',
+        title: `${trendingCrops[0].commodity} ${copy.openMarket}`,
+        detail: copy.openMarket,
+        cta: copy.openMarket,
+        route: '/market',
+        priority: 'medium'
+      });
+    }
+    todayActions.push({
+      id: 'plant-health',
+      title: copy.scanPlantHealth,
+      detail: copy.scanPlantHealthDetail,
+      cta: copy.startScan,
+      route: '/doctor',
+      priority: 'medium'
+    });
+
+    res.json({
+      success: true,
+      user: {
+        name: profile.name || 'Farmer',
+        city: profile.city || 'Sonipat',
+        state: profile.state || 'Haryana',
+        country: profile.country || 'India'
+      },
+      weather: weather ? {
+        ...weather,
+        location: profile.city || 'Sonipat'
+      } : null,
+      metrics: farmMetrics,
+      statsCards,
+      todayActions: todayActions.slice(0, 3),
+      changeInsights: [
+        { id: 'fields', text: copy.noFieldsAdded, cta: copy.manageFields, route: '/farms' },
+        { id: 'risk', text: weatherStatusType === 'favorable' ? copy.weatherStable : weatherStatus, cta: copy.viewAlerts, route: '/' },
+        { id: 'market', text: trendingCrops[0] ? `${trendingCrops[0].commodity} trend: ${String(trendingCrops[0].trend || 'stable')}` : copy.marketPending, cta: copy.openMarket, route: '/market' }
+      ],
+      insights: {
+        cropAdvice,
+        irrigationAdvice,
+        weatherStatus,
+        weatherStatusType
+      },
+      alerts,
+      trendingCrops
+    });
+  } catch (error) {
+    console.error('Dashboard overview error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to build dashboard overview',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+})
+
+const ASSISTANT_COPY = {
+  en: {
+    greet: 'I am your FarmEase assistant. Ask me about weather, crops, irrigation, disease risk, or markets.',
+    fallback: 'I understood your request. Based on your farm profile, monitor weather, field health, and market prices daily for better yield decisions.',
+    weatherLead: 'Current weather near your farm is',
+    farmsLead: 'You currently have',
+    farmsNone: 'no registered fields',
+    farmsOne: '1 registered field',
+    farmsMany: 'registered fields',
+    marketLead: 'Top nearby mandi by price signal is',
+    weatherDetails: (w) => `${w.temperature}°C, humidity ${w.humidity}%, wind ${w.windSpeed} km/h.`,
+    nextStepsNone: 'You have not added any field yet. Start by adding one field, then check crop recommendation, and finally compare mandi prices before selling.',
+    nextStepsHasFarms: 'For today: check weather risk, review crop health in Plant Doctor if needed, and compare nearby mandi prices before selling.',
+    clarify: 'I can help with weather, crop planning, irrigation, mandi prices, and plant disease. Ask a direct question like: "What should I do today?"',
+    fieldDetailsLead: 'Here is your field status',
+    fieldImproveLead: 'To improve this field',
+    cheapestMarketLead: 'Cheapest nearby market for your crop',
+    noCropMatch: 'I could not find live crop-wise price match right now. Try syncing market rates and asking again.',
+    fertilizerNeedMoreData: 'Without soil test and leaf-color check, use a safe split dose strategy instead of heavy fertilizer at once.',
+    noFieldsToDetail: 'You have no registered fields yet. Add your first field and I will track name, crop stage, health, and harvest timeline.',
+    actionOpenMarket: 'Open Market',
+    actionOpenFarms: 'Open My Fields',
+    actionOpenDoctor: 'Open Plant Doctor'
+  },
+  hi: {
+    greet: 'मैं आपका FarmEase सहायक हूँ। मौसम, फसल, सिंचाई, रोग जोखिम या मंडी के बारे में पूछें।',
+    fallback: 'मैंने आपका प्रश्न समझा। बेहतर उत्पादन के लिए मौसम, खेत की स्थिति और मंडी कीमतें रोज़ देखें।',
+    weatherLead: 'आपके क्षेत्र में वर्तमान मौसम',
+    farmsLead: 'आपके पास अभी',
+    farmsNone: 'कोई पंजीकृत खेत नहीं है',
+    farmsOne: '1 पंजीकृत खेत है',
+    farmsMany: 'पंजीकृत खेत हैं',
+    marketLead: 'कीमत संकेत के आधार पर पास की टॉप मंडी',
+    weatherDetails: (w) => `${w.temperature}°C, आर्द्रता ${w.humidity}%, हवा ${w.windSpeed} किमी/घंटा।`,
+    nextStepsNone: 'आपने अभी कोई खेत नहीं जोड़ा है। पहले एक खेत जोड़ें, फिर फसल सिफारिश देखें, और बेचने से पहले मंडी भाव तुलना करें।',
+    nextStepsHasFarms: 'आज के लिए: मौसम जोखिम देखें, जरूरत हो तो प्लांट डॉक्टर में फसल स्वास्थ्य जांचें, और बेचने से पहले पास की मंडियों के भाव तुलना करें।',
+    clarify: 'मैं मौसम, फसल योजना, सिंचाई, मंडी भाव और पौधा रोग में मदद कर सकता हूँ। जैसे पूछें: "आज मुझे क्या करना चाहिए?"',
+    fieldDetailsLead: 'आपके खेत की स्थिति यह है',
+    fieldImproveLead: 'इस खेत को बेहतर करने के लिए',
+    cheapestMarketLead: 'आपकी फसल के लिए सबसे सस्ती पास की मंडी',
+    noCropMatch: 'अभी crop-wise लाइव रेट मैच नहीं मिला। मार्केट में Sync Live Rates करके फिर पूछें।',
+    fertilizerNeedMoreData: 'बिना मिट्टी जांच और पत्ती के रंग देखे, एक बार में भारी खाद न दें; split dose सुरक्षित रहेगा।',
+    noFieldsToDetail: 'अभी कोई खेत पंजीकृत नहीं है। पहला खेत जोड़ें, फिर मैं नाम, फसल चरण, स्वास्थ्य और कटाई टाइमलाइन बता दूँगा।',
+    actionOpenMarket: 'मार्केट खोलें',
+    actionOpenFarms: 'मेरे खेत खोलें',
+    actionOpenDoctor: 'प्लांट डॉक्टर खोलें'
+  },
+  te: {
+    greet: 'నేను మీ FarmEase సహాయకుడిని. వాతావరణం, పంటలు, నీటి పారుదల, వ్యాధి ప్రమాదం లేదా మార్కెట్ గురించి అడగండి.',
+    fallback: 'మీ ప్రశ్న అర్థమైంది. మంచి దిగుబడికి ప్రతిరోజూ వాతావరణం, పొలం ఆరోగ్యం, మార్కెట్ ధరలు చూసండి.',
+    weatherLead: 'మీ ప్రాంతంలో ప్రస్తుత వాతావరణం',
+    farmsLead: 'మీ వద్ద ప్రస్తుతం',
+    farmsNone: 'నమోదైన పొలాలు లేవు',
+    farmsOne: '1 నమోదైన పొలం ఉంది',
+    farmsMany: 'నమోదైన పొలాలు ఉన్నాయి',
+    marketLead: 'ధర సంకేతం ఆధారంగా దగ్గరలోని టాప్ మార్కెట్',
+    weatherDetails: (w) => `${w.temperature}°C, ఆర్ద్రత ${w.humidity}%, గాలి వేగం ${w.windSpeed} కి.మీ/గంట.`,
+    nextStepsNone: 'మీరు ఇంకా ఏ పొలం జోడించలేదు. ముందుగా ఒక పొలం జోడించి, తర్వాత పంట సిఫార్సు చూడండి, అమ్మే ముందు మార్కెట్ ధరలు పోల్చండి.',
+    nextStepsHasFarms: 'ఈ రోజు కోసం: వాతావరణ ప్రమాదం చూడండి, అవసరమైతే ప్లాంట్ డాక్టర్‌లో ఆరోగ్యం చెక్ చేయండి, అమ్మే ముందు సమీప మార్కెట్ ధరలు పోల్చండి.',
+    clarify: 'వాతావరణం, పంట ప్రణాళిక, నీటిపారుదల, మార్కెట్ ధరలు, మొక్కల వ్యాధిపై నేను సహాయం చేస్తాను. ఇలా అడగండి: "ఈ రోజు నేను ఏం చేయాలి?"',
+    fieldDetailsLead: 'మీ పొలం స్థితి ఇలా ఉంది',
+    fieldImproveLead: 'ఈ పొలాన్ని మెరుగుపరచడానికి',
+    cheapestMarketLead: 'మీ పంటకు దగ్గరలో అతి తక్కువ ధర ఉన్న మార్కెట్',
+    noCropMatch: 'ఇప్పుడే crop-wise లైవ్ ధర మ్యాచ్ దొరకలేదు. మార్కెట్‌లో Sync Live Rates చేసి మళ్లీ అడగండి.',
+    fertilizerNeedMoreData: 'మట్టి పరీక్ష/ఆకు రంగు సమాచారం లేకుండా ఒకేసారి ఎక్కువ ఎరువు వేయకండి; split dose సురక్షితం.',
+    noFieldsToDetail: 'ఇప్పటివరకు నమోదు చేసిన పొలాలు లేవు. మొదటి పొలం జోడిస్తే పేరు, దశ, ఆరోగ్యం, కోత సమయం వివరంగా చెబుతాను.',
+    actionOpenMarket: 'మార్కెట్ తెరవండి',
+    actionOpenFarms: 'నా పొలాలు తెరవండి',
+    actionOpenDoctor: 'ప్లాంట్ డాక్టర్ తెరవండి'
+  }
+}
+
+const detectAssistantLang = (message, requestedLang) => {
+  const req = String(requestedLang || 'en').toLowerCase().split('-')[0]
+  const text = String(message || '').trim()
+  const lower = text.toLowerCase()
+
+  if (/[\u0900-\u097f]/.test(text)) return 'hi'
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'te'
+
+  if (/\b(hindi|hindime|hindi me|mujhe|mera|kya|kaise|kripya|mandi|fasal|barish|mausam)\b/i.test(lower)) {
+    return 'hi'
+  }
+  if (/\b(telugu|naku|naaku|meeru|ela|emiti|pant|vyavasayam)\b/i.test(lower)) {
+    return 'te'
+  }
+  return ['en', 'hi', 'te'].includes(req) ? req : 'en'
+}
+
+app.post('/api/assistant/chat', authenticateToken, async (req, res) => {
+  try {
+    const message = String(req.body?.message || '').trim()
+    const lang = detectAssistantLang(message, req.body?.lang || req.headers['x-language'] || 'en')
+    const copy = ASSISTANT_COPY[lang] || ASSISTANT_COPY.en
+
+    if (!message) {
+      return res.status(400).json({ success: false, message: 'Message is required' })
+    }
+
+    const [users] = await db.query(
+      'SELECT city, state, latitude, longitude FROM users WHERE id = ?',
+      [req.user.userId]
+    )
+    const profile = users?.[0] || {}
+    const farms = await getUserFarms(req.user.userId)
+    const primaryFarm = farms[0] || null
+
+    const lat = Number(profile.latitude || req.body?.lat || 0)
+    const lng = Number(profile.longitude || req.body?.lng || 0)
+
+    let weather = null
+    if (lat && lng) {
+      weather = await fetchCurrentWeather(lat, lng)
+    }
+
+    let topMarket = null
+    let nearbyMarkets = []
+    if (lat && lng) {
+      try {
+        const marketsResult = await integratedMarketService.getVerifiedMarketsWithPrices(lat, lng, 50)
+        const markets = Array.isArray(marketsResult?.markets) ? marketsResult.markets : []
+        nearbyMarkets = markets
+        const live = markets.filter(m => Number(m.avgPrice || 0) > 0)
+        topMarket = live.length ? live.sort((a, b) => Number(b.avgPrice || 0) - Number(a.avgPrice || 0))[0] : null
+      } catch {
+        topMarket = null
+        nearbyMarkets = []
+      }
+    }
+
+    const text = message.toLowerCase()
+    const normalizeCrop = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const normalizeLoose = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9\u0900-\u097f\u0C00-\u0C7F]/g, '')
+    const pickTargetFarm = () => {
+      if (!farms.length) return null
+      const q = normalizeLoose(message)
+      for (const farm of farms) {
+        const fname = normalizeLoose(farm.name || '')
+        if (fname && q.includes(fname)) return farm
+      }
+      return farms[0]
+    }
+    const findCheapestCropMarket = (targetCrop) => {
+      const target = normalizeCrop(targetCrop)
+      if (!target) return null
+      const candidates = []
+      nearbyMarkets.forEach((market) => {
+        ;(market.commodities || []).forEach((c) => {
+          const commodity = String(c.commodity || '')
+          const key = normalizeCrop(commodity)
+          if (!key) return
+          if (key.includes(target) || target.includes(key)) {
+            const price = Number(c.modal_price || c.modalPrice || market.avgPrice || 0)
+            if (price > 0) {
+              candidates.push({
+                marketName: market.name,
+                crop: commodity,
+                price,
+                distance: Number(market.distance || 0)
+              })
+            }
+          }
+        })
+      })
+      if (!candidates.length) return null
+      candidates.sort((a, b) => a.price - b.price || a.distance - b.distance)
+      return candidates[0]
+    }
+
+    const buildFarmDetailsReply = () => {
+      if (!primaryFarm) return `${copy.farmsLead} ${copy.farmsNone}.`
+      const fieldName = primaryFarm.name || (lang === 'hi' ? 'आपका खेत' : lang === 'te' ? 'మీ పొలం' : 'your field')
+      const crop = primaryFarm.crop || (lang === 'hi' ? 'फसल जानकारी नहीं' : lang === 'te' ? 'పంట సమాచారం లేదు' : 'unknown crop')
+      const area = Number(primaryFarm.area || 0)
+      const health = Number(primaryFarm.health_score || 0)
+      const progress = Number(primaryFarm.progress || 0)
+      const daysToHarvest = Number(primaryFarm.days_to_harvest || 0)
+
+      const improvements = []
+      if (health > 0 && health < 70) {
+        improvements.push(lang === 'hi'
+          ? 'खेत स्वास्थ्य कम है, पोषण/रोग जांच के लिए Plant Doctor चलाएँ'
+          : lang === 'te'
+            ? 'పొలం ఆరోగ్యం తక్కువగా ఉంది, పోషకాలు/వ్యాధి కోసం Plant Doctor ఉపయోగించండి'
+            : 'Field health is low, run Plant Doctor for nutrition/disease checks')
+      }
+      if (progress < 35) {
+        improvements.push(lang === 'hi'
+          ? 'शुरुआती वृद्धि चरण है, हल्की और नियमित सिंचाई रखें'
+          : lang === 'te'
+            ? 'ఇది ప్రారంభ దశ పెరుగుదల, తేలికపాటి రెగ్యులర్ నీటిపారుదల చేయండి'
+            : 'Early growth stage, keep light and regular irrigation')
+      } else if (progress >= 80) {
+        improvements.push(lang === 'hi'
+          ? 'कटाई नज़दीक है, मंडी भाव रोज़ तुलना करें'
+          : lang === 'te'
+            ? 'కోత సమీపంలో ఉంది, మార్కెట్ ధరలు రోజూ పోల్చండి'
+            : 'Harvest is near, compare mandi rates daily')
+      }
+      if (weather?.temperature > 34) {
+        improvements.push(lang === 'hi'
+          ? 'तापमान अधिक है, सुबह/शाम सिंचाई और दोपहर में खेत निरीक्षण कम करें'
+          : lang === 'te'
+            ? 'ఉష్ణోగ్రత ఎక్కువగా ఉంది, ఉదయం/సాయంత్రం నీరు పెట్టండి'
+            : 'High temperature: irrigate in morning/evening')
+      }
+      if (!improvements.length) {
+        improvements.push(lang === 'hi'
+          ? 'स्वास्थ्य अच्छा रखने के लिए सिंचाई, रोग जांच और मंडी मॉनिटरिंग नियमित रखें'
+          : lang === 'te'
+            ? 'ఆరోగ్యం బాగుండటానికి నీటిపారుదల, వ్యాధి చెక్, మార్కెట్ మానిటరింగ్ కొనసాగించండి'
+            : 'Maintain regular irrigation, disease checks, and market monitoring')
+      }
+
+      if (lang === 'hi') {
+        return `${copy.fieldDetailsLead}: ${fieldName} • फसल: ${crop} • क्षेत्र: ${area} एकड़ • स्वास्थ्य: ${health || 'N/A'}% • वृद्धि: ${progress || 0}% • कटाई: ${daysToHarvest || 'N/A'} दिन। ${copy.fieldImproveLead}: ${improvements.slice(0, 3).join('। ')}।`
+      }
+      if (lang === 'te') {
+        return `${copy.fieldDetailsLead}: ${fieldName} • పంట: ${crop} • విస్తీర్ణం: ${area} ఎకరాలు • ఆరోగ్యం: ${health || 'N/A'}% • పురోగతి: ${progress || 0}% • కోత: ${daysToHarvest || 'N/A'} రోజులు. ${copy.fieldImproveLead}: ${improvements.slice(0, 3).join('. ')}.`
+      }
+      return `${copy.fieldDetailsLead}: ${fieldName} • Crop: ${crop} • Area: ${area} acres • Health: ${health || 'N/A'}% • Progress: ${progress || 0}% • Harvest in: ${daysToHarvest || 'N/A'} days. ${copy.fieldImproveLead}: ${improvements.slice(0, 3).join('. ')}.`
+    }
+
+    const buildAllFieldsReply = (mode = 'summary') => {
+      if (!farms.length) return copy.noFieldsToDetail
+
+      const describeOne = (field, idx) => {
+        const name = field.name || (lang === 'hi' ? `खेत ${idx + 1}` : lang === 'te' ? `పొలం ${idx + 1}` : `Field ${idx + 1}`)
+        const crop = field.crop || (lang === 'hi' ? 'फसल अज्ञात' : lang === 'te' ? 'పంట తెలియదు' : 'unknown crop')
+        const health = Number(field.health_score || 0)
+        const progress = Number(field.progress || 0)
+        const harvest = Number(field.days_to_harvest || 0)
+        if (mode === 'names') {
+          return lang === 'hi'
+            ? `${name} (${crop})`
+            : lang === 'te'
+              ? `${name} (${crop})`
+              : `${name} (${crop})`
+        }
+        if (mode === 'status') {
+          return lang === 'hi'
+            ? `${name}: ${crop}, स्वास्थ्य ${health || 'N/A'}%, प्रगति ${progress || 0}%, कटाई ${harvest || 'N/A'} दिन`
+            : lang === 'te'
+              ? `${name}: ${crop}, ఆరోగ్యం ${health || 'N/A'}%, పురోగతి ${progress || 0}%, కోత ${harvest || 'N/A'} రోజులు`
+              : `${name}: ${crop}, health ${health || 'N/A'}%, progress ${progress || 0}%, harvest in ${harvest || 'N/A'} days`
+        }
+        return lang === 'hi'
+          ? `${name} में ${crop} है (प्रगति ${progress || 0}%, स्वास्थ्य ${health || 'N/A'}%)`
+          : lang === 'te'
+            ? `${name}లో ${crop} ఉంది (పురోగతి ${progress || 0}%, ఆరోగ్యం ${health || 'N/A'}%)`
+            : `${name} has ${crop} (progress ${progress || 0}%, health ${health || 'N/A'}%)`
+      }
+
+      const top = farms.slice(0, 4).map(describeOne)
+      const lowHealth = farms.filter(f => Number(f.health_score || 100) < 70).length
+      const nearHarvest = farms.filter(f => Number(f.progress || 0) >= 80).length
+
+      if (mode === 'names') {
+        if (lang === 'hi') return `आपके ${farms.length} पंजीकृत खेत हैं: ${top.join(', ')}।`
+        if (lang === 'te') return `మీకు ${farms.length} నమోదైన పొలాలు ఉన్నాయి: ${top.join(', ')}.`
+        return `You have ${farms.length} registered fields: ${top.join(', ')}.`
+      }
+
+      if (mode === 'status') {
+        const hints = []
+        if (lowHealth > 0) {
+          hints.push(
+            lang === 'hi'
+              ? `${lowHealth} खेतों का स्वास्थ्य कम है, पहले उन्हें देखें।`
+              : lang === 'te'
+                ? `${lowHealth} పొలాల్లో ఆరోగ్యం తక్కువగా ఉంది, ముందు వాటిని చూడండి.`
+                : `${lowHealth} field(s) have low health; check them first.`
+          )
+        }
+        if (nearHarvest > 0) {
+          hints.push(
+            lang === 'hi'
+              ? `${nearHarvest} खेत कटाई के करीब हैं, मार्केट रेट मॉनिटर करें।`
+              : lang === 'te'
+                ? `${nearHarvest} పొలాలు కోత దశలో ఉన్నాయి, మార్కెట్ రేట్లు చూసండి.`
+                : `${nearHarvest} field(s) are near harvest; monitor market rates.`
+          )
+        }
+        const suffix = hints.length
+          ? (lang === 'hi'
+            ? `प्राथमिक सुझाव: ${hints.join(' ')}`
+            : lang === 'te'
+              ? `ప్రాధాన్య సూచన: ${hints.join(' ')}`
+              : `Priority: ${hints.join(' ')}`)
+          : ''
+        return `${top.join('. ')}.${suffix ? ` ${suffix}` : ''}`
+      }
+
+      return top.join('. ') + '.'
+    }
+
+    const buildFertilizerReply = () => {
+      const targetFarm = pickTargetFarm()
+      if (!targetFarm) return `${copy.farmsLead} ${copy.farmsNone}.`
+      const crop = targetFarm.crop || 'crop'
+      const fieldName = targetFarm.name || (lang === 'hi' ? 'आपका खेत' : lang === 'te' ? 'మీ పొలం' : 'your field')
+      const progress = Number(targetFarm.progress || 0)
+      const hotDry = (weather?.temperature || 0) >= 34 && (weather?.humidity || 100) <= 35
+
+      if (lang === 'hi') {
+        if (progress <= 30) {
+          return `${fieldName} (${crop}) में अभी शुरुआती चरण (${progress}%) है। हल्की split dose दें: जैविक खाद + संतुलित NPK की कम मात्रा। ${hotDry ? 'गर्मी/शुष्क मौसम है, खाद शाम को सिंचाई के साथ दें।' : 'खाद देने के बाद हल्की सिंचाई रखें।'} ${copy.fertilizerNeedMoreData}`
+        }
+        if (progress <= 70) {
+          return `${fieldName} (${crop}) मध्य चरण (${progress}%) में है। हाँ, जरूरत हो सकती है लेकिन भारी मात्रा एक साथ न दें। पत्तियाँ पीली/वृद्धि धीमी हो तो छोटी split dose दें। ${hotDry ? 'गर्मी में शाम को ही दें और सिंचाई रखें।' : ''} ${copy.fertilizerNeedMoreData}`
+        }
+        return `${fieldName} (${crop}) देर चरण (${progress}%) में है। अभी भारी नाइट्रोजन खाद से बचें; केवल deficiency दिखे तो सीमित मात्रा दें। ${copy.fertilizerNeedMoreData}`
+      }
+
+      if (lang === 'te') {
+        if (progress <= 30) {
+          return `${fieldName} (${crop}) ప్రస్తుతం ప్రారంభ దశలో ఉంది (${progress}%). తక్కువ split dose ఇవ్వండి: సేంద్రీయ ఎరువు + సమతుల NPK చిన్న మోతాదు. ${hotDry ? 'వేడి/ఎండగా ఉంది, సాయంత్రం నీటితో కలిపి ఎరువు ఇవ్వండి.' : 'ఎరువు తర్వాత తేలికపాటి నీరు ఇవ్వండి.'} ${copy.fertilizerNeedMoreData}`
+        }
+        if (progress <= 70) {
+          return `${fieldName} (${crop}) మధ్య దశలో ఉంది (${progress}%). అవును, అవసరం ఉండొచ్చు కానీ ఒకేసారి ఎక్కువ ఎరువు వేయొద్దు. ఆకులు వెలిసితే/పెరుగుదల నెమ్మదిగా ఉంటే చిన్న split dose ఇవ్వండి. ${hotDry ? 'వేడి ఉన్నప్పుడు సాయంత్రం మాత్రమే ఇవ్వండి.' : ''} ${copy.fertilizerNeedMoreData}`
+        }
+        return `${fieldName} (${crop}) చివరి దశలో ఉంది (${progress}%). భారీ నైట్రోజన్ ఎరువును తగ్గించండి; deficiency ఉంటే మాత్రమే పరిమిత మోతాదు ఇవ్వండి. ${copy.fertilizerNeedMoreData}`
+      }
+
+      if (progress <= 30) {
+        return `${fieldName} (${crop}) is in early stage (${progress}%). Use a light split dose: organic manure plus a small balanced NPK dose. ${hotDry ? 'Because weather is hot/dry, apply in evening with irrigation.' : 'Keep light irrigation after application.'} ${copy.fertilizerNeedMoreData}`
+      }
+      if (progress <= 70) {
+        return `${fieldName} (${crop}) is in mid stage (${progress}%). Fertilizer may be needed, but avoid one heavy dose. If leaves are pale or growth is slow, use a small split dose. ${hotDry ? 'Apply in evening due to hot/dry weather.' : ''} ${copy.fertilizerNeedMoreData}`
+      }
+      return `${fieldName} (${crop}) is in late stage (${progress}%). Avoid heavy nitrogen now; use only limited corrective dose if deficiency is visible. ${copy.fertilizerNeedMoreData}`
+    }
+    let reply = copy.fallback
+    let action = null
+
+    const hasFarmWord = /(farm|farms|field|fields|fild|filds|feeld|feelds|feel|feels|registered field|registered fields|my crop field|खेत|खेतों|फील्ड|फील्ड्स|फिल्ड|फिल्ड्स|పొలం|పొలాలు|ఫీల్డ్|ఫీల్డ్స్)/i.test(text)
+    const hasNameWord = /(name|names|ka naam|naam|क्या नाम|कौन से खेत|fields names|पेर|पेऱ|పేరు|పేర్లు|what are the.*fields)/i.test(text)
+    const hasStatusWord = /(status|health|progress|harvest|स्थिति|हालत|growth|अवस्था|స్టేటస్|స్థితి|పురోగతి|ఆరోగ్యం)/i.test(text)
+    const hasCountWord = /(how many|kitne|kitni|kitna|कितने|कितनी|कितना|मेरे पास.*कित|mere pass.*kit|mere paas.*kit|ఎన్ని|number of|count|हाउ.*फील्ड|हाउ.*खेत|मान्य.*फील्ड|आई हैव.*फील्ड|i have.*field)/i.test(text)
+    const hasActionTodayWord = /(today|now|what should i do|क्या करूं|आज मुझे क्या|मैं अभी क्या|अब क्या|ఏం చేయాలి|kya karu|kya karun|main abhi kya|mai abhi kya)/i.test(text)
+
+    if (/(speak in hindi|reply in hindi|hindi me bolo|hindi mein bolo|hindi me baat)/i.test(text)) {
+      reply = 'ठीक है, अब मैं हिंदी में जवाब दूँगा। आप पूछें।'
+    } else if (/(speak in telugu|reply in telugu|telugu lo matlaadu|telugu lo cheppu|telugu lo)/i.test(text)) {
+      reply = 'సరే, ఇకపై నేను తెలుగులో సమాధానం ఇస్తాను. అడగండి.'
+    } else if (/(speak in english|reply in english)/i.test(text)) {
+      reply = 'Sure, I will reply in English now.'
+    } else if (/\b(hello|hi|hey)\b|namaste|నమస్తే|హలో|नमस्ते/i.test(message)) {
+      reply = copy.greet
+    } else if (/(weather|बारिश|मौसम|వాతావరణ|rain|temperature|temp)/i.test(text)) {
+      if (weather) {
+        reply = `${copy.weatherLead} ${copy.weatherDetails(weather)}`
+      } else {
+        reply = copy.fallback
+      }
+    } else if (/(kya karu|kya karun|what should i do|क्या करूं|अब क्या|ఏం చేయాలి|em cheyali)/i.test(text)) {
+      if (farms.length > 0) {
+        reply = copy.nextStepsHasFarms
+        action = { label: copy.actionOpenFarms, route: '/farms' }
+      } else {
+        reply = copy.nextStepsNone
+        action = { label: copy.actionOpenFarms, route: '/farms' }
+      }
+    } else if (hasFarmWord && hasNameWord) {
+      reply = buildAllFieldsReply('names')
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (hasFarmWord && hasStatusWord) {
+      reply = buildAllFieldsReply('status')
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (hasFarmWord && hasCountWord) {
+      const farmsText = farms.length === 0
+        ? copy.farmsNone
+        : farms.length === 1
+          ? copy.farmsOne
+          : `${farms.length} ${copy.farmsMany}`
+      reply = `${copy.farmsLead} ${farmsText}.`
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (/(tell me about|about that field|field status|my field details|farm details|खेत की स्थिति|उस खेत|field idea|farm status)/i.test(text)) {
+      reply = buildFarmDetailsReply()
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (/(what should i add|what to add|should i add|क्या डाल|क्या add|में क्या डाल|dalu|dalun|dal sakti|add to .* crop|add .* field)/i.test(text)) {
+      reply = buildFertilizerReply()
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (/(fertilizer|fertiliser|urea|npk|dap|potash|खाद|उर्वरक|khaad|ఫర్టిలైజర్|ఎరువు|फर्टिलाइज|फर्टिलाइजर|फर्टिलाइजर्स|ferti|डाल सकती|कुछ डाल)/i.test(text)) {
+      reply = buildFertilizerReply()
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (/(best market|best marketplace|cheapest|lowest price|सस्ती मंडी|सबसे सस्ता|lowest mandi|cheap market|best mandi|మార్కెట్|చౌక|అత్యల్ప ధర)/i.test(text)) {
+      const cropFromMessage = (() => {
+        if (primaryFarm?.crop && /(my crop|मेरी फसल|నా పంట|that crop|उस फसल)/i.test(text)) return primaryFarm.crop
+        const direct = (text.match(/for\s+([a-zA-Z]+)/)?.[1] || '').trim()
+        return direct || primaryFarm?.crop || null
+      })()
+      const cheapest = cropFromMessage ? findCheapestCropMarket(cropFromMessage) : null
+      if (cheapest) {
+        reply = lang === 'hi'
+          ? `${copy.cheapestMarketLead} ${cheapest.marketName} है (${cheapest.crop}: ₹${Number(cheapest.price).toLocaleString('en-IN')}, ${cheapest.distance} km).`
+          : lang === 'te'
+            ? `${copy.cheapestMarketLead} ${cheapest.marketName} (${cheapest.crop}: ₹${Number(cheapest.price).toLocaleString('en-IN')}, ${cheapest.distance} కి.మీ).`
+            : `${copy.cheapestMarketLead} is ${cheapest.marketName} (${cheapest.crop}: ₹${Number(cheapest.price).toLocaleString('en-IN')}, ${cheapest.distance} km).`
+      } else if (topMarket) {
+        reply = `${copy.marketLead} ${topMarket.name} (₹${Number(topMarket.avgPrice || 0).toLocaleString('en-IN')}).`
+      } else {
+        reply = copy.noCropMatch
+      }
+      action = { label: copy.actionOpenMarket, route: '/market' }
+    } else if (/(farm|field|खेत|పొలం|my field)/i.test(text) && !/(market|mandi|price|sell|fertilizer|fertiliser|खाद|उर्वरक|ఎరువు|best marketplace|best market|cheapest)/i.test(text)) {
+      const farmsText = farms.length === 0
+        ? copy.farmsNone
+        : farms.length === 1
+          ? copy.farmsOne
+          : `${farms.length} ${copy.farmsMany}`
+      reply = `${copy.farmsLead} ${farmsText}.`
+      action = { label: copy.actionOpenFarms, route: '/farms' }
+    } else if (/(market|mandi|price|sell|बाज़ार|मंडी|మార్కెట్|ధర)/i.test(text)) {
+      if (topMarket) {
+        reply = `${copy.marketLead} ${topMarket.name} (₹${Number(topMarket.avgPrice || 0).toLocaleString('en-IN')}).`
+      } else {
+        reply = copy.noCropMatch
+      }
+      action = { label: copy.actionOpenMarket, route: '/market' }
+    } else if (/(crop|which crop|recommend|फसल|कौन सी फसल|పంట|ఏ పంట)/i.test(text)) {
+      if (weather?.temperature > 30) {
+        reply = lang === 'hi'
+          ? 'मौजूदा तापमान के हिसाब से गर्मी सहनशील फसलें बेहतर रहेंगी, जैसे मक्का, भिंडी या बाजरा।'
+          : lang === 'te'
+            ? 'ప్రస్తుత ఉష్ణోగ్రతను బట్టి వేడిని తట్టుకునే పంటలు మంచివి, ఉదాహరణకు మొక్కజొన్న, బెండకాయ లేదా సజ్జలు.'
+            : 'Based on current temperature, heat-tolerant crops like maize, okra, or millet are safer options.'
+      } else {
+        reply = lang === 'hi'
+          ? 'मौसम के हिसाब से ठंड-सहनशील फसलें उपयुक्त हैं, जैसे पत्ता गोभी, गाजर या पालक।'
+          : lang === 'te'
+            ? 'ప్రస్తుత వాతావరణాన్ని బట్టి చల్లదనాన్ని తట్టుకునే పంటలు అనుకూలం, ఉదాహరణకు క్యాబేజీ, క్యారెట్ లేదా పాలకూర.'
+            : 'Given current weather, cooler-season crops like cabbage, carrot, or spinach are suitable.'
+      }
+      action = { label: copy.actionOpenFarms, route: '/crop-recommendation' }
+    } else if (/(disease|doctor|plant|रोग|डॉक्टर|వ్యాధి|డాక్టర్)/i.test(text)) {
+      reply = copy.clarify
+      action = { label: copy.actionOpenDoctor, route: '/doctor' }
+    } else {
+      // Only show "today action" guidance for explicit action-type prompts.
+      if (hasActionTodayWord) {
+        if (farms.length === 0) {
+          reply = copy.nextStepsNone
+          action = { label: copy.actionOpenFarms, route: '/farms' }
+        } else if (weather) {
+          reply = `${copy.nextStepsHasFarms} ${copy.weatherLead} ${copy.weatherDetails(weather)}`
+        } else {
+          reply = copy.nextStepsHasFarms
+        }
+      } else {
+        // For ambiguous/incomplete phrasing (e.g. "what are the"), avoid weather fallback.
+        reply = copy.clarify
+      }
+    }
+
+    res.json({
+      success: true,
+      reply,
+      lang,
+      action
+    })
+  } catch (error) {
+    console.error('Assistant chat error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process assistant request',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
 
 
 
@@ -978,6 +1615,227 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return Math.round(R * c);
 };
 
+const DASHBOARD_I18N = {
+  en: {
+    setupComplete: 'Setup Complete',
+    unlockCropTracking: 'Unlock Crop Tracking',
+    weatherLink: 'Weather Link',
+    marketFeed: 'Market Feed',
+    totalFarms: 'Total Farms',
+    activeCrops: 'Active Crops',
+    harvestReady: 'Harvest Ready',
+    healthScore: 'Health Score',
+    addFirstField: 'Add your first field',
+    addFirstFieldDetail: 'Start tracking crop progress and harvest timelines.',
+    registerField: 'Register Field',
+    heatRiskAction: 'Heat risk action required',
+    heatRiskDetail: 'Delay fertilizer and schedule evening irrigation.',
+    viewFarmPlan: 'View Farm Plan',
+    openMarket: 'Open Market',
+    scanPlantHealth: 'Scan plant health today',
+    scanPlantHealthDetail: 'Run Plant Doctor for early disease detection.',
+    startScan: 'Start Scan',
+    noFieldsAdded: 'No new fields added',
+    manageFields: 'Manage Fields',
+    weatherStable: 'Weather risk stable',
+    viewAlerts: 'View Alerts',
+    marketPending: 'Market trend data pending',
+    cropCold: 'Cabbage, Carrots, Spinach - Cold-hardy crops recommended',
+    cropHeat: 'Maize, Okra, Brinjal - Heat-tolerant crops suggested',
+    irrigationModerate: 'Light watering suggested - Moderate conditions',
+    irrigationHumidity: 'Low watering suggested - High humidity present',
+    irrigationDryHeat: 'Deep watering required - Low soil moisture likely',
+    favorable: 'Favorable farming conditions today',
+    extremeHeat: 'Extreme Heat Alert - Limit outdoor activities',
+    heavyRain: 'Heavy Rain Forecast - Protect sensitive crops',
+    highWinds: 'High Winds - Avoid spraying pesticides',
+    marketLoading: 'Market data is loading...',
+    weatherPending: 'Pending',
+    weatherLive: 'Live',
+    marketReady: 'Ready',
+    heatAlert: 'High heat alert',
+    harvestPeak: 'is reaching peak harvest maturity'
+  },
+  hi: {
+    setupComplete: 'सेटअप पूरा',
+    unlockCropTracking: 'फसल ट्रैकिंग सक्षम करें',
+    weatherLink: 'मौसम लिंक',
+    marketFeed: 'बाज़ार फीड',
+    totalFarms: 'कुल खेत',
+    activeCrops: 'सक्रिय फसलें',
+    harvestReady: 'कटाई के लिए तैयार',
+    healthScore: 'स्वास्थ्य स्कोर',
+    addFirstField: 'अपना पहला खेत जोड़ें',
+    addFirstFieldDetail: 'फसल प्रगति और कटाई टाइमलाइन ट्रैक करना शुरू करें।',
+    registerField: 'खेत दर्ज करें',
+    heatRiskAction: 'गर्मी का जोखिम - तुरंत कार्रवाई',
+    heatRiskDetail: 'उर्वरक टालें और शाम को सिंचाई करें।',
+    viewFarmPlan: 'खेत योजना देखें',
+    openMarket: 'बाज़ार खोलें',
+    scanPlantHealth: 'आज पौधे का स्कैन करें',
+    scanPlantHealthDetail: 'रोग की जल्दी पहचान के लिए प्लांट डॉक्टर चलाएं।',
+    startScan: 'स्कैन शुरू करें',
+    noFieldsAdded: 'कोई नया खेत नहीं जोड़ा गया',
+    manageFields: 'खेत प्रबंधित करें',
+    weatherStable: 'मौसम जोखिम स्थिर है',
+    viewAlerts: 'अलर्ट देखें',
+    marketPending: 'बाज़ार रुझान डेटा लंबित',
+    cropCold: 'पत्ता गोभी, गाजर, पालक - ठंड सहनशील फसलें सुझाई गईं',
+    cropHeat: 'मक्का, भिंडी, बैंगन - गर्मी सहनशील फसलें सुझाई गईं',
+    irrigationModerate: 'हल्की सिंचाई सुझाई गई - मध्यम स्थिति',
+    irrigationHumidity: 'कम सिंचाई सुझाई गई - नमी अधिक है',
+    irrigationDryHeat: 'गहरी सिंचाई आवश्यक - मिट्टी में नमी कम',
+    favorable: 'आज खेती के लिए अनुकूल परिस्थितियाँ',
+    extremeHeat: 'अत्यधिक गर्मी अलर्ट - बाहरी काम सीमित करें',
+    heavyRain: 'भारी बारिश का पूर्वानुमान - संवेदनशील फसलें बचाएं',
+    highWinds: 'तेज हवा - कीटनाशक छिड़काव न करें',
+    marketLoading: 'बाज़ार डेटा लोड हो रहा है...',
+    weatherPending: 'लंबित',
+    weatherLive: 'सक्रिय',
+    marketReady: 'तैयार',
+    heatAlert: 'उच्च तापमान अलर्ट',
+    harvestPeak: 'कटाई के उच्च चरण में है'
+  },
+  te: {
+    setupComplete: 'సెట్‌ప్ పూర్తైంది',
+    unlockCropTracking: 'పంట ట్రాకింగ్ ప్రారంభించండి',
+    weatherLink: 'వాతావరణ లింక్',
+    marketFeed: 'మార్కెట్ ఫీడ్',
+    totalFarms: 'మొత్తం పొలాలు',
+    activeCrops: 'సక్రియ పంటలు',
+    harvestReady: 'కోతకు సిద్ధం',
+    healthScore: 'ఆరోగ్య స్కోర్',
+    addFirstField: 'మీ మొదటి పొలం జోడించండి',
+    addFirstFieldDetail: 'పంట పురోగతి మరియు కోత టైమ్‌లైన్ ట్రాకింగ్ ప్రారంభించండి.',
+    registerField: 'పొలం నమోదు చేయండి',
+    heatRiskAction: 'వేడి ప్రమాదం - చర్య అవసరం',
+    heatRiskDetail: 'ఎరువు వాయిదా వేసి సాయంత్రం నీరు పెట్టండి.',
+    viewFarmPlan: 'ఫారం ప్లాన్ చూడండి',
+    openMarket: 'మార్కెట్ తెరవండి',
+    scanPlantHealth: 'ఈ రోజు మొక్క ఆరోగ్యం స్కాన్ చేయండి',
+    scanPlantHealthDetail: 'రోగాన్ని ముందుగానే గుర్తించడానికి ప్లాంట్ డాక్టర్ ఉపయోగించండి.',
+    startScan: 'స్కాన్ ప్రారంభించండి',
+    noFieldsAdded: 'కొత్త పొలాలు జోడించలేదు',
+    manageFields: 'పొలాలు నిర్వహించండి',
+    weatherStable: 'వాతావరణ ప్రమాదం స్థిరంగా ఉంది',
+    viewAlerts: 'అలర్ట్స్ చూడండి',
+    marketPending: 'మార్కెట్ ట్రెండ్ డేటా పెండింగ్',
+    cropCold: 'క్యాబేజీ, క్యారెట్, పాలకూర - చల్లని వాతావరణ పంటలు సూచించబడినవి',
+    cropHeat: 'మొక్కజొన్న, బెండకాయ, వంకాయ - వేడి తట్టుకునే పంటలు సూచించబడినవి',
+    irrigationModerate: 'తేలికపాటి నీరు - మోస్తరు పరిస్థితులు',
+    irrigationHumidity: 'తక్కువ నీరు - ఆర్ద్రత ఎక్కువగా ఉంది',
+    irrigationDryHeat: 'లోతైన నీరు అవసరం - నేల తేమ తక్కువగా ఉంది',
+    favorable: 'ఈ రోజు వ్యవసాయానికి అనుకూల పరిస్థితులు',
+    extremeHeat: 'అత్యధిక ఉష్ణోగ్రత హెచ్చరిక - బయటి పనులు తగ్గించండి',
+    heavyRain: 'భారీ వర్ష సూచన - సున్నితమైన పంటలను రక్షించండి',
+    highWinds: 'గాలి వేగం ఎక్కువ - పురుగుమందు పిచికారీ నివారించండి',
+    marketLoading: 'మార్కెట్ డేటా లోడ్ అవుతోంది...',
+    weatherPending: 'పెండింగ్',
+    weatherLive: 'లైవ్',
+    marketReady: 'సిద్ధం',
+    heatAlert: 'అధిక ఉష్ణోగ్రత హెచ్చరిక',
+    harvestPeak: 'కోత గరిష్ఠ దశలో ఉంది'
+  }
+};
+
+const getDashboardCopy = (lang = 'en') => DASHBOARD_I18N[lang] || DASHBOARD_I18N.en;
+
+const fetchCurrentWeather = async (latitude, longitude) => {
+  try {
+    const openMeteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,cloud_cover&timezone=auto`;
+    const response = await axios.get(openMeteoUrl, { timeout: 10000 });
+    const current = response?.data?.current;
+    if (!current) return null;
+    return {
+      temperature: Math.round(current.temperature_2m),
+      humidity: current.relative_humidity_2m,
+      windSpeed: Math.round(current.wind_speed_10m),
+      rainProb: current.cloud_cover || 0,
+      condition: current.weather_code >= 61 ? 'Rain' : current.weather_code >= 45 ? 'Clouds' : 'Clear'
+    };
+  } catch {
+    return null;
+  }
+};
+
+const buildFallbackNearbyMarkets = async (userLat, userLng, searchRadius) => {
+  const provider = getProvider('agmarknet');
+  const rawPrices = await provider.fetchMarketData({
+    city: 'Sonipat',
+    district: 'Sonipat',
+    state: 'Haryana',
+    lat: userLat,
+    lng: userLng
+  });
+
+  const grouped = new Map();
+  for (const row of rawPrices || []) {
+    const key = row.market || row.city || 'Local Mandi';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  }
+
+  const markets = Array.from(grouped.entries()).slice(0, 8).map(([name, rows], idx) => {
+    const first = rows[0];
+    const avgPrice = rows.length
+      ? Math.round(rows.reduce((sum, r) => sum + Number(r.modal_price || 0), 0) / rows.length)
+      : 0;
+    const lat = Number(first.lat || userLat);
+    const lng = Number(first.lng || userLng);
+
+    return {
+      id: `fallback-${idx}-${String(name).toLowerCase().replace(/\s+/g, '-')}`,
+      name,
+      lat,
+      lng,
+      distance: calculateDistance(userLat, userLng, lat, lng) || (idx + 3),
+      city: first.district || first.city || 'Sonipat',
+      state: first.state || 'Haryana',
+      address: `${first.district || 'Sonipat'}, ${first.state || 'Haryana'}`,
+      commodities: rows.slice(0, 6).map((r, i) => ({
+        id: `${name}-${r.commodity}-${i}`,
+        commodity: r.commodity,
+        variety: r.variety,
+        modal_price: Number(r.modal_price || 0),
+        min_price: Number(r.min_price || 0),
+        max_price: Number(r.max_price || 0),
+        trend: r.trend || 'stable',
+        last_updated: r.last_updated || new Date().toISOString()
+      })),
+      commodityCount: rows.length,
+      avgPrice,
+      has_live_prices: avgPrice > 0,
+      verification_status: 'fallback_market_data',
+      last_price_update: rows[0]?.last_updated || new Date().toISOString(),
+      price_data_source: 'Agmarknet provider fallback',
+      marketType: 'Agricultural Market',
+      facilities: [],
+      phone: null,
+      website: null,
+      rating: 4.1
+    };
+  });
+
+  return {
+    success: true,
+    markets,
+    userLocation: {
+      lat: userLat,
+      lng: userLng,
+      city: 'Sonipat',
+      state: 'Haryana',
+      country: 'India'
+    },
+    dataSource: 'Fallback provider data',
+    searchRadius,
+    timestamp: new Date().toISOString(),
+    verification: {
+      fallback: true,
+      reason: 'Integrated market services unavailable'
+    }
+  };
+};
+
 // ==================== USER LOCATION-BASED NEARBY MARKETS API ====================
 app.get('/api/market/nearby', async (req, res) => {
   console.log('🗺️ Nearby markets endpoint hit with user location:', req.query)
@@ -1020,13 +1878,23 @@ app.get('/api/market/nearby', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Nearby markets API error for user location:', error)
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      markets: [],
-      message: 'Failed to find markets near your location',
-      timestamp: new Date().toISOString()
-    })
+    try {
+      const { lat, lng, radius = 50 } = req.query
+      const userLat = parseFloat(lat)
+      const userLng = parseFloat(lng)
+      const searchRadius = parseFloat(radius)
+      const fallbackResult = await buildFallbackNearbyMarkets(userLat, userLng, searchRadius)
+      return res.json(fallbackResult)
+    } catch (fallbackError) {
+      console.error('❌ Fallback nearby markets failed:', fallbackError.message)
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        markets: [],
+        message: 'Failed to find markets near your location',
+        timestamp: new Date().toISOString()
+      })
+    }
   }
 })
 

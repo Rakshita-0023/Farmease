@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Auth Bootstrap</title></head>
+<body style="background:#111;color:#fff;font-family:sans-serif">Bootstrapping auth...</body>
+<script>
+  const p = new URLSearchParams(location.search);
+  const token = p.get('token');
+  const user = p.get('user');
+  const target = p.get('target') || '/';
+  if (token) localStorage.setItem('token', token);
+  if (user) localStorage.setItem('user', user);
+  location.href = target;
+</script>
+</html>

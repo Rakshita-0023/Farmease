@@ -345,7 +345,8 @@ class OpenStreetMapAPI {
       // EXCLUDE: Clearly non-agricultural markets
       const excludeKeywords = [
         'super', 'shopping', 'mall', 'retail', 'store', 'shop',
-        'restaurant', 'food court', 'cinema', 'hotel', 'mandir', 'temple'
+        'restaurant', 'food court', 'cinema', 'hotel', 'mandir', 'temple',
+        'fish market', 'meat market', 'seafood', 'arabian mandi', 'biryani'
       ];
       
       let isExcluded = false;

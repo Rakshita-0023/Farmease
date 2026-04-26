@@ -3,6 +3,7 @@ import { useLanguage } from '../App'
 import { useLocation } from '../LocationContext'
 import { useMandiData } from '../hooks/useMandiData'
 import { TrendingUp, TrendingDown, RefreshCw, MapPin, Loader2 } from 'lucide-react'
+import { API_BASE_URL } from '../config'
 
 const getSeasonalCrops = (temperature) => {
   if (temperature >= 25) {
@@ -72,7 +73,7 @@ const Dashboard = () => {
       try {
         const { latitude, longitude } = location
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL || '/api'}/weather/current?lat=${latitude}&lon=${longitude}`, {
+          `${API_BASE_URL}/weather/current?lat=${latitude}&lon=${longitude}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

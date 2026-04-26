@@ -14,6 +14,36 @@ class IntegratedMarketService {
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
   }
 
+  sanitizeMarketName(name, fallbackCity, index = 0) {
+    const raw = String(name || '').trim();
+    const genericNames = new Set([
+      '',
+      'unknown',
+      'market',
+      'mandi',
+      'agricultural market',
+      'local marketplace',
+      'market area'
+    ]);
+    const normalized = raw.toLowerCase();
+    if (!genericNames.has(normalized)) return raw;
+    const safeCity = String(fallbackCity || 'Local').trim() || 'Local';
+    return `${safeCity} Mandi ${index + 1}`;
+  }
+
+  hasValidName(name) {
+    const value = String(name || '').trim().toLowerCase();
+    return value && !['unknown', 'market', 'mandi', 'agricultural market', 'local marketplace', 'market area'].includes(value);
+  }
+
+  toTitleCase(value) {
+    return String(value || '')
+      .trim()
+      .split(/\s+/)
+      .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part)
+      .join(' ');
+  }
+
   /**
    * MAIN METHOD: Get verified nearby markets with live prices
    * UPDATED: Now uses OSM broad search + agricultural filtering with fallback
@@ -256,8 +286,27 @@ class IntegratedMarketService {
    */
   async mapPricesToOSMMarkets(osmMarkets, livePrices, userLocation) {
     const marketsWithPrices = [];
+    const districtPool = (livePrices || [])
+      .filter((priceRecord) => Number(priceRecord.modal_price || 0) > 0)
+      .slice(0, 24)
+      .map((priceRecord) => ({
+      commodity: priceRecord.commodity,
+      variety: priceRecord.variety,
+      min_price: priceRecord.min_price,
+      max_price: priceRecord.max_price,
+      modal_price: priceRecord.modal_price,
+      unit: priceRecord.unit,
+      date: priceRecord.date,
+      last_updated: priceRecord.last_updated,
+      source: priceRecord.source,
+      trend: priceRecord.trend,
+      verification_status: 'district_level_estimate',
+      market_id: null,
+      canonical_market_name: null
+    }));
 
-    for (const market of osmMarkets) {
+    for (let idx = 0; idx < osmMarkets.length; idx++) {
+      const market = osmMarkets[idx];
       // Find prices for this market using fuzzy name matching
       const marketPrices = [];
 
@@ -289,21 +338,34 @@ class IntegratedMarketService {
         }
       }
 
+      // If strict name matching fails, use a small district-level sample.
+      if (marketPrices.length === 0 && districtPool.length > 0) {
+        marketPrices.push(...districtPool.slice(0, 6));
+      }
+
       // Calculate market statistics
       const avgPrice = marketPrices.length > 0 
         ? Math.round(marketPrices.reduce((sum, p) => sum + p.modal_price, 0) / marketPrices.length)
         : 0;
 
+      const marketCityRaw = (market.city && market.city !== 'Unknown') ? market.city : (userLocation.city || userLocation.district || 'Unknown');
+      const marketStateRaw = (market.state && market.state !== 'Unknown') ? market.state : (userLocation.state || 'Unknown');
+      const marketCity = this.toTitleCase(marketCityRaw);
+      const marketState = this.toTitleCase(marketStateRaw);
+      const displayName = this.sanitizeMarketName(market.name, marketCity, idx);
+      const hasStrictMatch = marketPrices.some((p) => p.verification_status === 'agmarknet_verified');
+      const hasLivePrices = Number(avgPrice || 0) > 0;
+
       // Enhanced market data with OSM verification
       const enhancedMarket = {
         id: market.id,
-        name: market.name,
+        name: displayName,
         lat: market.lat,
         lng: market.lng,
         distance: market.distance,
-        city: market.city,
-        state: market.state,
-        address: market.address,
+        city: marketCity,
+        state: marketState,
+        address: market.address || `${displayName}, ${marketCity}, ${marketState}`,
         
         // Price data (only if available)
         commodities: marketPrices,
@@ -311,10 +373,10 @@ class IntegratedMarketService {
         avgPrice: avgPrice,
         
         // OSM verification status
-        verification_status: 'osm_geographic_verified',
-        has_live_prices: marketPrices.length > 0,
-        price_data_source: marketPrices.length > 0 ? 'AGMARKNET' : 'No price data available',
-        last_price_update: marketPrices.length > 0 ? marketPrices[0].last_updated : null,
+        verification_status: hasStrictMatch ? 'osm_geographic_verified' : 'district_level_estimate',
+        has_live_prices: hasLivePrices,
+        price_data_source: hasLivePrices ? (hasStrictMatch ? 'AGMARKNET' : 'AGMARKNET district estimate') : 'No price data available',
+        last_price_update: hasLivePrices ? marketPrices[0].last_updated : null,
         
         // Market metadata from OSM
         openHours: market.openingHours || '6:00 AM - 8:00 PM',
@@ -359,8 +421,14 @@ class IntegratedMarketService {
       return true;
     }
 
-    // Check if one name contains the other
-    if (normalizedOSM.includes(normalizedAgmarknet) || normalizedAgmarknet.includes(normalizedOSM)) {
+    // Avoid mapping generic names like "Mandi" to every market.
+    if (!this.hasValidName(normalizedOSM)) {
+      return false;
+    }
+
+    // Check if one name contains the other (only for sufficiently specific names)
+    if (normalizedOSM.length >= 6 && normalizedAgmarknet.length >= 6 &&
+        (normalizedOSM.includes(normalizedAgmarknet) || normalizedAgmarknet.includes(normalizedOSM))) {
       return true;
     }
 
@@ -378,9 +446,18 @@ class IntegratedMarketService {
       }
     }
 
-    // Check for city/district name in market name
-    if (normalizedOSM.includes(normalizedAgmarknetDistrict) || 
-        normalizedAgmarknet.includes(normalizedOSMCity)) {
+    // Token overlap with location guard for better precision
+    const toTokens = (value) => value.split(' ').map((t) => t.trim()).filter((t) => t.length >= 4);
+    const stopWords = new Set(['market', 'mandi', 'agricultural', 'wholesale', 'apmc']);
+    const osmTokens = toTokens(normalizedOSM).filter((t) => !stopWords.has(t));
+    const agTokens = toTokens(normalizedAgmarknet).filter((t) => !stopWords.has(t));
+    const overlap = osmTokens.filter((token) => agTokens.includes(token)).length;
+
+    if (overlap >= 1 &&
+        normalizedOSMCity && normalizedAgmarknetDistrict &&
+        (normalizedOSMCity === normalizedAgmarknetDistrict ||
+         normalizedOSMCity.includes(normalizedAgmarknetDistrict) ||
+         normalizedAgmarknetDistrict.includes(normalizedOSMCity))) {
       return true;
     }
 

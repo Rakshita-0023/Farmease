@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { Eye, EyeOff, Loader2, AlertCircle, X, Zap, Leaf } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { API_BASE_URL } from '../config'
 
 const Login = ({ onLogin }) => {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
   const [isLogin, setIsLogin] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
@@ -82,9 +86,12 @@ const Login = ({ onLogin }) => {
         localStorage.setItem('token', response.token)
         localStorage.setItem('user', JSON.stringify(response.user))
         onLogin(response.user)
+        navigate('/', { replace: true })
       }
     } catch (error) {
-      setError(error.message || 'Authentication failed')
+      const message = error.message || 'Login failed. Please check your email and password.'
+      setError(message)
+      alert(message)
     } finally {
       setLoading(false)
     }
@@ -95,8 +102,7 @@ const Login = ({ onLogin }) => {
     setError('')
 
     try {
-      // Use hardcoded URL to ensure it works
-      const apiUrl = 'https://farmease-tqgy.onrender.com/api/auth/google'
+      const apiUrl = `${API_BASE_URL}/auth/google`
       console.log('Google Auth - Calling URL:', apiUrl)
 
       const response = await fetch(apiUrl, {
@@ -125,6 +131,7 @@ const Login = ({ onLogin }) => {
         localStorage.setItem('token', res.token)
         localStorage.setItem('user', JSON.stringify(res.user))
         onLogin(res.user)
+        navigate('/', { replace: true })
       } else {
         setError(`Google sign in failed: ${res.details || res.error || 'Unknown error'}`)
       }
@@ -162,7 +169,7 @@ const Login = ({ onLogin }) => {
               <Leaf className="text-white" size={32} />
             </motion.div>
             <h1 className="text-3xl font-black text-white mb-1">FarmEase</h1>
-            <p className="text-white/60">Smart farming starts here</p>
+            <p className="text-white/60">{t('smartFarmingStartsHere')}</p>
           </div>
 
           {/* Tab Switcher */}
@@ -173,9 +180,10 @@ const Login = ({ onLogin }) => {
                   ? 'bg-white text-emerald-600 shadow-lg' 
                   : 'text-white/70 hover:text-white'
               }`}
+              disabled={loading}
               onClick={() => setIsLogin(true)}
             >
-              Login
+              {t('login')}
             </button>
             <button
               className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
@@ -183,9 +191,10 @@ const Login = ({ onLogin }) => {
                   ? 'bg-white text-emerald-600 shadow-lg' 
                   : 'text-white/70 hover:text-white'
               }`}
+              disabled={loading}
               onClick={() => setIsLogin(false)}
             >
-              Register
+              {t('register')}
             </button>
           </div>
 
@@ -199,7 +208,7 @@ const Login = ({ onLogin }) => {
                   exit={{ opacity: 0, height: 0 }}
                   className="space-y-1"
                 >
-                  <label className="text-sm font-medium text-white/80">Full Name</label>
+                  <label className="text-sm font-medium text-white/80">{t('fullName')}</label>
                   <input
                     type="text"
                     placeholder="John Doe"
@@ -212,7 +221,7 @@ const Login = ({ onLogin }) => {
             </AnimatePresence>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-white/80">Email Address</label>
+              <label className="text-sm font-medium text-white/80">{t('emailAddress')}</label>
               <input
                 type="email"
                 placeholder="farmer@example.com"
@@ -224,7 +233,7 @@ const Login = ({ onLogin }) => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-white/80">Password</label>
+              <label className="text-sm font-medium text-white/80">{t('password')}</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -261,9 +270,12 @@ const Login = ({ onLogin }) => {
               className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold text-lg hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {loading ? (
-                <Loader2 size={24} className="animate-spin" />
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  <span>{isLogin ? t('loggingIn') : t('creatingAccount')}</span>
+                </>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                isLogin ? t('signIn') : t('createAccount')
               )}
             </button>
 

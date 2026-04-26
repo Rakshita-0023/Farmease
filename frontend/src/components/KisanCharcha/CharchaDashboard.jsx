@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Users, Plus, Bell, Search, MessageSquare, Crown, Shield, X, Check } from 'lucide-react';
+import { API_ROOT } from '../../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = API_ROOT;
 
 export default function CharchaDashboard() {
   const [myCharchas, setMyCharchas] = useState([]);

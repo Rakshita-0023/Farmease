@@ -16,8 +16,10 @@ import AboutUs from './components/AboutUs'
 import Contact from './components/Contact'
 import TermsOfService from './components/TermsOfService'
 import MarketComparison from './components/MarketComparison'
+import NearbyMarketsMap from './components/NearbyMarketsMap'
 import CropRecommendation from './components/CropRecommendation'
 import PersistentVideoBackground from './components/PersistentVideoBackground'
+import RuntimeTranslator from './components/RuntimeTranslator'
 import { getAuthToken, removeAuthToken } from './config'
 import { LocationProvider } from './LocationContext'
 
@@ -102,6 +104,7 @@ function App() {
 
   return (
     <LocationProvider user={user}>
+      <RuntimeTranslator />
       {/* Persistent Video Background - always mounted, visibility controlled */}
       <PersistentVideoBackground show={showVideoBackground} />
 
@@ -136,6 +139,7 @@ function App() {
             <Route path="/market/:marketId" element={<MarketDetails />} />
             <Route path="/market/comparison" element={<MarketComparison />} />
             <Route path="/crop-recommendation" element={<CropRecommendation />} />
+            <Route path="/market-map" element={<NearbyMarketsMap />} />
             <Route path="/tips" element={<Tips />} />
             <Route path="/doctor" element={<PlantDoctor />} />
             <Route path="/community" element={<CommunityForum />} />

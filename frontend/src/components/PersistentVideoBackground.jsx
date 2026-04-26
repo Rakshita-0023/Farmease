@@ -11,11 +11,11 @@ const PersistentVideoBackground = ({ show = true }) => {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
   const [videoError, setVideoError] = useState(false)
   const location = useLocation()
-  
+
   // Video only on public routes (landing, login)
   const isPublicRoute = ['/landing', '/login', '/'].includes(location.pathname) && !localStorage.getItem('token')
   const showVideo = isPublicRoute && show && !videoError
-  const showStaticBg = (!isPublicRoute || videoError) && show
+  const showStaticBg = !showVideo && show
 
   useEffect(() => {
     const video = videoRef.current
@@ -25,16 +25,16 @@ const PersistentVideoBackground = ({ show = true }) => {
       console.log('Video can play')
       setIsVideoLoaded(true)
     }
-    
+
     const handleError = (e) => {
       console.error('Video error:', e)
       setVideoError(true)
     }
-    
+
     video.addEventListener('canplay', handleCanPlay)
     video.addEventListener('loadeddata', handleCanPlay)
     video.addEventListener('error', handleError)
-    
+
     video.play().catch((err) => {
       console.log('Video autoplay failed:', err)
       setIsVideoLoaded(true)
@@ -51,7 +51,7 @@ const PersistentVideoBackground = ({ show = true }) => {
     const video = videoRef.current
     if (!video) return
     if (showVideo) {
-      video.play().catch(() => {})
+      video.play().catch(() => { })
     } else {
       video.pause()
     }
@@ -61,42 +61,38 @@ const PersistentVideoBackground = ({ show = true }) => {
 
   return (
     <div className="fixed inset-0 z-0">
-      {/* Base dark background */}
-      <div className="absolute inset-0 bg-slate-950" />
-      
-      {/* Video - only on landing/login */}
+      {/* Video only on public routes before login */}
       {showVideo && (
-        <video
-          ref={videoRef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          poster="/backimg.png"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-            isVideoLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onError={() => setVideoError(true)}
-        >
-          <source src="/background.min.mp4" type="video/mp4" />
-        </video>
+        <>
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            poster="/backimg.png"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${isVideoLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+            onError={() => setVideoError(true)}
+          >
+            <source src="/background.min.mp4" type="video/mp4" />
+          </video>
+          {/* Video overlay to keep text readable */}
+          <div className="absolute inset-0 bg-black/40" />
+        </>
       )}
 
-      {/* Static image - on dashboard/authenticated pages OR video fallback */}
+      {/* Authenticated routes: static image only */}
       {showStaticBg && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/backimg.png)' }}
-        />
+        <>
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: "url('/backimg.png')" }}
+          />
+          <div className="absolute inset-0 bg-black/42" />
+        </>
       )}
-
-      {/* Overlay */}
-      <div className={`absolute inset-0 ${
-        isPublicRoute 
-          ? 'bg-gradient-to-br from-black/40 via-black/20 to-emerald-900/30' 
-          : 'bg-gradient-to-br from-black/70 via-black/60 to-emerald-950/70'
-      }`} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Lottie from 'lottie-react'
 import bellAnimation from '../assets/animations/bell.json'
+import { API_BASE_URL } from '../config'
 
 const NotificationSystem = ({ userLocation, farms }) => {
   const [notifications, setNotifications] = useState([])
@@ -43,7 +44,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || '/api'}/weather/current?lat=${userLocation.latitude}&lon=${userLocation.longitude}`, {
+        `${API_BASE_URL}/weather/current?lat=${userLocation.latitude}&lon=${userLocation.longitude}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

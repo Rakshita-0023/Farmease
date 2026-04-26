@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
     Upload,
     Camera,
@@ -20,7 +20,23 @@ const PlantDoctor = () => {
     const [uploadProgress, setUploadProgress] = useState(0)
     const [result, setResult] = useState(null)
     const [error, setError] = useState(null)
+    const [serviceNotice, setServiceNotice] = useState(null)
+    const [history, setHistory] = useState([])
     const fileInputRef = useRef(null)
+
+    useEffect(() => {
+        const loadHistory = async () => {
+            try {
+                const data = await apiClient.get('/plant-diagnosis/history')
+                if (Array.isArray(data)) {
+                    setHistory(data.slice(0, 5))
+                }
+            } catch {
+                setHistory([])
+            }
+        }
+        loadHistory()
+    }, [])
 
     const resizeImage = (file) => {
         return new Promise((resolve) => {
@@ -78,6 +94,7 @@ const PlantDoctor = () => {
                     setStatus('idle')
                     setResult(null)
                     setError(null)
+                    setServiceNotice(null)
                 }, 1000)
             } catch (err) {
                 setError("Failed to process image. Please try another one.")
@@ -95,6 +112,7 @@ const PlantDoctor = () => {
         setStatus('analyzing')
         setError(null)
         setResult(null)
+        setServiceNotice(null)
 
         try {
             // Convert base64 image to blob
@@ -129,15 +147,30 @@ const PlantDoctor = () => {
             // Parse disease name and create result object
             const diseaseName = result.disease || 'Unknown Disease'
             const confidence = result.confidence || 0
+            const isFallback = Boolean(result.fallback)
+            if (isFallback) {
+                setServiceNotice(result.message || 'AI service is temporarily unavailable. Showing a safe manual-review assessment.')
+            }
 
             // Determine if healthy or diseased
             const isHealthy = diseaseName.toLowerCase().includes('healthy')
+            const confidenceRounded = Math.round(confidence)
+            const urgency = isHealthy
+                ? 'Low'
+                : isFallback
+                    ? 'Review'
+                    : confidenceRounded >= 85
+                    ? 'High'
+                    : confidenceRounded >= 65
+                        ? 'Medium'
+                        : 'Review'
             
             // Create structured result
             const diseaseResult = {
                 name: diseaseName,
                 type: isHealthy ? 'Healthy' : 'Disease Detected',
-                confidence: Math.round(confidence),
+                confidence: confidenceRounded,
+                urgency,
                 symptoms: isHealthy 
                     ? ['Vibrant green leaves', 'No visible spots or discoloration', 'Strong stem structure']
                     : ['Visible disease symptoms detected', 'Requires immediate attention', 'Check leaves and stems carefully'],
@@ -146,7 +179,14 @@ const PlantDoctor = () => {
                     : 'Consult with an agricultural expert for specific treatment. Remove affected leaves if necessary.',
                 prevention: isHealthy
                     ? ['Regular monitoring', 'Balanced fertilization', 'Proper watering']
-                    : ['Isolate affected plants', 'Improve air circulation', 'Use disease-resistant varieties']
+                    : ['Isolate affected plants', 'Improve air circulation', 'Use disease-resistant varieties'],
+                doNow: isHealthy
+                    ? ['Continue current irrigation routine', 'Monitor leaves every 3 days']
+                    : ['Isolate affected plant immediately', 'Remove heavily infected leaves safely', 'Disinfect tools before reuse'],
+                avoidNow: isHealthy
+                    ? ['Avoid overwatering']
+                    : ['Do not spray random pesticides without diagnosis', 'Do not compost infected leaves'],
+                fallback: isFallback
             }
 
             setResult(diseaseResult)
@@ -162,6 +202,14 @@ const PlantDoctor = () => {
                 diagnosed_at: new Date().toISOString()
             }).catch(() => {})
 
+            setHistory(prev => [{
+                id: Date.now(),
+                disease: diseaseName,
+                confidence: confidenceRounded,
+                type: diseaseResult.type,
+                diagnosed_at: new Date().toISOString()
+            }, ...prev].slice(0, 5))
+
         } catch (err) {
             console.error('❌ Plant disease detection error:', err)
             setError(err.message || "Analysis failed. Please try again.")
@@ -176,14 +224,14 @@ const PlantDoctor = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-r from-teal-600/80 via-emerald-600/80 to-green-600/80 backdrop-blur-xl rounded-3xl p-6 border border-white/10"
+                    className="bg-gradient-to-r from-teal-600/75 via-emerald-600/75 to-green-600/75 backdrop-blur-[6px] rounded-3xl p-6 border border-white/10"
                 >
                     <div className="flex items-center gap-2 mb-2">
                         <Zap className="text-amber-400" size={20} />
                         <span className="text-emerald-200 text-xs font-semibold uppercase tracking-wider">AI Powered</span>
                     </div>
                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Plant Doctor</h1>
-                    <p className="text-white/60">Upload a photo for instant disease detection and treatment</p>
+                    <p className="text-white/70">Upload a photo for instant disease detection and treatment</p>
                 </motion.div>
 
                 <div className="grid lg:grid-cols-12 gap-6 items-start">
@@ -193,7 +241,7 @@ const PlantDoctor = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 p-5"
+                            className="bg-white/12 backdrop-blur-[6px] rounded-2xl border border-white/10 p-5"
                         >
                             <div className="aspect-square rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center relative overflow-hidden">
                                 {image ? (
@@ -304,8 +352,13 @@ const PlantDoctor = () => {
                                     key="result"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden"
+                                    className="bg-white/12 backdrop-blur-[6px] rounded-2xl border border-white/10 overflow-hidden"
                                 >
+                                    {result.fallback && serviceNotice && (
+                                        <div className="px-6 py-3 bg-amber-500/15 border-b border-amber-400/25 text-amber-100 text-sm">
+                                            {serviceNotice}
+                                        </div>
+                                    )}
                                     <div className={`p-6 ${result.type === 'Healthy' ? 'bg-emerald-600/50' : 'bg-red-600/50'} relative`}>
                                         <div className="flex justify-between items-start">
                                             <div>
@@ -315,6 +368,9 @@ const PlantDoctor = () => {
                                                     </span>
                                                     <span className="px-3 py-1 bg-amber-500 text-black rounded-full text-[10px] font-bold uppercase">
                                                         {result.confidence}% Match
+                                                    </span>
+                                                    <span className="px-3 py-1 bg-black/30 text-white rounded-full text-[10px] font-bold uppercase">
+                                                        Urgency: {result.urgency}
                                                     </span>
                                                 </div>
                                                 <h2 className="text-2xl font-bold text-white">{result.name}</h2>
@@ -329,6 +385,19 @@ const PlantDoctor = () => {
                                     </div>
 
                                     <div className="p-6 space-y-6">
+                                        <div className="bg-black/25 rounded-xl p-4 border border-white/10">
+                                            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider mb-2">
+                                                <span className="text-white/60">Confidence</span>
+                                                <span className="text-white">{result.confidence}%</span>
+                                            </div>
+                                            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                                <div
+                                                    className={`h-full ${result.confidence >= 85 ? 'bg-emerald-400' : result.confidence >= 65 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                                    style={{ width: `${result.confidence}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3 flex items-center gap-2">
                                                 <Search size={14} className="text-emerald-400" />
@@ -347,6 +416,31 @@ const PlantDoctor = () => {
                                         <div className="bg-emerald-500/20 p-5 rounded-xl border border-emerald-500/20">
                                             <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Treatment</h3>
                                             <p className="text-white/80 text-sm">{result.remedy}</p>
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                                <h3 className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2">Do Now</h3>
+                                                <ul className="space-y-2">
+                                                    {result.doNow.map((item, i) => (
+                                                        <li key={i} className="text-sm text-white/80 flex items-start gap-2">
+                                                            <div className="mt-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full shrink-0" />
+                                                            {item}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                                                <h3 className="text-xs font-bold text-red-300 uppercase tracking-wider mb-2">Avoid</h3>
+                                                <ul className="space-y-2">
+                                                    {result.avoidNow.map((item, i) => (
+                                                        <li key={i} className="text-sm text-white/80 flex items-start gap-2">
+                                                            <div className="mt-1.5 w-1.5 h-1.5 bg-red-400 rounded-full shrink-0" />
+                                                            {item}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         </div>
 
                                         <div>
@@ -375,7 +469,7 @@ const PlantDoctor = () => {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.1 }}
-                                    className="h-full min-h-[400px] bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center p-10"
+                                    className="h-full min-h-[400px] bg-white/10 backdrop-blur-[6px] rounded-2xl border border-white/10 flex flex-col items-center justify-center text-center p-10"
                                 >
                                     <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
                                         <Activity className="text-white/20" size={40} />
@@ -387,6 +481,22 @@ const PlantDoctor = () => {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+
+                        <div className="mt-4 bg-white/5 backdrop-blur-[8px] rounded-2xl border border-white/10 p-4">
+                            <h3 className="text-sm font-bold text-white/80 mb-3">Recent Scans</h3>
+                            {history.length > 0 ? (
+                                <div className="space-y-2">
+                                    {history.map((scan, idx) => (
+                                        <div key={scan.id || idx} className="flex justify-between items-center text-sm bg-black/25 rounded-lg px-3 py-2 border border-white/10">
+                                            <span className="text-white/85">{scan.disease}</span>
+                                            <span className="text-white/60">{Math.round(scan.confidence || 0)}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-white/50 text-sm">No scans yet. Your latest diagnoses will appear here.</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

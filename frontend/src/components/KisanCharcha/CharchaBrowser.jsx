@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Search, Filter, Users, Lock, Globe, Eye, UserPlus } from 'lucide-react';
+import { API_ROOT } from '../../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = API_ROOT;
 const CATEGORIES = ['All', 'Crops', 'Livestock', 'Market', 'Weather', 'Equipment', 'General'];
 
 export default function CharchaBrowser() {

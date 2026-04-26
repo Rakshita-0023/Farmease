@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -11,84 +11,116 @@
 }
 
 :root {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Outfit', sans-serif;
+    --primary: #22c55e;
 
-    /* FarmEase Design Tokens */
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-bg-hover: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    /* FarmEase Refined Design Tokens */
+    --surface-main: #0f1412;
+    --surface-card: rgba(255, 255, 255, 0.03);
+    --surface-card-hover: rgba(255, 255, 255, 0.05);
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-prominent: rgba(255, 255, 255, 0.12);
+
     --accent-emerald: #10b981;
     --accent-teal: #14b8a6;
+    --accent-warning: #fbbf24;
+    --accent-danger: #f87171;
+
     --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.6);
-    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    --glass-blur: blur(12px);
+    --text-secondary: rgba(255, 255, 255, 0.5);
+    --text-muted: rgba(255, 255, 255, 0.3);
+
+    --card-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+    --card-radius: 1.25rem;
 }
 
-/* Global Utility Classes */
+body {
+    background-image: url('/backimg.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-color: var(--surface-main);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Card System */
 .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: 1rem;
-    box-shadow: var(--card-shadow);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-    background: var(--glass-bg-hover);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
+    background: rgba(0, 0, 0, 0.4);
+    border-color: var(--border-prominent);
+    transform: translateY(-1px);
+}
+
+/* Premium Card - for Actionable Layer 1 */
+.action-card {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(20, 184, 166, 0.05) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.action-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
 }
 
 .text-gradient {
     display: inline-block;
-    background: linear-gradient(90deg, #ffffff 0%, #10b981 100%) !important;
+    background: linear-gradient(135deg, #ffffff 30%, #10b981 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
     background-clip: text !important;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 /* Page Standard Layout */
 .page-container {
-    padding: 2.5rem;
+    padding: 2rem;
     color: var(--text-primary);
     min-height: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .page-header {
-    margin-bottom: 3.5rem;
-    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    z-index: 10;
+    margin-bottom: 2.5rem;
+    animation: fadeIn 0.5s ease-out;
 }
 
 .page-header h1 {
-    font-size: 3.5rem !important;
-    font-weight: 900 !important;
-    margin-bottom: 0.75rem !important;
-    letter-spacing: -0.04em !important;
-    line-height: 1 !important;
-    background: linear-gradient(90deg, #ffffff 0%, #10b981 100%) !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    background-clip: text !important;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 0.5rem !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1.2 !important;
 }
 
 .page-header p {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 1.25rem;
-    font-weight: 500;
-    max-width: 600px;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-weight: 400;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
     }
 
     to {
@@ -99,11 +131,11 @@
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
