@@ -27,21 +27,33 @@ const PORT = process.env.PORT || 5001
 // ============================================
 // CORS MUST BE FIRST - BEFORE ANY ROUTES
 // ============================================
-const allowedOrigins = [
+const staticAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
+  'https://farmease-one.vercel.app',
+  'https://farmease-ftr3nnj2s-rakshita-s-projects.vercel.app',
+  'https://farmease-dlysywo9g-rakshita-s-projects.vercel.app',
   'https://farmeaseai-kappa.vercel.app',
   'https://farmeaseai.vercel.app',
   'https://farmease-zeta.vercel.app'
 ];
+
+// Optional override via env, comma-separated (useful for new preview domains).
+const envAllowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = new Set([...staticAllowedOrigins, ...envAllowedOrigins]);
+const vercelPreviewPattern = /^https:\/\/farmease-[a-z0-9-]+-rakshita-s-projects\.vercel\.app$/;
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.has(origin) || vercelPreviewPattern.test(origin)) {
       return callback(null, true);
     }
     

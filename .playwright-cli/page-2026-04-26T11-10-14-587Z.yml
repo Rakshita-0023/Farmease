@@ -1,0 +1,28 @@
+- generic [ref=e127]:
+  - generic [ref=e128]:
+    - generic [ref=e129]:
+      - img [ref=e131]
+      - heading "FarmEase" [level=1] [ref=e134]
+      - paragraph [ref=e135]: Smart farming starts here
+    - generic [ref=e136]:
+      - button "Login" [ref=e137] [cursor=pointer]
+      - button "Register" [ref=e138] [cursor=pointer]
+    - generic [ref=e139]:
+      - generic [ref=e140]:
+        - text: Email Address
+        - textbox "farmer@example.com" [ref=e141]
+      - generic [ref=e142]:
+        - text: Password
+        - generic [ref=e143]:
+          - textbox "••••••••" [ref=e144]
+          - button [ref=e145] [cursor=pointer]:
+            - img [ref=e146]
+      - button "Sign In" [ref=e149] [cursor=pointer]
+      - generic [ref=e154]: or continue with
+      - generic [ref=e157]:
+        - button "Continue with Google. Opens in new tab" [ref=e159] [cursor=pointer]:
+          - generic [ref=e161]:
+            - img [ref=e164]
+            - generic [ref=e171]: Continue with Google
+        - iframe
+  - paragraph [ref=e172]: By continuing, you agree to our Terms of Service

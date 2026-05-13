@@ -1,0 +1,88 @@
+- generic [ref=e7]:
+  - navigation [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - img [ref=e12]
+        - generic [ref=e15]: FarmEase
+      - generic [ref=e16]:
+        - button "Login" [ref=e17] [cursor=pointer]
+        - button "Sign Up" [ref=e18] [cursor=pointer]
+  - generic [ref=e21]:
+    - generic [ref=e25]: Smart Agriculture Platform
+    - heading "Farming Made Intelligent" [level=1] [ref=e26]:
+      - text: Farming Made
+      - generic [ref=e27]: Intelligent
+    - paragraph [ref=e28]: Empowering Indian farmers with AI-driven insights, real-time market data, and smart crop management tools.
+    - generic [ref=e29]:
+      - button "Start Free" [ref=e30] [cursor=pointer]:
+        - text: Start Free
+        - img [ref=e31]
+      - button "Watch Demo" [ref=e33] [cursor=pointer]
+    - generic [ref=e34]:
+      - generic [ref=e35]:
+        - img [ref=e36]
+        - generic [ref=e39]: No credit card
+      - generic [ref=e40]:
+        - img [ref=e41]
+        - generic [ref=e44]: Free forever
+      - generic [ref=e45]:
+        - img [ref=e46]
+        - generic [ref=e49]: Instant setup
+  - generic [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: 50K+
+      - generic [ref=e55]: Active Farmers
+    - generic [ref=e56]:
+      - generic [ref=e57]: 100+
+      - generic [ref=e58]: Mandis Covered
+    - generic [ref=e59]:
+      - generic [ref=e60]: 95%
+      - generic [ref=e61]: Accuracy Rate
+    - generic [ref=e62]:
+      - generic [ref=e63]: 24/7
+      - generic [ref=e64]: Support
+  - generic [ref=e66]:
+    - generic [ref=e67]:
+      - heading "Everything You Need" [level=2] [ref=e68]
+      - paragraph [ref=e69]: Comprehensive tools to manage your farm from sowing to harvest
+    - generic [ref=e70]:
+      - generic [ref=e71] [cursor=pointer]:
+        - img [ref=e73]
+        - heading "Weather Intelligence" [level=3] [ref=e75]
+        - paragraph [ref=e76]: Real-time forecasts and farming alerts
+      - generic [ref=e77] [cursor=pointer]:
+        - img [ref=e79]
+        - heading "Crop Management" [level=3] [ref=e82]
+        - paragraph [ref=e83]: AI-powered crop health monitoring
+      - generic [ref=e84] [cursor=pointer]:
+        - img [ref=e86]
+        - heading "Market Prices" [level=3] [ref=e89]
+        - paragraph [ref=e90]: Live mandi rates from AGMARKNET
+      - generic [ref=e91] [cursor=pointer]:
+        - img [ref=e93]
+        - heading "Smart Tips" [level=3] [ref=e95]
+        - paragraph [ref=e96]: Expert farming recommendations
+      - generic [ref=e97] [cursor=pointer]:
+        - img [ref=e99]
+        - heading "Analytics" [level=3] [ref=e101]
+        - paragraph [ref=e102]: Track yields and profits
+      - generic [ref=e103] [cursor=pointer]:
+        - img [ref=e105]
+        - heading "Plant Doctor" [level=3] [ref=e107]
+        - paragraph [ref=e108]: AI disease detection
+  - generic [ref=e111]:
+    - heading "Ready to Transform Your Farm?" [level=2] [ref=e112]
+    - paragraph [ref=e113]: Join thousands of farmers who are using FarmEase to increase yields and maximize profits.
+    - button "Get Started Free" [ref=e114] [cursor=pointer]
+  - contentinfo [ref=e115]:
+    - generic [ref=e116]:
+      - generic [ref=e117]:
+        - img [ref=e118]
+        - generic [ref=e121]: © 2025 FarmEase. All rights reserved.
+      - generic [ref=e122]:
+        - link "Privacy" [ref=e123] [cursor=pointer]:
+          - /url: "#"
+        - link "Terms" [ref=e124] [cursor=pointer]:
+          - /url: "#"
+        - link "Contact" [ref=e125] [cursor=pointer]:
+          - /url: "#"
