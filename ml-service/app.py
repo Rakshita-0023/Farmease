@@ -111,9 +111,21 @@ def load_disease_classes():
     print("ℹ️ Disease classes file not found")
     return []
 
+# Keep optional model loading out of import/health startup. Render can serve
+# health and crop requests even when TensorFlow or the optional disease model is
+# unavailable; disease inference loads lazily on its first request.
 model = load_or_create_model()
-disease_model = load_disease_model()
-disease_classes = load_disease_classes()
+disease_model = None
+disease_classes = []
+disease_model_attempted = False
+
+def ensure_disease_model_loaded():
+    global disease_model, disease_classes, disease_model_attempted
+    if not disease_model_attempted:
+        disease_model_attempted = True
+        disease_model = load_disease_model()
+        disease_classes = load_disease_classes()
+    return disease_model, disease_classes
 
 # Crop mapping (for model output)
 CROP_LABELS = [
@@ -270,6 +282,7 @@ def health_check():
         "crop_model_loaded": model is not None,
         "crop_model_type": type(model).__name__ if model else "rule_based",
         "disease_model_loaded": disease_model is not None,
+        "disease_model_status": "loaded" if disease_model is not None else "not_loaded_until_requested",
         "disease_classes_count": len(disease_classes),
         "supported_crops": len(CROP_LABELS),
         "model_version": MODEL_VERSION,
@@ -286,6 +299,7 @@ async def predict_disease(file: UploadFile = File(...)):
         confidence: Prediction confidence percentage
     """
     try:
+        ensure_disease_model_loaded()
         if disease_model is None:
             raise HTTPException(
                 status_code=503,

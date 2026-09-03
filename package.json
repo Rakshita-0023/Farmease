@@ -2,9 +2,13 @@
   "name": "farmease",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=20 <23"
+  },
   "description": "Open agricultural intelligence infrastructure for India",
   "scripts": {
     "backend:dev": "npm --prefix backend run dev",
+    "start": "node backend/server.js",
     "frontend:dev": "npm --prefix frontend run dev",
     "test": "npm --prefix backend test && npm --prefix backend run openapi:validate && npm --prefix frontend test && npm --prefix frontend run lint && npm --prefix frontend run build",
     "lint": "npm --prefix frontend run lint",

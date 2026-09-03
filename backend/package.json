@@ -1,6 +1,9 @@
 {
   "name": "farmease-backend",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20 <23"
+  },
   "main": "server.js",
   "scripts": {
     "db:setup": "node scripts/setupDatabase.js",

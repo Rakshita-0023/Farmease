@@ -23,7 +23,16 @@ const integratedMarketService = new IntegratedMarketService()
 const { getProvider } = require('./services/marketProviders/index');
 
 const app = express()
-const PORT = process.env.PORT || 5001
+const PORT = Number(process.env.PORT) || 5001
+
+// Process health must not depend on a provider or database being available.
+// Database readiness is reported separately and is updated by initDB below.
+const databaseState = {
+  status: 'initializing',
+  type: require('./db').dbType,
+  error: null,
+  checkedAt: null
+}
 
 // ============================================
 // CORS MUST BE FIRST - BEFORE ANY ROUTES
@@ -122,8 +131,14 @@ async function initDB() {
       await createTablesSQLite()
       storageState.useLocalStorage = false
     }
+    databaseState.status = 'ready'
+    databaseState.error = null
+    databaseState.checkedAt = new Date().toISOString()
   } catch (err) {
     console.error('❌ Database connection failed:', err.message)
+    databaseState.status = 'unavailable'
+    databaseState.error = err.message
+    databaseState.checkedAt = new Date().toISOString()
     
     // In production, do NOT fall back to in-memory - fail loudly
     if (process.env.DATABASE_URL) {
@@ -132,8 +147,14 @@ async function initDB() {
       // Still allow server to start but log the error
     }
     
-    console.warn('⚠️ Using in-memory storage (data will not persist)')
-    storageState.useLocalStorage = true
+    if (process.env.DATABASE_URL) {
+      // Never silently downgrade a production deployment to ephemeral memory.
+      storageState.useLocalStorage = false
+      console.error('🚨 Production database is unavailable; database-backed requests will return errors')
+    } else {
+      console.warn('⚠️ Using in-memory storage (development only; data will not persist)')
+      storageState.useLocalStorage = true
+    }
   }
 
   // Startup check for Google Config
@@ -592,7 +613,7 @@ app.use('/api/user', createUserRoutes(db, storageState, localData, authenticateT
 app.use('/api/weather', createWeatherRoutes(authenticateToken))
 // Versioned public FarmEase Core surface. Legacy `/api/*` routes remain supported
 // for the reference farmer application.
-app.use('/api/v1', createV1Router())
+app.use('/api/v1', createV1Router({ readiness: () => ({ ...databaseState, error: databaseState.error ? 'database connection unavailable' : null }) }))
 
 // ✅ ML ROUTES
 app.use('/api', cropRoutes)
@@ -2143,14 +2164,21 @@ app.use((req, res) => {
   })
 })
 
-// Initialize database and start server
-initDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
+// Bind immediately so Render can observe process health while database setup is
+// completing. Optional providers and database readiness must never block listen.
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on 0.0.0.0:${PORT}`)
+  initDB().catch((error) => {
+    console.error('Unexpected database initialization failure:', error)
+    databaseState.status = 'unavailable'
+    databaseState.error = error.message
+    databaseState.checkedAt = new Date().toISOString()
   })
-}).catch(error => {
-  console.error('Failed to start server:', error)
-  process.exit(1)
+})
+
+server.on('error', (error) => {
+  console.error('Server failed to bind:', error)
+  process.exitCode = 1
 })
 // Export for Vercel serverless functions
 module.exports = app

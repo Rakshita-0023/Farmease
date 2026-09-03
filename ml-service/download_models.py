@@ -77,6 +77,13 @@ def download_from_google_drive(file_id, destination):
 def main():
     """Download all required model files"""
     script_dir = Path(__file__).parent
+
+    # Render health/startup must not wait on external model storage. Opt in to
+    # downloads explicitly when a deployment has a controlled model artifact
+    # source; otherwise the API starts with a documented degraded capability.
+    if os.getenv('FARMEASE_DOWNLOAD_MODELS', 'false').lower() != 'true':
+        print('ℹ️ Optional model downloads disabled; using files bundled in the image')
+        return
     
     # Check for Google Drive file IDs in environment variables
     disease_model_id = os.getenv('DISEASE_MODEL_GDRIVE_ID')

@@ -8,7 +8,9 @@
 
 FarmEase is an open-source agricultural intelligence platform for India. It pairs a reference farmer application with a versioned Core API, normalized agricultural contracts, and extensible data providers for weather, markets, crop intelligence, and plant diagnosis.
 
-There is no maintained public demo URL yet. Run the reference app locally using the quick start below.
+Live links: [Farmer App](https://farmease.vercel.app/) · [FarmEase Core](https://farmease-tqgy.onrender.com) · [Swagger Docs](https://farmease-tqgy.onrender.com/api/v1/docs) · [OpenAPI JSON](https://farmease-tqgy.onrender.com/api/v1/openapi.json) · [PyPI](https://pypi.org/project/farmease/) · [npm](https://www.npmjs.com/package/@farmease/sdk).
+
+Published packages: [PyPI `farmease`](https://pypi.org/project/farmease/) and [npm `@farmease/sdk`](https://www.npmjs.com/package/@farmease/sdk). Release notes: [v0.1.0](docs/releases/v0.1.0.md).
 
 ## What exists today
 
@@ -149,16 +151,22 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md
 
 FarmEase ships a dependency-light Python SDK (`sdks/python`, version 0.1.0) and a typed TypeScript SDK (`sdks/typescript`, version 0.1.0). See [SDK getting started](docs/SDK_GETTING_STARTED.md) and runnable examples in `examples/python/`.
 
-Packages are release-ready but not yet published. For local development use `python3 -m pip install -e sdks/python` or build the wheel; for TypeScript use `npm install ./sdks/typescript` after `npm run build`. Published install commands will be added after the first maintainer release.
+For local SDK development use `python3 -m pip install -e sdks/python` or build the wheel; for TypeScript use `npm install ./sdks/typescript` after `npm run build`. Published packages are available from the links above.
+
+```bash
+pip install farmease
+npm install @farmease/sdk
+```
 
 ```python
+import os
 from farmease import FarmEase
-client = FarmEase("http://localhost:5000/api/v1")
+client = FarmEase(os.getenv("FARMEASE_BASE_URL", "http://localhost:5001/api/v1"))
 print(client.weather.current(lat=28.6, lon=77.2))
 ```
 
 ```ts
-const client = new FarmEase({ baseUrl: "http://localhost:5000/api/v1" });
+const client = new FarmEase({ baseUrl: "https://farmease-tqgy.onrender.com/api/v1" });
 const prices = await client.markets.prices({ commodity: "wheat" });
 ```
 

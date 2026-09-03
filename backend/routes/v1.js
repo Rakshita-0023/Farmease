@@ -39,7 +39,7 @@ const sendProviderError = (req, res, cause, providerId) => {
   return error(req, res, providerError.status, providerError.code, providerError.message);
 };
 
-const createV1Router = ({ registry, weatherProvider, marketProvider, satelliteProvider, executor, logger = structuredLogger(console), cropService = new CropIntelligenceService(), advisoryEngine = new AdvisoryEngine(), farmResolver = async () => null, plantDoctorUrl = process.env.PLANT_DOCTOR_LOCAL_API_URL || process.env.PLANT_DOCTOR_API_URL || 'http://127.0.0.1:8000', plantDoctorClient = axios } = {}) => {
+const createV1Router = ({ registry, weatherProvider, marketProvider, satelliteProvider, executor, logger = structuredLogger(console), cropService = new CropIntelligenceService(), advisoryEngine = new AdvisoryEngine(), farmResolver = async () => null, plantDoctorUrl = process.env.PLANT_DOCTOR_API_URL || process.env.ML_API_URL || process.env.PLANT_DOCTOR_LOCAL_API_URL || 'http://127.0.0.1:8000', plantDoctorClient = axios, readiness = () => ({ status: 'unknown' }) } = {}) => {
   const providerRegistry = registry || createProviderRegistry({ weatherProvider, marketProvider, satelliteProvider });
   const providerExecutor = executor || new ProviderExecutor({ logger });
   const router = express.Router();
@@ -52,7 +52,7 @@ const createV1Router = ({ registry, weatherProvider, marketProvider, satellitePr
   });
   router.get('/openapi.json', (req, res) => res.json(openApiDocument));
   router.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, { customSiteTitle: 'FarmEase Core API docs' }));
-  router.get('/health', (req, res) => data(req, res, { status: 'ok', service: 'FarmEase Core API', version: 'v1', providers: providerRegistry.describe() }));
+  router.get('/health', (req, res) => data(req, res, { status: 'ok', service: 'FarmEase Core API', version: 'v1', database: readiness(), providers: providerRegistry.describe() }));
   router.get('/providers', (req, res) => data(req, res, providerRegistry.describe()));
 
   const weatherRoute = (operation, ttlMs) => async (req, res) => {
