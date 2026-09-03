@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
-  ArrowLeft, MapPin, Clock, TrendingUp, TrendingDown, Minus, 
+  ArrowLeft, MapPin, Clock, TrendingDown,
   Navigation, RefreshCw, Sparkles, Store, ChevronRight
 } from 'lucide-react'
 import { apiClient } from '../config'
@@ -23,19 +23,7 @@ const MarketDetails = () => {
     error: null
   })
 
-  useEffect(() => {
-    if (marketId && lat && lng) {
-      fetchMarketDetails()
-    } else if (marketId && (!lat || !lng)) {
-      setMarketData(prev => ({
-        ...prev,
-        loading: false,
-        error: 'Location coordinates required. Please go back and try again.'
-      }))
-    }
-  }, [marketId, lat, lng])
-
-  const fetchMarketDetails = async () => {
+  const fetchMarketDetails = useCallback(async () => {
     try {
       setMarketData(prev => ({ ...prev, loading: true, error: null }))
       
@@ -55,23 +43,15 @@ const MarketDetails = () => {
         error: error.message || 'Failed to load market details'
       }))
     }
-  }
+  }, [marketId, lat, lng])
 
-  const getTrendIcon = (trend) => {
-    switch (trend) {
-      case 'up': return <TrendingUp size={16} className="text-emerald-400" />
-      case 'down': return <TrendingDown size={16} className="text-red-400" />
-      default: return <Minus size={16} className="text-white/40" />
+  useEffect(() => {
+    if (marketId && lat && lng) {
+      fetchMarketDetails()
+    } else if (marketId && (!lat || !lng)) {
+      setMarketData(prev => ({ ...prev, loading: false, error: 'Location coordinates required. Please go back and try again.' }))
     }
-  }
-
-  const getTrendBg = (trend) => {
-    switch (trend) {
-      case 'up': return 'bg-emerald-500/20 text-emerald-400'
-      case 'down': return 'bg-red-500/20 text-red-400'
-      default: return 'bg-white/10 text-white/60'
-    }
-  }
+  }, [marketId, lat, lng, fetchMarketDetails])
 
   // Premium Loading State
   if (marketData.loading) {

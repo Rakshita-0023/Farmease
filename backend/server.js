@@ -13,6 +13,7 @@ const createUserRoutes = require('./routes/userRoutes')
 const createWeatherRoutes = require('./routes/weatherRoutes')
 const cropRoutes = require('./routes/crop') // ✅ ML CROP RECOMMENDATION
 const plantDiseaseRoutes = require('./routes/plantDiseaseRoutes') // ✅ PLANT DISEASE DETECTION
+const { createV1Router } = require('./routes/v1')
 
 // INTEGRATED MARKET SERVICE WITH REGISTRY
 const IntegratedMarketService = require('./services/marketRegistry/integratedMarketService')
@@ -48,7 +49,7 @@ const envAllowedOrigins = (process.env.CORS_ORIGINS || '')
 const allowedOrigins = new Set([...staticAllowedOrigins, ...envAllowedOrigins]);
 const vercelPreviewPattern = /^https:\/\/farmease-[a-z0-9-]+-rakshita-s-projects\.vercel\.app$/;
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
@@ -62,11 +63,13 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Language']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Language', 'X-Request-Id'],
+  exposedHeaders: ['X-Request-Id']
+};
+app.use(cors(corsOptions));
 
 // Handle preflight OPTIONS requests for all routes (Express 5 compatible)
-app.options(/.*/, cors());
+app.options(/.*/, cors(corsOptions));
 
 // Parse JSON bodies
 app.use(express.json({ limit: '10mb' }))
@@ -552,27 +555,20 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
 
-  console.log('🔐 Auth middleware - Headers:', req.headers.authorization ? 'Present' : 'Missing')
-  console.log('🔐 Auth middleware - Token:', token ? 'Present' : 'Missing')
-
   if (!token) {
-    console.log('❌ Auth middleware - No token provided')
     return res.status(401).json({ error: 'Access token required' })
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      console.log('❌ Auth middleware - Token verification failed:', err.message)
       return res.status(403).json({ error: 'Invalid token' })
     }
     
     // CRITICAL: Check if userId is valid
     if (!user || !user.userId) {
-      console.log('❌ Auth middleware - Token has no valid userId:', user)
       return res.status(401).json({ error: 'Invalid token - please log in again' })
     }
     
-    console.log('✅ Auth middleware - Token verified for user:', user.userId)
     req.user = user
     next()
   })
@@ -594,6 +590,9 @@ const validateInput = (schema) => (req, res, next) => {
 app.use('/api/locations', locationRoutes)
 app.use('/api/user', createUserRoutes(db, storageState, localData, authenticateToken))
 app.use('/api/weather', createWeatherRoutes(authenticateToken))
+// Versioned public FarmEase Core surface. Legacy `/api/*` routes remain supported
+// for the reference farmer application.
+app.use('/api/v1', createV1Router())
 
 // ✅ ML ROUTES
 app.use('/api', cropRoutes)
@@ -1430,7 +1429,8 @@ app.get('/api/market/cities', async (req, res) => {
     let country = 'India'
 
     try {
-      const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
+      const API_KEY = process.env.OPENWEATHER_API_KEY
+      if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured')
       const response = await axios.get(
         `https://api.openweathermap.org/geo/1.0/reverse`, {
         params: {
@@ -1454,7 +1454,8 @@ app.get('/api/market/cities', async (req, res) => {
       console.warn('⚠️ OWM Reverse geocoding failed in market/cities, falling back to BigDataCloud:', geoError.message)
       try {
         const response = await axios.get(
-          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+          { timeout: 5000 }
         )
         if (response.data) {
           city = response.data.city || response.data.locality || response.data.principalSubdivision || 'Detected Location'
@@ -1513,7 +1514,8 @@ app.get('/api/market/city/:cityName', async (req, res) => {
     let state = 'Unknown'
 
     try {
-      const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
+      const API_KEY = process.env.OPENWEATHER_API_KEY
+      if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured')
       const geoRes = await axios.get(`https://api.openweathermap.org/geo/1.0/direct`, {
         params: { q: cityName, limit: 1, appid: API_KEY },
         timeout: 5000
@@ -1526,7 +1528,7 @@ app.get('/api/market/city/:cityName', async (req, res) => {
         state = geoRes.data[0].state || 'Unknown'
       } else {
         // Fallback to Open-Meteo Geocoding
-        const fallbackRes = await axios.get(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`)
+        const fallbackRes = await axios.get(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`, { timeout: 5000 })
         if (fallbackRes.data.results && fallbackRes.data.results.length > 0) {
           const result = fallbackRes.data.results[0]
           lat = result.latitude

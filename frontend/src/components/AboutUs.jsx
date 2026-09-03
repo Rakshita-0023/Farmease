@@ -26,9 +26,9 @@ const AboutUs = () => {
             Our Mission
           </h2>
           <p className="text-white/70 leading-relaxed text-lg">
-            FarmEase is dedicated to revolutionizing agriculture through technology.
-            We provide farmers with intelligent tools, real-time data, and expert
-            guidance to maximize crop yields and ensure sustainable farming practices.
+            FarmEase is building open agricultural intelligence infrastructure for India.
+            The reference app demonstrates how farmer tools can use weather, market,
+            farm, and intelligence services without rebuilding each integration.
           </p>
         </motion.section>
 
@@ -86,16 +86,16 @@ const AboutUs = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-6 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-              <div className="text-4xl font-black text-emerald-400 mb-2">10,000+</div>
-              <div className="text-white/60 text-sm font-semibold uppercase tracking-wider">Farmers Served</div>
+              <div className="text-2xl font-black text-emerald-400 mb-2">Open Source</div>
+              <div className="text-white/60 text-sm font-semibold uppercase tracking-wider">Built for contributors</div>
             </div>
             <div className="text-center p-6 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-              <div className="text-4xl font-black text-emerald-400 mb-2">25%</div>
-              <div className="text-white/60 text-sm font-semibold uppercase tracking-wider">Average Yield Increase</div>
+              <div className="text-2xl font-black text-emerald-400 mb-2">India Focus</div>
+              <div className="text-white/60 text-sm font-semibold uppercase tracking-wider">Agricultural data foundation</div>
             </div>
             <div className="text-center p-6 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-              <div className="text-4xl font-black text-emerald-400 mb-2">50+</div>
-              <div className="text-white/60 text-sm font-semibold uppercase tracking-wider">Crop Varieties Supported</div>
+              <div className="text-2xl font-black text-emerald-400 mb-2">Extensible</div>
+              <div className="text-white/60 text-sm font-semibold uppercase tracking-wider">Provider-oriented core</div>
             </div>
           </div>
         </motion.section>

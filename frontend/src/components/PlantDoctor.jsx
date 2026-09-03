@@ -96,7 +96,7 @@ const PlantDoctor = () => {
                     setError(null)
                     setServiceNotice(null)
                 }, 1000)
-            } catch (err) {
+            } catch {
                 setError("Failed to process image. Please try another one.")
                 setStatus('idle')
             }

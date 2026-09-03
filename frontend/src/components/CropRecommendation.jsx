@@ -3,11 +3,11 @@ import { Sprout, Loader2, CheckCircle, AlertCircle, Droplets, Thermometer, Wind,
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '../config'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 
 const CropRecommendation = () => {
   const { t } = useTranslation()
-  const { location } = useLocation()
+  const { location } = useFarmLocation()
   const [mode, setMode] = useState('basic')
   const [formData, setFormData] = useState({
     N: '',

@@ -94,7 +94,9 @@ if (process.env.DATABASE_URL) {
   
   const path = require('path');
   
-  const dbPath = path.join(__dirname, 'farmease.db');
+  const dbPath = process.env.FARMEASE_DATABASE_PATH
+    ? path.resolve(process.cwd(), process.env.FARMEASE_DATABASE_PATH)
+    : path.join(__dirname, 'farmease.db');
   console.log('📊 SQLite Database path:', dbPath);
   
   const sqliteDb = new sqlite3.Database(dbPath, (err) => {
@@ -123,7 +125,10 @@ if (process.env.DATABASE_URL) {
           else resolve([{ insertId: this.lastID, affectedRows: this.changes }]);
         });
       });
-    }
+    },
+    close: () => new Promise((resolve, reject) => {
+      sqliteDb.close(err => err ? reject(err) : resolve());
+    })
   };
 }
 

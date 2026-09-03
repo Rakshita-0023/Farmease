@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Search, Filter, Users, Lock, Globe, Eye, UserPlus } from 'lucide-react';
@@ -14,11 +14,7 @@ export default function CharchaBrowser() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchCharchas();
-  }, [category, search]);
-
-  const fetchCharchas = async () => {
+  const fetchCharchas = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const params = {};
@@ -35,7 +31,11 @@ export default function CharchaBrowser() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [category, search]);
+
+  useEffect(() => {
+    fetchCharchas();
+  }, [fetchCharchas]);
 
   const handleJoin = async (charchaId, e) => {
     e.preventDefault();

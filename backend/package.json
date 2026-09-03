@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "jest",
+    "db:setup": "node scripts/setupDatabase.js",
+    "test": "FARMEASE_DATABASE_PATH=.test-farmease.db node scripts/setupDatabase.js && FARMEASE_DATABASE_PATH=.test-farmease.db jest --runInBand",
     "test:watch": "jest --watch",
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "openapi:validate": "node scripts/validateOpenapi.js"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "form-data": "^4.0.5",
     "geoip-lite": "^1.4.10",
     "google-auth-library": "^10.5.0",
     "joi": "^17.11.0",
@@ -25,12 +28,14 @@
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
     "pg": "^8.17.1",
-    "request-ip": "^3.3.0"
+    "request-ip": "^3.3.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "optionalDependencies": {
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
     "fast-check": "^4.5.3",
     "jest": "^30.2.0",
     "nodemon": "^3.1.11"

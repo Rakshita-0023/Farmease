@@ -1,9 +1,9 @@
 const axios = require('axios');
 
 // Configuration
-const API_KEY = process.env.AGMARKNET_API_KEY || '579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b'; // Public demo key often used
+const API_KEY = process.env.AGMARKNET_API_KEY;
 const BASE_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
-const MODE = process.env.MARKET_DATA_MODE || 'DEMO'; // 'LIVE' or 'DEMO'
+const MODE = process.env.MARKET_DATA_MODE || 'LIVE'; // Set DEMO explicitly only for UI development.
 
 // Helper to generate consistent pseudo-random numbers for DEMO mode
 const pseudoRandom = (seed) => {
@@ -172,7 +172,7 @@ const fetchMarketData = async ({ city, district, state, lat, lng, requireLive = 
     console.log(`📊 Fetching market data for ${city} with live verification:`, { requireLive, includeMetadata });
     
     // 1. Try LIVE mode if enabled
-    if (MODE === 'LIVE') {
+    if (MODE === 'LIVE' && API_KEY) {
         try {
             console.log(`📡 Fetching live Agmarknet data for ${district || city}...`);
             const response = await axios.get(BASE_URL, {
@@ -219,9 +219,10 @@ const fetchMarketData = async ({ city, district, state, lat, lng, requireLive = 
         }
     }
 
-    // 2. DEMO / Fallback Generator with LIVE VERIFICATION SUPPORT
+    // 2. DEMO generator is opt-in. Public API routes never use this provider.
     // This ensures we ALWAYS return data for the requested city, never "Hyderabad" defaults.
-    return getDemoData(city, district, state, lat, lng, requireLive, includeMetadata);
+    if (MODE === 'DEMO') return getDemoData(city, district, state, lat, lng, requireLive, includeMetadata);
+    return [];
 };
 
 const fetchTrends = async ({ city, crop }) => {

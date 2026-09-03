@@ -6,7 +6,18 @@ export default defineConfig({
   base: "/",
   build: {
     outDir: "dist",
-    assetsDir: "assets"
+    assetsDir: "assets",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'query-vendor': ['@tanstack/react-query'],
+          'animation-vendor': ['framer-motion', 'lottie-react'],
+          'maps-vendor': ['leaflet', 'react-leaflet'],
+          'charts-vendor': ['chart.js', 'react-chartjs-2']
+        }
+      }
+    }
   },
   server: {
     proxy: {

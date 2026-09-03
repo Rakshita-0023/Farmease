@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Send, Users, Lock, Globe, MessageSquare, Crown, Shield } from 'lucide-react';
@@ -15,7 +15,7 @@ export default function CharchaView() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
+  const [, setMentionSearch] = useState('');
   const [mentionPosition, setMentionPosition] = useState(0);
   const [filteredMembers, setFilteredMembers] = useState([]);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
@@ -23,17 +23,10 @@ export default function CharchaView() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    fetchCharchaData();
-    // Auto-refresh messages every 5 seconds
-    const interval = setInterval(fetchCharchaData, 5000);
-    return () => clearInterval(interval);
-  }, [id]);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const fetchCharchaData = async () => {
+  const fetchCharchaData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -62,7 +55,13 @@ export default function CharchaView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchCharchaData();
+    const interval = setInterval(fetchCharchaData, 5000);
+    return () => clearInterval(interval);
+  }, [fetchCharchaData]);
 
   const handleInputChange = (e) => {
     const value = e.target.value;

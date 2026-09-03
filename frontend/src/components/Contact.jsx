@@ -32,17 +32,17 @@ const Contact = () => {
   }
 
   const contactMethods = [
-    { icon: <Mail className="text-emerald-400" size={24} />, title: 'Email Support', detail: 'support@farmease.com', sub: '24/7 technical help' },
-    { icon: <Phone className="text-emerald-400" size={24} />, title: 'Phone Support', detail: '+91 1800-FARM-EASE', sub: 'Mon-Fri: 9AM - 6PM' },
-    { icon: <MapPin className="text-emerald-400" size={24} />, title: 'Office Address', detail: 'Agri-Tech Center', sub: 'New Delhi, 110001' },
-    { icon: <Users className="text-emerald-400" size={24} />, title: 'Community', detail: 'Kisan Charcha', sub: 'Peer support forum' },
+    { icon: <Mail className="text-emerald-400" size={24} />, title: 'Project contact', detail: 'GitHub repository', sub: 'Open an issue or pull request' },
+    { icon: <Phone className="text-emerald-400" size={24} />, title: 'Documentation', detail: 'Contributor guide', sub: 'Local setup and provider guidance' },
+    { icon: <MapPin className="text-emerald-400" size={24} />, title: 'Platform focus', detail: 'India', sub: 'Agricultural intelligence infrastructure' },
+    { icon: <Users className="text-emerald-400" size={24} />, title: 'Community', detail: 'Kisan Charcha', sub: 'In-app discussion feature' },
   ]
 
   const faqs = [
-    { q: 'How accurate is the weather data?', a: 'Sourced from Open-Meteo with 90%+ local accuracy.' },
-    { q: 'Is the Plant Doctor free?', a: 'Yes, basic disease detection is free for all members.' },
-    { q: 'How to update market prices?', a: 'Prices sync automatically every 6 hours from Govt mandis.' },
-    { q: 'Can I add multiple farms?', a: 'Yes, premium members can manage up to 10 farm locations.' },
+    { q: 'Where does weather data come from?', a: 'FarmEase Core uses Open-Meteo and reports provider failures instead of inventing data.' },
+    { q: 'How should I use Plant Doctor?', a: 'Treat diagnosis as decision support and verify recommendations against local conditions.' },
+    { q: 'How are market prices updated?', a: 'Live AGMARKNET prices require a configured data.gov.in key; demo mode is labelled and not live.' },
+    { q: 'Can I add multiple farms?', a: 'The reference application supports farm records; limits depend on the configured deployment.' },
   ]
 
   if (submitted) {
@@ -56,8 +56,8 @@ const Contact = () => {
           <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="text-emerald-400" size={40} />
           </div>
-          <h2 className="text-3xl font-bold mb-4 text-gradient">Message Sent!</h2>
-          <p className="text-white/60 mb-8">Thank you for reaching out. Our agricultural experts will review your query and respond within 24 hours.</p>
+          <h2 className="text-3xl font-bold mb-4 text-gradient">Message Saved</h2>
+          <p className="text-white/60 mb-8">This reference form is local-only. For project support, please use the FarmEase GitHub repository.</p>
           <button
             className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20"
             onClick={() => setSubmitted(false)}

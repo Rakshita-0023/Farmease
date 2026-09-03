@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Lottie from 'lottie-react'
 import bellAnimation from '../assets/animations/bell.json'
 import { API_BASE_URL } from '../config'
 
-const NotificationSystem = ({ userLocation, farms }) => {
+const NotificationSystem = ({ userLocation }) => {
   const [notifications, setNotifications] = useState([])
   const [permission, setPermission] = useState('default')
 
@@ -16,7 +16,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
     return false
   }
 
-  const showNotification = (title, body, icon = '🌱') => {
+  const showNotification = useCallback((title, body, icon = '🌱') => {
     if (permission === 'granted') {
       new Notification(title, {
         body,
@@ -37,9 +37,9 @@ const NotificationSystem = ({ userLocation, farms }) => {
     }
 
     setNotifications(prev => [notification, ...prev.slice(0, 9)]) // Keep last 10
-  }
+  }, [permission])
 
-  const checkWeatherAlerts = async () => {
+  const checkWeatherAlerts = useCallback(async () => {
     if (!userLocation) return
 
     try {
@@ -80,7 +80,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
     } catch (error) {
       console.error('Weather check failed:', error)
     }
-  }
+  }, [showNotification, userLocation])
 
   const markAsRead = (id) => {
     setNotifications(prev =>
@@ -128,7 +128,7 @@ const NotificationSystem = ({ userLocation, farms }) => {
       clearInterval(weatherInterval)
       delete window.showWelcomeNotification
     }
-  }, [userLocation, permission])
+  }, [checkWeatherAlerts, permission, showNotification])
 
   const unreadCount = notifications.filter(n => !n.read).length
 

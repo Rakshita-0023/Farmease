@@ -1,10 +1,10 @@
-import { useEffect, useRef, memo } from 'react'
+import { useRef, memo } from 'react'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
-const GrowthChart = memo(({ farmId, farm, daysSincePlanted }) => {
+const GrowthChart = memo(({ farm, daysSincePlanted }) => {
   const chartRef = useRef()
 
   const generateCropSpecificData = () => {

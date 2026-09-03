@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Sprout, Check, ArrowRight } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../config'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 
 export default function OnboardingWizard({ onComplete, onSkip }) {
-    const { location: globalLocation } = useLocation()
+    const { location: globalLocation } = useFarmLocation()
     const [step, setStep] = useState(1)
     const [farmData, setFarmData] = useState({
         name: '',

@@ -10,14 +10,14 @@ import {
   AlertTriangle, Navigation, Shovel, Calendar, TrendingDown
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import { useMandiData } from '../hooks/useMandiData'
 import './EnhancedDashboard.css'
 
 const EnhancedDashboard = () => {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { location: globalLocation, loading: locationLoading, locationStatus, retryLocationDetection, updateLocation, error: locationError } = useLocation()
+  const { location: globalLocation, loading: locationLoading, locationStatus } = useFarmLocation()
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const alertsSectionRef = useRef(null)
 
@@ -36,13 +36,13 @@ const EnhancedDashboard = () => {
   })
 
   // Fetch Farms
-  const { data: farms = [], isLoading: farmsLoading, refetch: refetchFarms } = useQuery({
+  const { data: farms = [], refetch: refetchFarms } = useQuery({
     queryKey: ['farms'],
     queryFn: () => apiClient.get('/farms')
   })
 
   // Fetch Current Weather
-  const { data: weather, isLoading: weatherLoading } = useQuery({
+  const { data: weather } = useQuery({
     queryKey: ['weather', globalLocation?.latitude, globalLocation?.longitude],
     queryFn: async () => {
       if (!globalLocation?.latitude || !globalLocation?.longitude) return null
@@ -65,33 +65,8 @@ const EnhancedDashboard = () => {
     staleTime: 5 * 60 * 1000
   })
 
-  // Fetch Forecast
-  const { data: forecastData } = useQuery({
-    queryKey: ['weather-forecast', globalLocation?.latitude, globalLocation?.longitude],
-    queryFn: async () => {
-      if (!globalLocation?.latitude || !globalLocation?.longitude) return null
-      const data = await apiClient.get('/weather/forecast', {
-        lat: globalLocation.latitude,
-        lon: globalLocation.longitude
-      })
-      // Normalize forecast data (handle both 3-hourly and daily formats)
-      const list = data.list || []
-      const daily = list.length > 10
-        ? list.filter((item, index) => index % 8 === 0).slice(0, 5)
-        : list.slice(0, 5)
-
-      return daily.map(day => ({
-        day: new Date(day.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' }),
-        temp: Math.round(day.main.temp_max || day.main.temp),
-        icon: day.weather[0].main
-      }))
-    },
-    enabled: !!globalLocation?.latitude && !!globalLocation?.longitude,
-    staleTime: 30 * 60 * 1000
-  })
-
   // Market Data (Sonipat Mandi context)
-  const { data: marketPrices = [], isLoading: pricesLoading } = useMandiData(
+  const { data: marketPrices = [] } = useMandiData(
     globalLocation?.state || 'Haryana',
     globalLocation?.city || 'Sonipat',
     ''
@@ -315,7 +290,7 @@ const EnhancedDashboard = () => {
     })
 
     return actions.slice(0, 3)
-  }, [dashboardOverview?.todayActions, farmMetrics.totalFarms, weather?.temperature, weatherInsights.alertType, trendingCrops, navigate, t])
+  }, [dashboardOverview?.todayActions, weather?.temperature, weatherInsights.alertType, trendingCrops, navigate, t])
 
   const changeInsights = useMemo(() => {
     return [

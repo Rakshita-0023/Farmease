@@ -21,7 +21,8 @@ router.get('/resolve', async (req, res) => {
 
         try {
             // Try OpenWeatherMap first
-            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+            const API_KEY = process.env.OPENWEATHER_API_KEY;
+            if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured');
             const response = await axios.get(
                 `https://api.openweathermap.org/geo/1.0/reverse`, {
                 params: {
@@ -45,7 +46,7 @@ router.get('/resolve', async (req, res) => {
             console.warn('⚠️ OWM Reverse geocoding failed, falling back to BigDataCloud:', geoError.message);
             try {
                 const response = await axios.get(
-                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`, { timeout: 5000 }
                 );
                 if (response.data) {
                     city = response.data.city || response.data.locality || response.data.principalSubdivision || 'Detected Location';
@@ -92,7 +93,8 @@ router.post('/resolve', async (req, res) => {
         let country = 'India';
 
         try {
-            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+            const API_KEY = process.env.OPENWEATHER_API_KEY;
+            if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured');
             const response = await axios.get(
                 `https://api.openweathermap.org/geo/1.0/reverse`, {
                 params: {
@@ -116,7 +118,7 @@ router.post('/resolve', async (req, res) => {
             console.warn('⚠️ OWM Reverse geocoding failed, falling back to BigDataCloud:', geoError.message);
             try {
                 const response = await axios.get(
-                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`, { timeout: 5000 }
                 );
                 if (response.data) {
                     city = response.data.city || response.data.locality || response.data.principalSubdivision || 'Detected Location';
@@ -159,7 +161,8 @@ router.get('/search', async (req, res) => {
         }
 
         try {
-            const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+            const API_KEY = process.env.OPENWEATHER_API_KEY;
+            if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured');
             const response = await axios.get('https://api.openweathermap.org/geo/1.0/direct', {
                 params: {
                     q: q,
@@ -189,7 +192,7 @@ router.get('/search', async (req, res) => {
             console.warn('⚠️ OWM Direct geocoding failed, falling back to Open-Meteo:', owmError.message);
             try {
                 const geoRes = await axios.get(
-                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`
+                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`, { timeout: 5000 }
                 );
                 const cities = (geoRes.data.results || []).map(city => ({
                     name: city.name,

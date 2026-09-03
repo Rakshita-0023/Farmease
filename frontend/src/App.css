@@ -1055,7 +1055,7 @@ body {
 }
 
 .farm-card.cotton::before {
-  background-image: url('/cotton.jpg');
+  background-image: url('/Rubber.jpg');
 }
 
 .farm-card.potato::before {
@@ -1072,15 +1072,15 @@ body {
 
 /* New crop backgrounds */
 .farm-card.bajra::before {
-  background-image: url('/bajra.jpg');
+  background-image: url('/corn.jpg');
 }
 
 .farm-card.jowar::before {
-  background-image: url('/jowar.webp');
+  background-image: url('/corn.jpg');
 }
 
 .farm-card.ragi::before {
-  background-image: url('/ragi.webp');
+  background-image: url('/rice.jpg');
 }
 
 .farm-card.arhar::before,
@@ -1090,24 +1090,24 @@ body {
 
 .farm-card.moong::before,
 .farm-card.moong-dal::before {
-  background-image: url('/Moong_Dal.jpg');
+  background-image: url('/Arhar_Dal.webp');
 }
 
 .farm-card.chana::before,
 .farm-card.chana-dal::before {
-  background-image: url('/Chana_Dal.webp');
+  background-image: url('/Arhar_Dal.webp');
 }
 
 .farm-card.jute::before {
-  background-image: url('/Jute.jpg');
+  background-image: url('/sugercane.jpg');
 }
 
 .farm-card.mustard::before {
-  background-image: url('/Mustard.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .farm-card.groundnut::before {
-  background-image: url('/Groundnut.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .farm-card.sunflower::before {
@@ -1119,7 +1119,7 @@ body {
 }
 
 .farm-card.coffee::before {
-  background-image: url('/coffee.jpeg');
+  background-image: url('/tea.jpg');
 }
 
 .farm-card.rubber::before {
@@ -1127,27 +1127,27 @@ body {
 }
 
 .farm-card.cabbage::before {
-  background-image: url('/cabbage.jpeg');
+  background-image: url('/potato.jpg');
 }
 
 .farm-card.cauliflower::before {
-  background-image: url('/Cauliflower.jpg');
+  background-image: url('/potato.jpg');
 }
 
 .farm-card.apples::before {
-  background-image: url('/Apples.jpeg');
+  background-image: url('/tomato.jpeg');
 }
 
 .farm-card.bananas::before {
-  background-image: url('/Bananas.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .farm-card.mangoes::before {
-  background-image: url('/Mangoes.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .farm-card.oranges::before {
-  background-image: url('/Oranges.jpg');
+  background-image: url('/tomato.jpeg');
 }
 
 .farm-card>* {
@@ -3222,15 +3222,15 @@ body {
 
 /* Individual crop backgrounds */
 .market-card.bajra::before {
-  background-image: url('/bajra.jpg');
+  background-image: url('/corn.jpg');
 }
 
 .market-card.jowar::before {
-  background-image: url('/jowar.webp');
+  background-image: url('/corn.jpg');
 }
 
 .market-card.ragi::before {
-  background-image: url('/ragi.webp');
+  background-image: url('/rice.jpg');
 }
 
 .market-card.arhar::before {
@@ -3238,11 +3238,11 @@ body {
 }
 
 .market-card.moong::before {
-  background-image: url('/Moong_Dal.jpg');
+  background-image: url('/Arhar_Dal.webp');
 }
 
 .market-card.chana::before {
-  background-image: url('/Chana_Dal.webp');
+  background-image: url('/Arhar_Dal.webp');
 }
 
 .market-card.sugarcane::before {
@@ -3250,19 +3250,19 @@ body {
 }
 
 .market-card.cotton::before {
-  background-image: url('/cotton.jpg');
+  background-image: url('/Rubber.jpg');
 }
 
 .market-card.jute::before {
-  background-image: url('/Jute.jpg');
+  background-image: url('/sugercane.jpg');
 }
 
 .market-card.mustard::before {
-  background-image: url('/Mustard.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .market-card.groundnut::before {
-  background-image: url('/Groundnut.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .market-card.sunflower::before {
@@ -3274,7 +3274,7 @@ body {
 }
 
 .market-card.coffee::before {
-  background-image: url('/coffee.jpeg');
+  background-image: url('/tea.jpg');
 }
 
 .market-card.rubber::before {
@@ -3282,27 +3282,27 @@ body {
 }
 
 .market-card.cabbage::before {
-  background-image: url('/cabbage.jpeg');
+  background-image: url('/potato.jpg');
 }
 
 .market-card.cauliflower::before {
-  background-image: url('/Cauliflower.jpg');
+  background-image: url('/potato.jpg');
 }
 
 .market-card.apples::before {
-  background-image: url('/Apples.jpeg');
+  background-image: url('/tomato.jpeg');
 }
 
 .market-card.bananas::before {
-  background-image: url('/Bananas.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .market-card.mangoes::before {
-  background-image: url('/Mangoes.jpg');
+  background-image: url('/Sunflower.jpg');
 }
 
 .market-card.oranges::before {
-  background-image: url('/Oranges.jpg');
+  background-image: url('/tomato.jpeg');
 }
 
 /* AI Market Features */

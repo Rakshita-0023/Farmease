@@ -29,6 +29,8 @@ describe('Charcha Creation Properties', () => {
     // Clean up test data
     await db.execute('DELETE FROM charchas WHERE owner_id = ?', [testUserId]);
     await db.execute('DELETE FROM users WHERE id = ?', [testUserId]);
+    await db.close();
+    await require('../db').close();
   });
 
   afterEach(async () => {

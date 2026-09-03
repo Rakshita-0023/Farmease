@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { Navigation, Phone, Clock, Star, MapPin, ExternalLink, RefreshCw, Shield, Zap, Info, Loader2 } from 'lucide-react'
 import { apiClient } from '../config'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import { motion, AnimatePresence } from 'framer-motion'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -57,7 +57,7 @@ const MapController = ({ center, markers }) => {
 };
 
 const NearbyMarketsMap = () => {
-  const { location: userLocation } = useLocation()
+  const { location: userLocation } = useFarmLocation()
   const [nearbyMarkets, setNearbyMarkets] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedMarket, setSelectedMarket] = useState(null)
@@ -66,7 +66,7 @@ const NearbyMarketsMap = () => {
   const [dataSource, setDataSource] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
 
-  const fetchNearbyMarkets = async () => {
+  const fetchNearbyMarkets = useCallback(async () => {
     if (!userLocation?.latitude || !userLocation?.longitude) return
 
     setLoading(true)
@@ -111,13 +111,13 @@ const NearbyMarketsMap = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [radius, userLocation?.city, userLocation?.latitude, userLocation?.longitude])
 
   useEffect(() => {
     if (userLocation?.latitude && userLocation?.longitude) {
       fetchNearbyMarkets()
     }
-  }, [userLocation, radius])
+  }, [fetchNearbyMarkets, userLocation?.latitude, userLocation?.longitude])
 
   const openInMaps = (market) => {
     const url = `https://www.google.com/maps/dir/${userLocation.latitude},${userLocation.longitude}/${market.lat},${market.lng}`

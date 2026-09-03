@@ -2,7 +2,9 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 // Create SQLite database file
-const dbPath = path.join(__dirname, 'farmease.db');
+const dbPath = process.env.FARMEASE_DATABASE_PATH
+  ? path.resolve(process.cwd(), process.env.FARMEASE_DATABASE_PATH)
+  : path.join(__dirname, 'farmease.db');
 console.log('📊 SQLite Database Path:', dbPath);
 
 const db = new sqlite3.Database(dbPath, (err) => {

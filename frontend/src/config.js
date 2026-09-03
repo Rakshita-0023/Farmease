@@ -19,8 +19,8 @@ console.log("IS_PROD:", import.meta.env.PROD);
 console.log("API_ENV_VAR:", import.meta.env.VITE_API_BASE_URL);
 console.log("RESOLVED_BASE:", API_BASE_URL);
 
-// Weather API Configuration (move to backend in production)
-export const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c'
+// Weather integrations are server-side. Do not place provider credentials in the browser.
+export const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY || ''
 
 // Authentication helpers
 export const getAuthToken = () => localStorage.getItem('token')

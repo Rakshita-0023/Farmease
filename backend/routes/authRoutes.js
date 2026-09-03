@@ -1,6 +1,7 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
 const { OAuth2Client } = require('google-auth-library')
 
 // Create router factory function
@@ -190,7 +191,7 @@ const createAuthRoutes = (findUser, createUser) => {
       if (!user) {
         console.log('📝 Creating new user for:', email);
         // Create new user (password is random/dummy for google users)
-        const dummyPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+        const dummyPassword = crypto.randomBytes(32).toString('base64url');
         const passwordHash = await bcrypt.hash(dummyPassword, 10);
 
         const result = await createUser(name || email.split('@')[0], email, passwordHash);

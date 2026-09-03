@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Users, Plus, Bell, Search, MessageSquare, Crown, Shield, X, Check } from 'lucide-react';
@@ -15,21 +15,14 @@ export default function CharchaDashboard() {
   const [activeRequest, setActiveRequest] = useState(null);
 
   useEffect(() => {
-    fetchDashboardData();
-    // Poll for new requests every 10 seconds
-    const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     // Show popup when new requests arrive
     if (pendingRequests.length > 0 && !showRequestPopup) {
       setActiveRequest(pendingRequests[0]);
       setShowRequestPopup(true);
     }
-  }, [pendingRequests]);
+  }, [pendingRequests, showRequestPopup]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -48,7 +41,13 @@ export default function CharchaDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 10000);
+    return () => clearInterval(interval);
+  }, [fetchDashboardData]);
 
   const handleApprove = async (requestId) => {
     try {

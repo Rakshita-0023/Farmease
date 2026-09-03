@@ -1,16 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { apiClient } from './config'
 import locationService from './services/locationService'
 
-const LocationContext = createContext()
-
-export const useLocation = () => {
-  const context = useContext(LocationContext)
-  if (!context) {
-    throw new Error('useLocation must be used within a LocationProvider')
-  }
-  return context
-}
+import { LocationContext } from './contexts/locationContext'
 
 export const LocationProvider = ({ children, user }) => {
   const [location, setLocation] = useState(null)

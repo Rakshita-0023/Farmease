@@ -1,34 +1,36 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
-import EnhancedDashboard from './components/EnhancedDashboard'
-import Login from './components/Login'
-import LandingPage from './components/LandingPage'
-import FarmManagement from './components/FarmManagement'
-
-import Market from './components/Market'
-import MarketDetails from './components/MarketDetails'
-import Tips from './components/Tips'
-import PlantDoctor from './components/PlantDoctor'
-import CommunityForum from './components/CommunityForum'
-import Schemes from './components/Schemes'
-import AboutUs from './components/AboutUs'
-import Contact from './components/Contact'
-import TermsOfService from './components/TermsOfService'
-import MarketComparison from './components/MarketComparison'
-import NearbyMarketsMap from './components/NearbyMarketsMap'
-import CropRecommendation from './components/CropRecommendation'
 import PersistentVideoBackground from './components/PersistentVideoBackground'
 import RuntimeTranslator from './components/RuntimeTranslator'
 import { getAuthToken, removeAuthToken } from './config'
 import { LocationProvider } from './LocationContext'
 
-// Kisan Charcha Components
-import CharchaDashboard from './components/KisanCharcha/CharchaDashboard'
-import CreateCharcha from './components/KisanCharcha/CreateCharcha'
-import CharchaView from './components/KisanCharcha/CharchaView'
-import CharchaBrowser from './components/KisanCharcha/CharchaBrowser'
-import NotificationCenter from './components/KisanCharcha/NotificationCenter'
+const EnhancedDashboard = lazy(() => import('./components/EnhancedDashboard'))
+const Login = lazy(() => import('./components/Login'))
+const LandingPage = lazy(() => import('./components/LandingPage'))
+const FarmManagement = lazy(() => import('./components/FarmManagement'))
+const Market = lazy(() => import('./components/Market'))
+const MarketDetails = lazy(() => import('./components/MarketDetails'))
+const Tips = lazy(() => import('./components/Tips'))
+const PlantDoctor = lazy(() => import('./components/PlantDoctor'))
+const CommunityForum = lazy(() => import('./components/CommunityForum'))
+const Schemes = lazy(() => import('./components/Schemes'))
+const AboutUs = lazy(() => import('./components/AboutUs'))
+const Contact = lazy(() => import('./components/Contact'))
+const TermsOfService = lazy(() => import('./components/TermsOfService'))
+const MarketComparison = lazy(() => import('./components/MarketComparison'))
+const NearbyMarketsMap = lazy(() => import('./components/NearbyMarketsMap'))
+const CropRecommendation = lazy(() => import('./components/CropRecommendation'))
+const CharchaDashboard = lazy(() => import('./components/KisanCharcha/CharchaDashboard'))
+const CreateCharcha = lazy(() => import('./components/KisanCharcha/CreateCharcha'))
+const CharchaView = lazy(() => import('./components/KisanCharcha/CharchaView'))
+const CharchaBrowser = lazy(() => import('./components/KisanCharcha/CharchaBrowser'))
+const NotificationCenter = lazy(() => import('./components/KisanCharcha/NotificationCenter'))
+
+const RouteLoadingFallback = () => (
+  <div className="min-h-[40vh] flex items-center justify-center text-white/80" role="status">Loading FarmEase…</div>
+)
 
 function App() {
   const [user, setUser] = useState(null)
@@ -110,7 +112,8 @@ function App() {
 
       {/* Main Content */}
       <div className="relative z-10">
-        <Routes>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Routes>
           {/* Public Routes - content floats above video */}
           <Route
             path="/landing"
@@ -158,7 +161,8 @@ function App() {
 
           {/* Catch-all route */}
           <Route path="*" element={<Navigate to={user ? "/" : "/landing"} replace />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </div>
     </LocationProvider>
   )

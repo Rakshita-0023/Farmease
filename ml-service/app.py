@@ -6,14 +6,21 @@ FarmEase ML API - Crop Recommendation & Plant Disease Detection Service
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import pickle
 import numpy as np
 from pathlib import Path
 from PIL import Image
 import io
+import os
 
 # Initialize FastAPI app
+MODEL_VERSION = os.getenv("FARMEASE_MODEL_VERSION", "unknown")
+SKIP_MODEL_LOADING = os.getenv("FARMEASE_SKIP_MODEL_LOADING", "false").lower() == "true"
+CORS_ORIGINS = [origin.strip() for origin in os.getenv(
+    "FARMEASE_CORS_ORIGINS", "http://localhost:5173,http://localhost:5174"
+).split(",") if origin.strip()]
+
 app = FastAPI(
     title="FarmEase ML API",
     description="Crop recommendation and plant disease detection",
@@ -23,7 +30,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,26 +46,29 @@ class CropInput(BaseModel):
     ph: float = Field(..., ge=0, le=14, description="Soil pH")
     rainfall: float = Field(..., ge=0, le=400, description="Rainfall (mm)")
 
-    class Config:
-        schema_extra = {
-            "example": {
-                "N": 90,
-                "P": 42,
-                "K": 43,
-                "temperature": 20.87,
-                "humidity": 82.00,
-                "ph": 6.50,
-                "rainfall": 202.93
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "N": 90,
+            "P": 42,
+            "K": 43,
+            "temperature": 20.87,
+            "humidity": 82.00,
+            "ph": 6.50,
+            "rainfall": 202.93
         }
+    })
 
 # Load model (will be created if doesn't exist)
 MODEL_PATH = Path(__file__).parent / "crop_model.pkl"
 DISEASE_MODEL_PATH = Path(__file__).parent / "disease_model.h5"
 DISEASE_CLASSES_PATH = Path(__file__).parent / "disease_classes.txt"
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 def load_or_create_model():
     """Load existing model or create a simple rule-based fallback"""
+    if SKIP_MODEL_LOADING:
+        print("ℹ️ Model loading skipped by FARMEASE_SKIP_MODEL_LOADING")
+        return None
     if MODEL_PATH.exists():
         try:
             with open(MODEL_PATH, 'rb') as f:
@@ -71,6 +81,8 @@ def load_or_create_model():
 
 def load_disease_model():
     """Load TensorFlow disease detection model"""
+    if SKIP_MODEL_LOADING:
+        return None
     if DISEASE_MODEL_PATH.exists():
         try:
             import tensorflow as tf
@@ -85,6 +97,8 @@ def load_disease_model():
 
 def load_disease_classes():
     """Load disease class names"""
+    if SKIP_MODEL_LOADING:
+        return []
     if DISEASE_CLASSES_PATH.exists():
         try:
             with open(DISEASE_CLASSES_PATH, 'r') as f:
@@ -167,7 +181,8 @@ def root():
         "status": "running",
         "service": "FarmEase ML API",
         "model_loaded": model is not None,
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "model_version": MODEL_VERSION
     }
 
 @app.post("/predict-crop")
@@ -212,7 +227,9 @@ def predict_crop(data: CropInput):
                     "recommended_crop": crop,
                     "confidence": confidence,
                     "method": "ml_model",
-                    "input_data": data.dict()
+                    "fallback_used": False,
+                    "model": {"identifier": "crop-recommendation", "version": MODEL_VERSION},
+                    "input_data": data.model_dump()
                 }
             except Exception as e:
                 print(f"⚠️ ML prediction failed: {e}, falling back to rules")
@@ -224,9 +241,13 @@ def predict_crop(data: CropInput):
             "recommended_crop": crop,
             "confidence": None,
             "method": "rule_based",
-            "input_data": data.dict()
+            "fallback_used": True,
+            "model": {"identifier": "crop-recommendation-rules", "version": "builtin"},
+            "input_data": data.model_dump()
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -250,7 +271,9 @@ def health_check():
         "crop_model_type": type(model).__name__ if model else "rule_based",
         "disease_model_loaded": disease_model is not None,
         "disease_classes_count": len(disease_classes),
-        "supported_crops": len(CROP_LABELS)
+        "supported_crops": len(CROP_LABELS),
+        "model_version": MODEL_VERSION,
+        "cors_origins_configured": len(CORS_ORIGINS)
     }
 
 @app.post("/predict-disease")
@@ -274,10 +297,18 @@ async def predict_disease(file: UploadFile = File(...)):
                 status_code=503,
                 detail="Disease classes not loaded"
             )
+
+        if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WebP images are supported")
         
         # Read and preprocess image
         image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        if len(image_bytes) > MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=413, detail="Image exceeds the 10 MB limit")
+        try:
+            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a readable image") from exc
         image = image.resize((224, 224))
         image_array = np.array(image) / 255.0
         image_array = np.expand_dims(image_array, axis=0)
@@ -290,11 +321,15 @@ async def predict_disease(file: UploadFile = File(...)):
         disease_name = disease_classes[class_index] if class_index < len(disease_classes) else "Unknown"
         
         return {
+            "status": "success",
             "disease": disease_name,
             "confidence": round(confidence * 100, 2),
-            "raw_predictions": predictions[0].tolist()[:5]  # Top 5 predictions
+            "model": {"identifier": "plant-disease-classifier", "version": MODEL_VERSION},
+            "fallback_used": False
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

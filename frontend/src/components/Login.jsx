@@ -119,7 +119,7 @@ const Login = ({ onLogin }) => {
       let res
       try {
         res = JSON.parse(responseText)
-      } catch (parseError) {
+      } catch {
         throw new Error('Server error. Please try again.')
       }
 

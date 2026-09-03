@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import { MapPin, Loader2, AlertCircle, ChevronDown, Search, X, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -28,7 +28,7 @@ const POPULAR_CITIES = [
 ]
 
 const LocationDetector = () => {
-  const { location, loading, error, locationStatus, updateLocation, retryLocationDetection } = useLocation()
+  const { location, loading, error, locationStatus, updateLocation, retryLocationDetection } = useFarmLocation()
   const [showSelector, setShowSelector] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 

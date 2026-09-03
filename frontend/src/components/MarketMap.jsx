@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './MarketMap.css'
 import { API_BASE_URL } from '../config'
 
@@ -10,7 +10,7 @@ const MarketMap = ({ userLocation }) => {
   const [loading, setLoading] = useState(false)
 
   // Fetch real market prices from backend API
-  const fetchRealMarketPrices = async (userLat, userLng, userState, userCity) => {
+  const fetchRealMarketPrices = useCallback(async (userLat, userLng, userState, userCity) => {
     try {
       console.log(`📡 Fetching real market prices for user location: ${userLat}, ${userLng}`)
 
@@ -48,10 +48,10 @@ const MarketMap = ({ userLocation }) => {
       console.error('❌ Failed to fetch real market prices:', error)
       return {} // Return empty object if API fails
     }
-  }
+  }, [])
 
   // Fetch real nearby markets from backend API
-  const fetchRealNearbyMarkets = async (userLat, userLng) => {
+  const fetchRealNearbyMarkets = useCallback(async (userLat, userLng) => {
     try {
       console.log(`🗺️ Fetching real nearby markets for user location: ${userLat}, ${userLng}`)
 
@@ -113,10 +113,10 @@ const MarketMap = ({ userLocation }) => {
       console.error('❌ Failed to fetch real nearby markets:', error)
       return [] // Return empty array if API fails
     }
-  }
+  }, [fetchRealMarketPrices])
 
   // Fetch nearby markets using real API data
-  const generateNearbyMarkets = async (location) => {
+  const generateNearbyMarkets = useCallback(async (location) => {
     try {
       setLoading(true)
       console.log('🔄 Fetching real nearby markets from API...')
@@ -138,13 +138,13 @@ const MarketMap = ({ userLocation }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchRealNearbyMarkets])
 
   useEffect(() => {
     if (userLocation) {
       generateNearbyMarkets(userLocation)
     }
-  }, [userLocation])
+  }, [userLocation, generateNearbyMarkets])
 
   const filteredMarkets = nearbyMarkets.filter(market =>
     market.name.toLowerCase().includes(searchQuery.toLowerCase())

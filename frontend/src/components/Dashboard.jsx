@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLanguage } from '../App'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import { useMandiData } from '../hooks/useMandiData'
 import { TrendingUp, TrendingDown, RefreshCw, MapPin, Loader2 } from 'lucide-react'
 import { API_BASE_URL } from '../config'
@@ -16,7 +16,7 @@ const getSeasonalCrops = (temperature) => {
 }
 
 const Dashboard = () => {
-  const { location, loading: locationLoading, locationStatus, retryLocationDetection, error: locationError } = useLocation()
+  const { location, loading: locationLoading, locationStatus, retryLocationDetection, error: locationError } = useFarmLocation()
   const [weather, setWeather] = useState(null)
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || {})
   const [recentActivity, setRecentActivity] = useState([])
@@ -48,7 +48,7 @@ const Dashboard = () => {
       const statusText = farm.progress >= 80 ? 'Excellent' : farm.progress >= 60 ? 'Growing Well' : farm.progress >= 40 ? 'Developing' : 'Recently Planted'
 
       activities.push({
-        icon: statusIcon,
+        icon: farm.progress >= 80 ? '🌿' : farm.progress >= 40 ? '🌱' : '🌾',
         text: `${farm.cropType} farm "${farm.name}" - ${statusText}`,
         time: daysAgo,
         status: farm.progress >= 60 ? 'good' : 'normal'

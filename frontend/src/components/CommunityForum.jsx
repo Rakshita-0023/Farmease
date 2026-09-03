@@ -172,7 +172,7 @@ const CommunityForum = () => {
                                                     <Tag size={12} /> {tag}
                                                 </span>
                                             ));
-                                        } catch (e) {
+                                        } catch {
                                             return (
                                                 <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-lg flex items-center gap-1">
                                                     <Tag size={12} /> General

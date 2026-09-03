@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useLocation } from '../LocationContext'
 import { Search, MapPin, TrendingUp, TrendingDown, LayoutGrid, Table, RefreshCw, ChevronDown, BarChart3, ArrowRightLeft } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -20,41 +19,39 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const CROP_IMAGES = {
     'Wheat': '/wheat.jpeg',
-    'Jowar': '/jowar.webp',
+    'Jowar': '/corn.jpg',
     'Maize': '/corn.jpg',
     'Corn': '/corn.jpg',
     'Rice': '/rice.jpg',
     'Paddy': '/rice.jpg',
-    'Bajra': '/bajra.jpg',
-    'Ragi': '/ragi.webp',
+    'Bajra': '/corn.jpg',
+    'Ragi': '/rice.jpg',
     'Arhar Dal': '/Arhar_Dal.webp',
-    'Chana Dal': '/Chana_Dal.webp',
-    'Moong Dal': '/Moong_Dal.jpg',
+    'Chana Dal': '/Arhar_Dal.webp',
+    'Moong Dal': '/Arhar_Dal.webp',
     'Chilli': '/tomato.jpeg',
-    'Turmeric': '/Mustard.jpg',
-    'Mustard': '/Mustard.jpg',
+    'Turmeric': '/turmeric.jpeg',
+    'Mustard': '/Sunflower.jpg',
     'Onion': '/onions.avif',
     'Tomato': '/tomato.jpeg',
     'Potato': '/potato.jpg',
-    'Cabbage': '/cabbage.jpeg',
-    'Cauliflower': '/Cauliflower.jpg',
-    'Banana': '/Bananas.jpg',
-    'Mango': '/Mangoes.jpg',
-    'Apple': '/Apples.jpeg',
-    'Orange': '/Oranges.jpg',
-    'Cotton': '/cotton.jpg',
-    'Groundnut': '/Groundnut.jpg',
+    'Cabbage': '/potato.jpg',
+    'Cauliflower': '/potato.jpg',
+    'Banana': '/Sunflower.jpg',
+    'Mango': '/Sunflower.jpg',
+    'Apple': '/tomato.jpeg',
+    'Orange': '/tomato.jpeg',
+    'Cotton': '/Rubber.jpg',
+    'Groundnut': '/Sunflower.jpg',
     'Sunflower': '/Sunflower.jpg',
-    'Jute': '/Jute.jpg',
+    'Jute': '/sugercane.jpg',
     'Sugarcane': '/sugercane.jpg',
-    'Coffee': '/coffee.jpeg',
+    'Coffee': '/tea.jpg',
     'Tea': '/tea.jpg',
     'Rubber': '/Rubber.jpg'
 }
 
 const MarketComparison = () => {
-    const { location: userLocation } = useLocation()
-
     // Filter State
     const [selectedCity, setSelectedCity] = useState('')
     const [selectedCrop, setSelectedCrop] = useState('')
@@ -62,7 +59,7 @@ const MarketComparison = () => {
     const [searchTerm, setSearchTerm] = useState('')
 
     // Fetch comparison data
-    const { data: marketData = [], isLoading, error, refetch, isError } = useMarketComparison(selectedCrop, selectedCity)
+    const { data: marketData = [], isLoading, refetch, isError } = useMarketComparison(selectedCrop, selectedCity)
 
     // Options for dropdowns
     const cities = ['Hyderabad', 'Vijayawada', 'Guntur', 'Warangal', 'Nizamabad', 'Kurnool']

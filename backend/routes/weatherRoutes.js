@@ -164,7 +164,8 @@ module.exports = (authenticateToken) => {
             // FALLBACK: OpenWeatherMap
             // ============================================
             try {
-                const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+                const API_KEY = process.env.OPENWEATHER_API_KEY;
+                if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured');
                 const owmUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
                 
                 const response = await axios.get(owmUrl, { timeout: 10000 });
@@ -254,7 +255,8 @@ module.exports = (authenticateToken) => {
             // FALLBACK: OpenWeatherMap Forecast
             // ============================================
             try {
-                const API_KEY = process.env.OPENWEATHER_API_KEY || '895284fb2d2c50a520ea537456963d9c';
+                const API_KEY = process.env.OPENWEATHER_API_KEY;
+                if (!API_KEY) throw new Error('OPENWEATHER_API_KEY is not configured');
                 const owmUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
                 
                 const response = await axios.get(owmUrl, { timeout: 10000 });

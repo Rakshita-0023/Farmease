@@ -1,17 +1,17 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   MapPin, RefreshCw, Navigation, TrendingUp, TrendingDown,
   Store, Clock, ChevronRight, Sparkles, Activity
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import { apiClient } from '../config'
 import marketCache from '../services/marketCache'
 
 const Market = () => {
   const navigate = useNavigate()
-  const { location: userLocation, loading: locationLoading, error: locationError, updateLocation, retryLocationDetection } = useLocation()
+  const { location: userLocation, loading: locationLoading, error: locationError, updateLocation, retryLocationDetection } = useFarmLocation()
 
   const [marketData, setMarketData] = useState({
     markets: [],
@@ -22,9 +22,9 @@ const Market = () => {
   const [sortBy, setSortBy] = useState('best_price')
   const premiumGlass = 'bg-[rgba(32,40,24,0.68)] backdrop-blur-[6px] border border-white/10 rounded-[18px] shadow-[0_8px_24px_rgba(0,0,0,0.28)]'
 
-  const normalizeName = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const normalizeName = useCallback((text) => String(text || '').toLowerCase().replace(/[^a-z0-9]/g, ''), [])
 
-  const enrichMarketsWithCropCatalog = async (markets) => {
+  const enrichMarketsWithCropCatalog = useCallback(async (markets) => {
     if (!Array.isArray(markets) || !markets.length) return markets
     const hasCropsAlready = markets.some(m => Array.isArray(m.commodities) && m.commodities.length > 0)
     if (hasCropsAlready) return markets
@@ -79,7 +79,7 @@ const Market = () => {
     } catch {
       return markets
     }
-  }
+  }, [normalizeName, userLocation?.city])
 
   const cropOptions = useMemo(() => {
     const set = new Set()
@@ -170,7 +170,7 @@ const Market = () => {
     return { label: 'Delayed', cls: 'text-amber-300' }
   }
 
-  const fetchMarketData = async (forceRefresh = false) => {
+  const fetchMarketData = useCallback(async (forceRefresh = false) => {
     if (!userLocation?.latitude || !userLocation?.longitude) return
 
     if (!forceRefresh) {
@@ -200,13 +200,13 @@ const Market = () => {
     } catch (error) {
       setMarketData(prev => ({ ...prev, loading: false, error: error.message }))
     }
-  }
+  }, [enrichMarketsWithCropCatalog, userLocation?.latitude, userLocation?.longitude])
 
   useEffect(() => {
     if (userLocation?.latitude && userLocation?.longitude) {
       fetchMarketData()
     }
-  }, [userLocation])
+  }, [fetchMarketData, userLocation?.latitude, userLocation?.longitude])
 
   // Premium Loading State
   if (locationLoading) {

@@ -1,11 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 const YieldPredictor = ({ farmData, weatherData }) => {
   const [prediction, setPrediction] = useState(null)
   const [loading, setLoading] = useState(true)
   const [historicalData, setHistoricalData] = useState([])
 
-  const generateYieldPrediction = (farm, weather) => {
+  const generateRecommendations = useCallback((farm, weather, weatherFactor) => {
+    const recommendations = []
+
+    if (weatherFactor < 0.9) recommendations.push({ type: 'weather', message: 'Weather conditions are not optimal. Consider protective measures.', action: 'Install shade nets or greenhouse protection' })
+    if (farm.soilType !== 'Loamy') recommendations.push({ type: 'soil', message: 'Soil improvement can boost yield by 10-15%', action: 'Add organic compost and improve drainage' })
+    if (farm.progress < 70) recommendations.push({ type: 'management', message: 'Improve farm management practices', action: 'Regular monitoring and timely interventions needed' })
+    recommendations.push({ type: 'irrigation', message: 'Optimal irrigation schedule for maximum yield', action: `Water every ${farm.cropType === 'Rice' ? '2-3' : '4-5'} days during growing season` })
+    return recommendations
+  }, [])
+
+  const generateYieldPrediction = useCallback((farm, weather) => {
     // AI-like yield prediction algorithm
     const baseYields = {
       'Wheat': 45, 'Rice': 55, 'Corn': 65, 'Tomatoes': 400,
@@ -46,45 +56,9 @@ const YieldPredictor = ({ farmData, weatherData }) => {
       },
       recommendations: generateRecommendations(farm, weather, weatherFactor)
     }
-  }
+  }, [generateRecommendations])
 
-  const generateRecommendations = (farm, weather, weatherFactor) => {
-    const recommendations = []
-
-    if (weatherFactor < 0.9) {
-      recommendations.push({
-        type: 'weather',
-        message: 'Weather conditions are not optimal. Consider protective measures.',
-        action: 'Install shade nets or greenhouse protection'
-      })
-    }
-
-    if (farm.soilType !== 'Loamy') {
-      recommendations.push({
-        type: 'soil',
-        message: 'Soil improvement can boost yield by 10-15%',
-        action: 'Add organic compost and improve drainage'
-      })
-    }
-
-    if (farm.progress < 70) {
-      recommendations.push({
-        type: 'management',
-        message: 'Improve farm management practices',
-        action: 'Regular monitoring and timely interventions needed'
-      })
-    }
-
-    recommendations.push({
-      type: 'irrigation',
-      message: 'Optimal irrigation schedule for maximum yield',
-      action: `Water every ${farm.cropType === 'Rice' ? '2-3' : '4-5'} days during growing season`
-    })
-
-    return recommendations
-  }
-
-  const generateHistoricalData = (cropType) => {
+  const generateHistoricalData = useCallback((cropType) => {
     const currentYear = new Date().getFullYear()
     const data = []
     
@@ -103,7 +77,7 @@ const YieldPredictor = ({ farmData, weatherData }) => {
     }
     
     return data
-  }
+  }, [generateYieldPrediction])
 
   useEffect(() => {
     if (farmData) {
@@ -119,7 +93,7 @@ const YieldPredictor = ({ farmData, weatherData }) => {
         setLoading(false)
       }, 1500)
     }
-  }, [farmData, weatherData])
+  }, [farmData, weatherData, generateHistoricalData, generateYieldPrediction])
 
   if (loading) {
     return (
@@ -198,7 +172,7 @@ const YieldPredictor = ({ farmData, weatherData }) => {
       <div className="historical-section">
         <h4>📊 Historical Yield Trends</h4>
         <div className="historical-chart">
-          {historicalData.map((data, index) => (
+          {historicalData.map((data) => (
             <div key={data.year} className="year-data">
               <div className="year-label">{data.year}</div>
               <div 

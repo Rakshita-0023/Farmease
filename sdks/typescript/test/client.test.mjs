@@ -1,0 +1,2 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { FarmEase } from '../dist/index.js';
+test('uses normalized envelope and auth', async()=>{let request; const client=new FarmEase({baseUrl:'http://x',token:'abc',fetch:async(url,opts)=>{request={url,opts};return new Response(JSON.stringify({data:{temperatureC:20},meta:{timestamp:'x',requestId:'r'}}),{status:200,headers:{'content-type':'application/json'}})}});assert.deepEqual(await client.weather.current(1,2),{temperatureC:20});assert.equal(request.opts.headers.Authorization,'Bearer abc');});

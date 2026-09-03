@@ -78,15 +78,11 @@ router.post('/plant-disease', upload.single('file'), async (req, res) => {
     }
 
     if (!response) {
-      // Graceful fallback: return actionable manual-review result instead of hard failure
-      return res.json({
-        success: true,
-        disease: 'Manual Review Recommended',
-        rawDisease: 'manual_review_recommended',
-        confidence: 35,
-        fallback: true,
-        message: 'Plant Doctor ML service unavailable. Returned a safe fallback assessment.',
-        timestamp: new Date().toISOString()
+      return res.status(503).json({
+        success: false,
+        code: 'INTELLIGENCE_SERVICE_UNAVAILABLE',
+        message: 'Plant Doctor ML service is unavailable. Please retry when the service is online.',
+        details: process.env.NODE_ENV === 'development' ? lastError?.message : undefined
       });
     }
 
@@ -160,9 +156,8 @@ router.get('/plant-disease/health', async (req, res) => {
       success: true,
       available: false,
       degraded: true,
-      message: 'Plant Doctor ML service unavailable - manual-review fallback is active',
-      ml_api_url: PLANT_DOCTOR_API_URL,
-      fallback: 'manual_review_recommended'
+      message: 'Plant Doctor ML service unavailable',
+      ml_api_url: PLANT_DOCTOR_API_URL
     });
   }
 });

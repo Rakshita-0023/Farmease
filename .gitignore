@@ -1,37 +1,45 @@
-# Environment files
+# Environment and secrets (commit only the corresponding *.example files)
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+!*.env.example
 
-# Backend
-backend/.env
-backend/venv/
-backend/__pycache__/
-backend/*.pyc
+# JavaScript dependencies and generated output
+**/node_modules/
+**/dist/
+**/build/
+**/.vite/
+**/coverage/
+*.tsbuildinfo
 
-# Frontend
-frontend/.env
-frontend/node_modules/
-frontend/dist/
-frontend/build/
+# Python environments, bytecode, test artefacts and local model downloads
+**/venv/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+*.pytest_cache/
+*.coverage
+htmlcov/
 
-# ML Service
-ml-service/venv/
-ml-service/__pycache__/
-ml-service/*.pyc
-# Model files will be downloaded from external storage
-# ml-service/disease_model.h5
-# ml-service/crop_model.pkl
+# Local databases and runtime files. Use `npm run db:setup` in backend instead.
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+backend/.test-farmease.db
 
-# Logs
+# Logs and temporary automation output
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
+pnpm-debug.log*
+.playwright-cli/
+outputs/
 
-# OS
+# Editor, OS and hosting metadata
 .DS_Store
 Thumbs.db
-.vercel
+.idea/
+.vscode/
+.vercel/
+.kiro/

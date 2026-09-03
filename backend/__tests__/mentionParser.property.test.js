@@ -59,6 +59,8 @@ describe('Mention Parser Properties', () => {
     await db.execute('DELETE FROM users WHERE name LIKE ?', ['Test%']);
     await db.execute('DELETE FROM users WHERE name LIKE ?', ['Member%']);
     await db.execute('DELETE FROM users WHERE name = ?', ['NonMember']);
+    await db.close();
+    await require('../db').close();
   });
 
   /**
@@ -72,7 +74,7 @@ describe('Mention Parser Properties', () => {
     fc.assert(
       fc.property(
         fc.array(fc.string({ minLength: 1, maxLength: 20 }).filter(s => /^\w+$/.test(s))),
-        fc.string(),
+        fc.string().map(value => value.replace(/@/g, ' ')),
         (usernames, extraText) => {
           // Create content with mentions
           const mentionStrings = usernames.map(u => `@${u}`);
@@ -182,7 +184,7 @@ describe('Mention Parser Properties', () => {
   test('Property 23: Non-existent usernames should return empty validation result', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.array(fc.string({ minLength: 1, maxLength: 20 }).filter(s => /^NonExistent\w+$/.test(s))),
+        fc.array(fc.string({ minLength: 1, maxLength: 20 }).map(s => `NonExistent_${s.replace(/\W/g, '_')}`)),
         async (usernames) => {
           const validUserIds = await MentionParser.validateMentions(usernames, testCharchaId);
           return validUserIds.length === 0;

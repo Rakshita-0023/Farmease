@@ -4,7 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 import { MapPin, BarChart3, ChevronDown, RefreshCw, TrendingUp, TrendingDown, Navigation, Target, Globe } from 'lucide-react'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import icon from 'leaflet/dist/images/marker-icon.png'
 import iconShadow from 'leaflet/dist/images/marker-shadow.png'
 import { useMandiData } from '../hooks/useMandiData'
@@ -33,7 +33,7 @@ const marketIcon = new L.Icon({
 
 
 const InteractiveMarketMap = () => {
-  const { location: userLocation } = useLocation()
+  const { location: userLocation } = useFarmLocation()
   const { data: marketData = [], isLoading, refetch } = useMandiData(
     '',
     userLocation?.city || '',

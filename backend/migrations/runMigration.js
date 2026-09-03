@@ -3,7 +3,9 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
 // Database path
-const dbPath = path.join(__dirname, '..', 'farmease.db');
+const dbPath = process.env.FARMEASE_DATABASE_PATH
+  ? path.resolve(process.cwd(), process.env.FARMEASE_DATABASE_PATH)
+  : path.join(__dirname, '..', 'farmease.db');
 const migrationFile = path.join(__dirname, '001_create_kisan_charcha_tables.sql');
 
 console.log('🚀 Running Kisan Charcha database migration...');

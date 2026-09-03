@@ -8,7 +8,7 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { motion, AnimatePresence } from 'framer-motion'
 import 'leaflet/dist/leaflet.css'
-import { useLocation } from '../LocationContext'
+import { useFarmLocation } from '../hooks/useFarmLocation'
 import { apiClient } from '../config'
 import NearbyMarketsMap from './NearbyMarketsMap'
 import L from 'leaflet'
@@ -28,41 +28,41 @@ L.Marker.prototype.options.icon = DefaultIcon;
 // CROP IMAGES MAPPING
 const CROP_IMAGES = {
   'Wheat': '/wheat.jpeg',
-  'Jowar': '/jowar.webp',
+  'Jowar': '/corn.jpg',
   'Maize': '/corn.jpg',
   'Corn': '/corn.jpg',
   'Rice': '/rice.jpg',
   'Paddy': '/rice.jpg',
-  'Bajra': '/bajra.jpg',
-  'Ragi': '/ragi.webp',
+  'Bajra': '/corn.jpg',
+  'Ragi': '/rice.jpg',
   'Arhar Dal': '/Arhar_Dal.webp',
-  'Chana Dal': '/Chana_Dal.webp',
-  'Moong Dal': '/Moong_Dal.jpg',
+  'Chana Dal': '/Arhar_Dal.webp',
+  'Moong Dal': '/Arhar_Dal.webp',
   'Chilli': '/tomato.jpeg',
   'Red Chilli': '/tomato.jpeg',
-  'Turmeric': '/Mustard.jpg',
-  'Mustard': '/Mustard.jpg',
+  'Turmeric': '/turmeric.jpeg',
+  'Mustard': '/Sunflower.jpg',
   'Onion': '/onions.avif',
   'Tomato': '/tomato.jpeg',
   'Potato': '/potato.jpg',
-  'Cabbage': '/cabbage.jpeg',
-  'Cauliflower': '/Cauliflower.jpg',
-  'Banana': '/Bananas.jpg',
-  'Mango': '/Mangoes.jpg',
-  'Apple': '/Apples.jpeg',
-  'Orange': '/Oranges.jpg',
-  'Cotton': '/cotton.jpg',
-  'Groundnut': '/Groundnut.jpg',
+  'Cabbage': '/potato.jpg',
+  'Cauliflower': '/potato.jpg',
+  'Banana': '/Sunflower.jpg',
+  'Mango': '/Sunflower.jpg',
+  'Apple': '/tomato.jpeg',
+  'Orange': '/tomato.jpeg',
+  'Cotton': '/Rubber.jpg',
+  'Groundnut': '/Sunflower.jpg',
   'Sunflower': '/Sunflower.jpg',
-  'Jute': '/Jute.jpg',
+  'Jute': '/sugercane.jpg',
   'Sugarcane': '/sugercane.jpg',
-  'Coffee': '/coffee.jpeg',
+  'Coffee': '/tea.jpg',
   'Tea': '/tea.jpg',
   'Rubber': '/Rubber.jpg',
   'Brinjal': '/tomato.jpeg',
-  'Papaya': '/Bananas.jpg',
-  'Pomegranate': '/Apples.jpeg',
-  'Soybean': '/Groundnut.jpg'
+  'Papaya': '/Sunflower.jpg',
+  'Pomegranate': '/tomato.jpeg',
+  'Soybean': '/Sunflower.jpg'
 }
 
 const Market = () => {
@@ -73,19 +73,16 @@ const Market = () => {
     locationStatus,
     retryLocationDetection,
     allCities,
-    updateLocation,
-    searchCities
-  } = useLocation()
+    updateLocation
+  } = useFarmLocation()
 
   const [marketViewMode, setMarketViewMode] = useState('NEARBY_CITIES')
-  const [activeCity, setActiveCity] = useState(null)
   const [nearbyCities, setNearbyCities] = useState([])
   const [cityMarkets, setCityMarkets] = useState([])
   const [showNearbyMap, setShowNearbyMap] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [citySearchQuery, setCitySearchQuery] = useState('')
   const [viewMode, setViewMode] = useState('grid')
   const [showCitySelector, setShowCitySelector] = useState(false)
 
@@ -112,7 +109,6 @@ const Market = () => {
   }, [userLocation])
 
   const handleCitySelect = async (cityName) => {
-    setActiveCity(cityName)
     setMarketViewMode('CITY_DETAIL')
     setIsLoading(true)
 
