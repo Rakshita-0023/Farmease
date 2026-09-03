@@ -130,7 +130,7 @@ The repo contains `crop_model.pkl` (~3.4 MB) and `disease_model.h5` (~11 MB) bec
 
 ## Testing
 
-```bash
+B```bash
 npm --prefix backend test
 npm --prefix backend run openapi:validate
 npm --prefix frontend test
@@ -169,3 +169,9 @@ Phase 4 adds the geospatial and alert foundation: validated farm GeoJSON boundar
 `GET /api/v1/farms/:id/field-health` returns normalized observations when a configured satellite provider can provide them; otherwise it returns a predictable provider-unavailable error. `POST /api/v1/alert-rules`, `POST /api/v1/farms/:id/alerts/evaluate`, and `GET /api/v1/farms/:id/alerts` provide deterministic, source-labelled alerts. Vegetation changes are stress signals only, never disease diagnoses.
 
 See the staged [ROADMAP.md](ROADMAP.md) for India agricultural data, intelligence, geospatial features, and an SDK ecosystem.
+### Install the SDKs
+
+Python:
+
+```bash
+pip install farmease
