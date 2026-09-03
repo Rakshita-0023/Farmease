@@ -11,6 +11,7 @@
 **/.vite/
 **/coverage/
 *.tsbuildinfo
+*.tgz
 
 # Python environments, bytecode, test artefacts and local model downloads
 **/venv/

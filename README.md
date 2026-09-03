@@ -149,6 +149,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md
 
 FarmEase ships a dependency-light Python SDK (`sdks/python`, version 0.1.0) and a typed TypeScript SDK (`sdks/typescript`, version 0.1.0). See [SDK getting started](docs/SDK_GETTING_STARTED.md) and runnable examples in `examples/python/`.
 
+Packages are release-ready but not yet published. For local development use `python3 -m pip install -e sdks/python` or build the wheel; for TypeScript use `npm install ./sdks/typescript` after `npm run build`. Published install commands will be added after the first maintainer release.
+
 ```python
 from farmease import FarmEase
 client = FarmEase("http://localhost:5000/api/v1")

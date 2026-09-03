@@ -1,0 +1,5 @@
+MANIFEST.in
+README.md
+pyproject.toml
+src/farmease/__init__.py
+src/farmease/client.py

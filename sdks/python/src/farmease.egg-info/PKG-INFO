@@ -1,0 +1,25 @@
+Metadata-Version: 2.4
+Name: farmease
+Version: 0.1.0
+Summary: Python client for FarmEase Core agricultural intelligence APIs
+Author: FarmEase Contributors
+License-Expression: Apache-2.0
+Project-URL: Homepage, https://github.com/Rakshita-0023/Farmease
+Project-URL: Repository, https://github.com/Rakshita-0023/Farmease
+Project-URL: Documentation, https://github.com/Rakshita-0023/Farmease#readme
+Keywords: agriculture,india,weather,markets,api
+Classifier: Development Status :: 3 - Alpha
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+
+# FarmEase Python SDK
+
+```python
+from farmease import FarmEase
+client = FarmEase("http://localhost:5000/api/v1")
+weather = client.weather.current(lat=28.6, lon=77.2)
+prices = client.markets.prices(commodity="wheat")
+```
+
+Version `0.1.0`. Responses contain the normalized `data` payload; `FarmEaseError` exposes API code/status/details.

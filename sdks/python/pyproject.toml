@@ -6,7 +6,17 @@ build-backend = "setuptools.build_meta"
 name = "farmease"
 version = "0.1.0"
 description = "Python client for FarmEase Core agricultural intelligence APIs"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [{ name = "FarmEase Contributors" }]
+keywords = ["agriculture", "india", "weather", "markets", "api"]
 requires-python = ">=3.9"
+classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3"]
+
+[project.urls]
+Homepage = "https://github.com/Rakshita-0023/Farmease"
+Repository = "https://github.com/Rakshita-0023/Farmease"
+Documentation = "https://github.com/Rakshita-0023/Farmease#readme"
 
 [tool.setuptools.packages.find]
 where = ["src"]
