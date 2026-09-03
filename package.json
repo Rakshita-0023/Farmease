@@ -12,5 +12,8 @@
     "sdk:typescript": "npm --prefix sdks/typescript run build",
     "sdk:test": "npm --prefix sdks/typescript test && PYTHONPATH=sdks/python/src python3 -m unittest discover -s sdks/python/tests"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@farmease/sdk": "^0.1.0"
+  }
 }
