@@ -7,7 +7,6 @@ FarmEase ML API - Crop Recommendation & Plant Disease Detection Service
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ConfigDict
-import pickle
 import numpy as np
 from pathlib import Path
 from PIL import Image
@@ -71,8 +70,11 @@ def load_or_create_model():
         return None
     if MODEL_PATH.exists():
         try:
-            with open(MODEL_PATH, 'rb') as f:
-                return pickle.load(f)
+            # The checked-in artifact is a joblib/numpy pickle, not a plain
+            # stdlib pickle. Loading it with pickle.load raises STACK_GLOBAL
+            # errors and causes an avoidable production rule fallback.
+            import joblib
+            return joblib.load(MODEL_PATH)
         except Exception as e:
             print(f"⚠️ Could not load model: {e}")
     

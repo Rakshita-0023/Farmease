@@ -1,5 +1,9 @@
 # FarmEase production deployment
 
+The AWS migration path is documented in [AWS deployment](AWS_DEPLOYMENT.md).
+Render remains a temporary fallback until the AWS ALB, Core, ML, and RDS smoke
+tests pass.
+
 ## Published services
 
 - Farmer app: https://farmease-zeta.vercel.app/

@@ -6,7 +6,7 @@
 
 - `crop_model.pkl`: approximately 3.4 MB, currently required for local model-backed recommendations.
 - `disease_model.h5`: approximately 11 MB, currently required for local plant diagnosis.
-- Model training provenance and versions are not encoded in the artifacts; API metadata reports `FARMEASE_MODEL_VERSION`, default `unknown`. Do not treat `unknown` as a release version.
+- The crop artifact is a joblib/numpy pickle whose embedded estimator metadata identifies scikit-learn `1.8.0`; the runtime pins that version and loads it with `joblib.load`. Training provenance beyond the serializer/runtime is not encoded; API metadata reports `FARMEASE_MODEL_VERSION`, default `unknown`. Do not treat `unknown` as a release version.
 
 ## Provenance and evaluation
 

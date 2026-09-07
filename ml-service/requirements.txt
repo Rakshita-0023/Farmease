@@ -2,7 +2,9 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 pydantic>=2.10.0
 numpy>=1.26.0
-scikit-learn>=1.3.2
+# crop_model.pkl is a joblib artifact serialized with scikit-learn 1.8.0.
+# Pin the producer/runtime version so production does not silently fall back.
+scikit-learn==1.8.0
 tensorflow>=2.15.0
 pillow>=10.0.0
 python-multipart>=0.0.6

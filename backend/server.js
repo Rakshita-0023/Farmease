@@ -109,7 +109,7 @@ const localData = {
 async function initDB() {
   try {
     // Production: Use DATABASE_URL (PostgreSQL or MySQL)
-    if (process.env.DATABASE_URL) {
+    if (db.dbType === 'postgres' || db.dbType === 'mysql') {
       const dbType = require('./db').dbType
       console.log(`📊 Production mode: Using ${dbType.toUpperCase()} Database`)
       console.log('🔍 Testing database connection...')
@@ -141,13 +141,13 @@ async function initDB() {
     databaseState.checkedAt = new Date().toISOString()
     
     // In production, do NOT fall back to in-memory - fail loudly
-    if (process.env.DATABASE_URL) {
+    if (db.dbType === 'postgres' || db.dbType === 'mysql') {
       console.error('🚨 CRITICAL: Database connection failed in production!')
       console.error('🚨 Check DATABASE_URL and database server status')
       // Still allow server to start but log the error
     }
     
-    if (process.env.DATABASE_URL) {
+    if (db.dbType === 'postgres' || db.dbType === 'mysql') {
       // Never silently downgrade a production deployment to ephemeral memory.
       storageState.useLocalStorage = false
       console.error('🚨 Production database is unavailable; database-backed requests will return errors')

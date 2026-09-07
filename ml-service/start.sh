@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 echo "🚀 Starting FarmEase ML Service..."
 
@@ -8,4 +9,4 @@ python download_models.py || echo "⚠️ Optional model download check failed; 
 
 # Start the FastAPI server with uvicorn on Render's port
 echo "🌱 Starting FastAPI server on port ${PORT:-10000}..."
-uvicorn app:app --host 0.0.0.0 --port ${PORT:-10000}
+exec python -m uvicorn app:app --host 0.0.0.0 --port "${PORT:-10000}"

@@ -3,10 +3,21 @@
 let pool;
 let dbType = 'none';
 
-if (process.env.DATABASE_URL) {
+// AWS ECS injects database credentials as separate Secrets Manager values.
+// Keep DATABASE_URL supported for Render/local deployments, but make the
+// component form first-class so credentials never need to be assembled in
+// Terraform or committed to the repository.
+const configuredDatabaseUrl = process.env.DATABASE_URL || (
+  process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD
+    ? `postgresql://${encodeURIComponent(process.env.DB_USER)}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${encodeURIComponent(process.env.DB_NAME || 'farmease')}`
+    : null
+);
+const hasDatabaseComponents = Boolean(process.env.DB_HOST || process.env.DB_USER || process.env.DB_PASSWORD);
+
+if (configuredDatabaseUrl) {
   // ========== PRODUCTION: PostgreSQL or MySQL ==========
-  const isPostgres = process.env.DATABASE_URL.startsWith('postgres');
-  const isMySQL = process.env.DATABASE_URL.startsWith('mysql');
+  const isPostgres = configuredDatabaseUrl.startsWith('postgres');
+  const isMySQL = configuredDatabaseUrl.startsWith('mysql');
   
   if (isPostgres) {
     // PostgreSQL (Render, Supabase, Neon, etc.)
@@ -20,14 +31,14 @@ if (process.env.DATABASE_URL) {
     // production PostgreSQL URL unless the URL explicitly disables SSL.
     let postgresSsl = { rejectUnauthorized: false };
     try {
-      const databaseUrl = new URL(process.env.DATABASE_URL);
+      const databaseUrl = new URL(configuredDatabaseUrl);
       if (databaseUrl.searchParams.get('sslmode') === 'disable') postgresSsl = false;
     } catch (error) {
       console.error('❌ DATABASE_URL is not a valid PostgreSQL URL:', error.message);
     }
     
     const pgPool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: configuredDatabaseUrl,
       ssl: postgresSsl,
       max: 10,
       idleTimeoutMillis: 30000,
@@ -63,7 +74,8 @@ if (process.env.DATABASE_URL) {
           insertId: result.rows[0]?.id || null,
           affectedRows: result.rowCount
         }];
-      }
+      },
+      close: () => pgPool.end()
     };
     
   } else if (isMySQL) {
@@ -74,7 +86,7 @@ if (process.env.DATABASE_URL) {
     const mysql = require('mysql2/promise');
     
     pool = mysql.createPool({
-      uri: process.env.DATABASE_URL,
+      uri: configuredDatabaseUrl,
       ssl: { rejectUnauthorized: false },
       waitForConnections: true,
       connectionLimit: 10,
@@ -85,7 +97,15 @@ if (process.env.DATABASE_URL) {
   } else {
     console.error('❌ Unknown DATABASE_URL format');
   }
-  
+} else if (hasDatabaseComponents) {
+  // Do not silently fall back to SQLite if ECS secret injection is incomplete.
+  dbType = 'postgres';
+  console.error('❌ Incomplete AWS database configuration: DB_HOST, DB_USER, and DB_PASSWORD are all required');
+  pool = {
+    query: async () => { throw new Error('Incomplete PostgreSQL configuration'); },
+    execute: async () => { throw new Error('Incomplete PostgreSQL configuration'); },
+    close: async () => {}
+  };
 } else {
   // ========== DEVELOPMENT: SQLite ==========
   dbType = 'sqlite';

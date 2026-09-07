@@ -1,0 +1,2 @@
+aws_region        = "ap-south-1"
+state_bucket_name = "farmease-terraform-state-<account-id>"

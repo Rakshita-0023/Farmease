@@ -87,7 +87,7 @@ Copy each service’s `.env.example`; never commit the resulting `.env` files.
 | Variable | Service | Required | Purpose |
 | --- | --- | --- | --- |
 | `JWT_SECRET` | backend | Yes | Signs application sessions; use a strong unique value. |
-| `DATABASE_URL` | backend | No | PostgreSQL/MySQL production database; omit for local SQLite. |
+| `DATABASE_URL` | backend | No | PostgreSQL/MySQL connection URL; AWS ECS may inject `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` instead. |
 | `ML_API_URL` | backend | No | Local/deployed FastAPI crop service. |
 | `AGMARKNET_API_KEY` | backend | For live prices | data.gov.in key for the AGMARKNET provider. |
 | `OPENWEATHER_API_KEY` | backend | No | Legacy weather/geocoding fallback only. |
@@ -132,7 +132,7 @@ The repo contains `crop_model.pkl` (~3.4 MB) and `disease_model.h5` (~11 MB) bec
 
 ## Testing
 
-B```bash
+```bash
 npm --prefix backend test
 npm --prefix backend run openapi:validate
 npm --prefix frontend test

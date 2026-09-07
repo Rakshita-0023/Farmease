@@ -1,0 +1,19 @@
+aws_region  = "ap-south-1"
+environment = "production"
+
+# Build and push these immutable SHA-tagged images before applying:
+core_image = "<account>.dkr.ecr.ap-south-1.amazonaws.com/farmease-core:<git-sha>"
+ml_image   = "<account>.dkr.ecr.ap-south-1.amazonaws.com/farmease-ml:<git-sha>"
+
+# Create these secret values in Secrets Manager and paste only their ARNs here.
+jwt_secret_arn = "arn:aws:secretsmanager:ap-south-1:<account>:secret:farmease/jwt-XXXXXX"
+# agmarknet_api_key_secret_arn = "arn:aws:secretsmanager:..."
+# google_client_id_secret_arn = "arn:aws:secretsmanager:..."
+# sentinel_access_token_secret_arn = "arn:aws:secretsmanager:..."
+
+cors_origins = "https://farmease-zeta.vercel.app"
+market_data_mode = "LIVE"
+
+# Set these only after an ACM certificate and owned DNS name exist.
+# enable_https       = true
+# acm_certificate_arn = "arn:aws:acm:..."

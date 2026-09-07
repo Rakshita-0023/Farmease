@@ -64,12 +64,12 @@ Predict the best crop for given conditions.
 }
 ```
 
-**Response:**
+**Response (ML model loaded):**
 ```json
 {
   "recommended_crop": "rice",
-  "confidence": 0.95,
-  "method": "rule_based",
+  "confidence": null,
+  "method": "ml_model",
   "input_data": {...}
 }
 ```
@@ -107,17 +107,15 @@ The API will automatically detect and use the ML model.
 
 ## Production Deployment
 
-For production, use:
+For production, use the repository Dockerfile or:
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000 --workers 4
+./start.sh
 ```
 
 Or deploy to:
-- **Render**: Add as a web service
-- **Railway**: Connect GitHub repo
-- **AWS Lambda**: Use Mangum adapter
-- **Docker**: Build and deploy container
+- **AWS ECS/Fargate**: Build `ml-service/Dockerfile` and deploy the image
+- **Docker**: Build and deploy the container
 
 ## Integration with FarmEase
 
@@ -125,7 +123,7 @@ The backend (`backend/routes/crop.js`) connects to this ML API:
 
 ```javascript
 const response = await axios.post(
-  "http://127.0.0.1:8000/predict-crop",
+  process.env.ML_API_URL + "/predict-crop",
   cropData
 );
 ```

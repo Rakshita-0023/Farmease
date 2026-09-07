@@ -7,6 +7,7 @@
   "main": "server.js",
   "scripts": {
     "db:setup": "node scripts/setupDatabase.js",
+    "db:migrate": "node scripts/migrate.js",
     "test": "FARMEASE_DATABASE_PATH=.test-farmease.db node scripts/setupDatabase.js && FARMEASE_DATABASE_PATH=.test-farmease.db jest --runInBand",
     "test:watch": "jest --watch",
     "dev": "nodemon server.js",
