@@ -1,5 +1,7 @@
 # FarmEase Deployment Status
 
+Last verified: 2026-09-07. The existing FarmEase Vercel deployment at https://farmease-zeta.vercel.app/ was verified as this repository's Vite application and its production bundle points to https://farmease-tqgy.onrender.com/api. Core health, Swagger, OpenAPI, CORS, weather, advisory, alerts, and the database-readiness reporting path were verified live; PostgreSQL and the separate ML Render service still require dashboard configuration.
+
 ## ✅ Working Features (Localhost)
 
 - **Weather**: Real-time accurate weather data from Open-Meteo/OpenWeatherMap
@@ -79,7 +81,7 @@
 
 ## 🔗 Important Links
 
-- **Frontend (Vercel)**: https://farmease.vercel.app
+- **Frontend (Vercel)**: https://farmease-zeta.vercel.app
 - **Backend (Render)**: https://farmease-tqgy.onrender.com
 - **ML Service (Render)**: https://farmease-plant-doctor.onrender.com
 - **GitHub**: https://github.com/Rakshita-0023/Farmease

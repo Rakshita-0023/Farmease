@@ -47,7 +47,6 @@ const staticAllowedOrigins = [
   'https://farmeaseai-kappa.vercel.app',
   'https://farmeaseai.vercel.app',
   'https://farmease-zeta.vercel.app',
-  'https://farmease.vercel.app'
 ];
 
 // Optional override via env, comma-separated (useful for new preview domains).

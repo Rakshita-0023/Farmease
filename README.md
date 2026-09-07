@@ -8,7 +8,7 @@
 
 FarmEase is an open-source agricultural intelligence platform for India. It pairs a reference farmer application with a versioned Core API, normalized agricultural contracts, and extensible data providers for weather, markets, crop intelligence, and plant diagnosis.
 
-Live links: [Farmer App](https://farmease.vercel.app/) · [FarmEase Core](https://farmease-tqgy.onrender.com) · [Swagger Docs](https://farmease-tqgy.onrender.com/api/v1/docs) · [OpenAPI JSON](https://farmease-tqgy.onrender.com/api/v1/openapi.json) · [PyPI](https://pypi.org/project/farmease/) · [npm](https://www.npmjs.com/package/@farmease/sdk).
+Live links: [Farmer App](https://farmease-zeta.vercel.app/) · [FarmEase Core](https://farmease-tqgy.onrender.com) · [Swagger Docs](https://farmease-tqgy.onrender.com/api/v1/docs) · [OpenAPI JSON](https://farmease-tqgy.onrender.com/api/v1/openapi.json) · [PyPI](https://pypi.org/project/farmease/) · [npm](https://www.npmjs.com/package/@farmease/sdk).
 
 Published packages: [PyPI `farmease`](https://pypi.org/project/farmease/) and [npm `@farmease/sdk`](https://www.npmjs.com/package/@farmease/sdk). Release notes: [v0.1.0](docs/releases/v0.1.0.md).
 

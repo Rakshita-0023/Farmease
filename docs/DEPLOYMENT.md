@@ -2,7 +2,7 @@
 
 ## Published services
 
-- Farmer app: https://farmease.vercel.app/
+- Farmer app: https://farmease-zeta.vercel.app/
 - Core API: https://farmease-tqgy.onrender.com
 - Swagger UI: https://farmease-tqgy.onrender.com/api/v1/docs
 - OpenAPI JSON: https://farmease-tqgy.onrender.com/api/v1/openapi.json
@@ -35,7 +35,7 @@ The service binds Uvicorn to `0.0.0.0:${PORT:-10000}`. Model downloads are disab
 
 - `JWT_SECRET`: strong unique production secret; required for signing authentication tokens.
 - `DATABASE_URL`: persistent PostgreSQL URL for Render production. Do not use local SQLite for persistent production data.
-- `CORS_ORIGINS`: explicit comma-separated origins, including `https://farmease.vercel.app`.
+- `CORS_ORIGINS`: explicit comma-separated origins, including `https://farmease-zeta.vercel.app`.
 - `ML_API_URL`: `https://farmease-plant-doctor.onrender.com` for crop recommendation.
 - `PLANT_DOCTOR_API_URL`: `https://farmease-plant-doctor.onrender.com` for plant diagnosis, if overriding the default.
 - `MARKET_DATA_MODE`: `LIVE`.
