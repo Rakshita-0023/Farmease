@@ -14,12 +14,21 @@ if (process.env.DATABASE_URL) {
     console.log('📊 DATABASE_URL detected - Using PostgreSQL');
     
     const { Pool } = require('pg');
+
+    // Render's internal PostgreSQL hostname is commonly a dpg-* address, not
+    // a render.com hostname. Use the provider's TLS setup for every configured
+    // production PostgreSQL URL unless the URL explicitly disables SSL.
+    let postgresSsl = { rejectUnauthorized: false };
+    try {
+      const databaseUrl = new URL(process.env.DATABASE_URL);
+      if (databaseUrl.searchParams.get('sslmode') === 'disable') postgresSsl = false;
+    } catch (error) {
+      console.error('❌ DATABASE_URL is not a valid PostgreSQL URL:', error.message);
+    }
     
     const pgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL.includes('render.com') 
-        ? { rejectUnauthorized: false }
-        : false,
+      ssl: postgresSsl,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 30000,
