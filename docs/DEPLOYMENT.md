@@ -28,6 +28,7 @@ Set the Root Directory to `ml-service`:
 - Build command: `pip install -r requirements.txt`
 - Start command: `./start.sh`
 - Health check path: `/health`
+- Python runtime: `3.11.11` (pinned by `ml-service/.python-version` for TensorFlow compatibility)
 
 The service binds Uvicorn to `0.0.0.0:${PORT:-10000}`. Model downloads are disabled by default so external storage cannot block startup. Bundled models are used when present; crop recommendation remains explicitly rule-based when the crop model is unavailable, and plant diagnosis returns HTTP 503 when its disease model is unavailable. To opt into controlled artifact downloads, set `FARMEASE_DOWNLOAD_MODELS=true` and provide the corresponding URL or Google Drive ID variables.
 
